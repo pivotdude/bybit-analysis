@@ -18,6 +18,8 @@ export class ConfigReportGenerator {
           table: {
             headers: ["Key", "Value"],
             rows: [
+              ["profile", view.profile ?? "<none>"],
+              ["profilesFile", view.profilesFile ?? "<none>"],
               ["category", view.category],
               ["futuresGridBotIds", view.futuresGridBotIds.join(",") || "<none>"],
               ["spotGridBotIds", view.spotGridBotIds.join(",") || "<none>"],

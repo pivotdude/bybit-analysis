@@ -23,6 +23,8 @@ export interface TimeRange {
 export interface ParsedCliOptions {
   apiKey?: string;
   apiSecret?: string;
+  profile?: string;
+  profilesFile?: string;
   category?: MarketCategory;
   futuresGridBotIds?: string[];
   spotGridBotIds?: string[];

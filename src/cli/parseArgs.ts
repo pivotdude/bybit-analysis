@@ -68,6 +68,12 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
       case "--api-secret":
         options.apiSecret = consumeValue();
         break;
+      case "--profile":
+        options.profile = consumeValue();
+        break;
+      case "--profiles-file":
+        options.profilesFile = consumeValue();
+        break;
       case "--category":
         options.category = consumeValue() as ParsedCliOptions["category"];
         break;
@@ -145,6 +151,8 @@ export function renderHelp(): string {
     "Global options:",
     "  --api-key <value>",
     "  --api-secret <value>",
+    "  --profile <name>",
+    "  --profiles-file <path>",
     "  --category <linear|spot|bot>",
     "  --fgrid-bot-ids <id1,id2,...>",
     "  --spot-grid-ids <id1,id2,...>",
@@ -155,6 +163,11 @@ export function renderHelp(): string {
     "  --lang <en>",
     "  --timeout-ms <number>",
     "  --help, -h",
+    "",
+    "Credential profiles:",
+    "  --profile <name> picks keys from profile file before env fallback.",
+    "  --profiles-file defaults to ./.bybit-profiles.json (or BYBIT_PROFILES_FILE).",
+    "  Env alternatives: BYBIT_PROFILE, BYBIT_PROFILES_FILE",
     "",
     "Bot IDs can also be provided via env:",
     "  BYBIT_FGRID_BOT_IDS=<id1,id2,...>",

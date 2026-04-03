@@ -1,19 +1,25 @@
 import type { MarketCategory } from "./domain.types";
 import type { OutputFormat, TimeRange } from "./command.types";
 
+export type ConfigSource = "cli" | "profile" | "env" | "default";
+
 export interface ResolvedConfigSources {
-  apiKey: "cli" | "env" | "default";
-  apiSecret: "cli" | "env" | "default";
-  category: "cli" | "env" | "default";
-  futuresGridBotIds: "cli" | "env" | "default";
-  spotGridBotIds: "cli" | "env" | "default";
-  format: "cli" | "env" | "default";
-  lang: "cli" | "env" | "default";
-  timeoutMs: "cli" | "env" | "default";
-  timeRange: "cli" | "env" | "default";
+  profile: "cli" | "env" | "default";
+  profilesFile: "cli" | "env" | "default";
+  apiKey: ConfigSource;
+  apiSecret: ConfigSource;
+  category: ConfigSource;
+  futuresGridBotIds: ConfigSource;
+  spotGridBotIds: ConfigSource;
+  format: ConfigSource;
+  lang: ConfigSource;
+  timeoutMs: ConfigSource;
+  timeRange: ConfigSource;
 }
 
 export interface RuntimeConfig {
+  profile?: string;
+  profilesFile?: string;
   apiKey: string;
   apiSecret: string;
   category: MarketCategory;
@@ -27,6 +33,8 @@ export interface RuntimeConfig {
 }
 
 export interface RedactedConfigView {
+  profile?: string;
+  profilesFile?: string;
   category: MarketCategory;
   futuresGridBotIds: string[];
   spotGridBotIds: string[];

@@ -32,6 +32,8 @@ bun run src/index.ts <command> [options]
 
 - `--api-key <value>`
 - `--api-secret <value>`
+- `--profile <name>`
+- `--profiles-file <path>`
 - `--category <linear|spot|bot>`
 - `--fgrid-bot-ids <id1,id2,...>`
 - `--spot-grid-ids <id1,id2,...>`
@@ -45,7 +47,34 @@ bun run src/index.ts <command> [options]
 
 ## Config Priority
 
-`CLI flags > .env > defaults`
+`CLI flags > profile > .env > defaults`
+
+## Credential Profiles
+
+Use profiles to keep sub-account keys in one local file and switch by name:
+
+```bash
+bun run src/index.ts summary --profile subaccount-a
+```
+
+Default profiles file is `./.bybit-profiles.json` (or set `BYBIT_PROFILES_FILE` / `--profiles-file`).
+
+Example:
+
+```json
+{
+  "subaccount-a": {
+    "apiKey": "xxx",
+    "apiSecret": "yyy"
+  },
+  "subaccount-b": {
+    "apiKey": "aaa",
+    "apiSecret": "bbb",
+    "category": "bot",
+    "futuresGridBotIds": ["612330315406398322"]
+  }
+}
+```
 
 ## Bot Mode In CLI
 
