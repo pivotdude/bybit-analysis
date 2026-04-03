@@ -1,12 +1,17 @@
 {
-  "name": "bybit-analys",
-  "module": "index.ts",
+  "name": "bybit-analysis",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "check": "tsc --noEmit"
   },
-  "peerDependencies": {
-    "typescript": "^5"
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  },
+  "bin": {
+    "bybit-analysis": "src/index.ts"
   }
 }

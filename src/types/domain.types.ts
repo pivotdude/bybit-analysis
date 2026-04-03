@@ -1,0 +1,186 @@
+export type MarketCategory = "linear" | "spot";
+export type PositionSide = "long" | "short";
+export type MarginMode = "cross" | "isolated";
+export type RiskBand = "low" | "medium" | "high";
+export type DataSource = "bybit" | "freqtrade" | "portfolio";
+export type PriceSource = "mark" | "last" | "index";
+
+export interface AccountSnapshot {
+  source: DataSource;
+  exchange: "bybit";
+  category: MarketCategory;
+  capturedAt: string;
+  accountId?: string;
+  totalEquityUsd: number;
+  walletBalanceUsd: number;
+  availableBalanceUsd: number;
+  marginBalanceUsd?: number;
+  totalInitialMarginUsd?: number;
+  totalMaintenanceMarginUsd?: number;
+  unrealizedPnlUsd: number;
+  equityHistory?: EquitySnapshot[];
+  positions: Position[];
+  balances: AssetBalance[];
+}
+
+export interface EquitySnapshot {
+  timestamp: string;
+  totalEquityUsd: number;
+  totalExposureUsd: number;
+  grossExposureUsd: number;
+  netExposureUsd: number;
+}
+
+export interface AssetBalance {
+  asset: string;
+  walletBalance: number;
+  availableBalance: number;
+  usdValue: number;
+}
+
+export interface Position {
+  source: DataSource;
+  exchange: "bybit";
+  category: MarketCategory;
+  symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
+  side: PositionSide;
+  marginMode: MarginMode;
+  quantity: number;
+  entryPrice: number;
+  valuationPrice: number;
+  priceSource: PriceSource;
+  notionalUsd: number;
+  leverage: number;
+  liquidationPrice?: number;
+  unrealizedPnlUsd: number;
+  initialMarginUsd?: number;
+  maintenanceMarginUsd?: number;
+  openedAt?: string;
+  updatedAt: string;
+}
+
+export interface FeeBreakdown {
+  tradingFeesUsd: number;
+  fundingFeesUsd: number;
+  otherFeesUsd?: number;
+}
+
+export interface SymbolPnL {
+  symbol: string;
+  realizedPnlUsd: number;
+  unrealizedPnlUsd: number;
+  netPnlUsd: number;
+  tradesCount?: number;
+}
+
+export interface PnLReport {
+  source: DataSource;
+  generatedAt: string;
+  periodFrom: string;
+  periodTo: string;
+  realizedPnlUsd: number;
+  unrealizedPnlUsd: number;
+  fees: FeeBreakdown;
+  netPnlUsd: number;
+  roiPct?: number;
+  bySymbol: SymbolPnL[];
+  bestSymbols: SymbolPnL[];
+  worstSymbols: SymbolPnL[];
+}
+
+export interface AssetExposure {
+  asset: string;
+  exposureUsd: number;
+  exposurePct: number;
+  longExposureUsd: number;
+  shortExposureUsd: number;
+  symbols: string[];
+}
+
+export interface ConcentrationRisk {
+  top1Asset: string;
+  top1Pct: number;
+  top3Pct: number;
+  hhi: number;
+  band: RiskBand;
+}
+
+export interface ExposureReport {
+  source: DataSource;
+  asOf: string;
+  totalExposureUsd: number;
+  grossExposureUsd: number;
+  netExposureUsd: number;
+  longExposureUsd: number;
+  shortExposureUsd: number;
+  perAsset: AssetExposure[];
+  concentration: ConcentrationRisk;
+}
+
+export interface LeverageUsage {
+  weightedAvgLeverage: number;
+  maxLeverageUsed: number;
+  notionalToEquityPct: number;
+}
+
+export interface MaxPositionSize {
+  symbol: string;
+  notionalUsd: number;
+  pctOfEquity: number;
+}
+
+export interface UnrealizedLossRisk {
+  unrealizedLossUsd: number;
+  unrealizedLossToEquityPct: number;
+  worstPositionSymbol?: string;
+  worstPositionLossUsd?: number;
+}
+
+export interface RiskAlert {
+  id: string;
+  ruleId?: string;
+  severity: "info" | "warning" | "critical";
+  message: string;
+  threshold?: number;
+  observed?: number;
+}
+
+export interface RiskReport {
+  source: DataSource;
+  asOf: string;
+  leverageUsage: LeverageUsage;
+  maxPositionSize: MaxPositionSize;
+  unrealizedLossRisk: UnrealizedLossRisk;
+  alerts: RiskAlert[];
+}
+
+export interface AlertRule<TData = unknown> {
+  id: string;
+  severity: "info" | "warning" | "critical";
+  condition: (data: TData) => boolean;
+}
+
+export interface BotSummary {
+  botId: string;
+  name: string;
+  status: "running" | "stopped" | "unknown";
+  allocatedCapitalUsd?: number;
+  exposureUsd?: number;
+  realizedPnlUsd?: number;
+  unrealizedPnlUsd?: number;
+  roiPct?: number;
+  openPositions?: number;
+}
+
+export interface BotReport {
+  source: DataSource;
+  generatedAt: string;
+  availability: "available" | "not_available" | "requires_scraping";
+  availabilityReason?: string;
+  bots: BotSummary[];
+  totalAllocatedUsd?: number;
+  totalBotExposureUsd?: number;
+  totalBotPnlUsd?: number;
+}
