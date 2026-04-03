@@ -15,6 +15,10 @@ export class BybitPositionService implements PositionDataService {
   ) {}
 
   async getOpenPositions(context: ServiceRequestContext): Promise<Position[]> {
+    if (context.category === "spot") {
+      return [];
+    }
+
     const key = cacheKeys.positions(context.category);
     const cached = this.cache.get<Position[]>(key);
     if (cached) {

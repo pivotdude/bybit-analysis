@@ -18,6 +18,11 @@ export class PnLReportGenerator {
     const analysis = this.analyzer.analyze(pnl);
 
     const roi = typeof analysis.roiPct === "number" ? fmtPct(analysis.roiPct) : "N/A";
+    const winnerRows = analysis.bestSymbols.map((item) => ["Winner", item.symbol, fmtUsd(item.netPnlUsd)]);
+    const winnerSymbols = new Set(analysis.bestSymbols.map((item) => item.symbol));
+    const loserRows = analysis.worstSymbols
+      .filter((item) => !winnerSymbols.has(item.symbol) && item.netPnlUsd < 0)
+      .map((item) => ["Loser", item.symbol, fmtUsd(item.netPnlUsd)]);
 
     return {
       command: "pnl",
@@ -60,8 +65,8 @@ export class PnLReportGenerator {
           table: {
             headers: ["Bucket", "Symbol", "Net PnL"],
             rows: [
-              ...analysis.bestSymbols.map((item) => ["Winner", item.symbol, fmtUsd(item.netPnlUsd)]),
-              ...analysis.worstSymbols.map((item) => ["Loser", item.symbol, fmtUsd(item.netPnlUsd)])
+              ...winnerRows,
+              ...(loserRows.length > 0 ? loserRows : [["Loser", "-", "No losing symbols in period"]])
             ]
           }
         }

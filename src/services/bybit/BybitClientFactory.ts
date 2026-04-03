@@ -42,8 +42,25 @@ export class BybitReadonlyClient {
   }
 
   async getWalletBalance(category: MarketCategory, timeoutMs?: number): Promise<unknown> {
-    const accountType = category === "spot" ? "SPOT" : "UNIFIED";
-    return this.requestPrivate("/v5/account/wallet-balance", { accountType }, timeoutMs ?? this.config.timeoutMs);
+    const effectiveTimeout = timeoutMs ?? this.config.timeoutMs;
+    const preferredAccountType = category === "spot" ? "SPOT" : "UNIFIED";
+
+    try {
+      return await this.requestPrivate("/v5/account/wallet-balance", { accountType: preferredAccountType }, effectiveTimeout);
+    } catch (error) {
+      // Unified accounts can reject SPOT accountType with retCode 10001; retry with UNIFIED.
+      const message = error instanceof Error ? error.message : String(error);
+      const shouldRetryWithUnified =
+        preferredAccountType === "SPOT" &&
+        message.includes("Bybit API error 10001") &&
+        message.toUpperCase().includes("ACCOUNTTYPE ONLY SUPPORT UNIFIED");
+
+      if (!shouldRetryWithUnified) {
+        throw error;
+      }
+
+      return this.requestPrivate("/v5/account/wallet-balance", { accountType: "UNIFIED" }, effectiveTimeout);
+    }
   }
 
   async getPositions(category: MarketCategory, cursor?: string, timeoutMs?: number): Promise<unknown> {
@@ -66,6 +83,21 @@ export class BybitReadonlyClient {
         category,
         startTime: new Date(from).getTime(),
         endTime: new Date(to).getTime(),
+        limit: 100,
+        cursor
+      },
+      timeoutMs ?? this.config.timeoutMs
+    );
+  }
+
+  async getExecutionList(category: MarketCategory, from: string, to: string, cursor?: string, timeoutMs?: number): Promise<unknown> {
+    return this.requestPrivate(
+      "/v5/execution/list",
+      {
+        category,
+        startTime: new Date(from).getTime(),
+        endTime: new Date(to).getTime(),
+        execType: "Trade",
         limit: 100,
         cursor
       },

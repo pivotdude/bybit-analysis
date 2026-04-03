@@ -4,6 +4,7 @@ import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePnlReport } from "../normalizers/pnl.normalizer";
+import { normalizeSpotPnlReport } from "../normalizers/spotPnl.normalizer";
 import type { PnLReport } from "../../types/domain.types";
 
 const CLOSED_PNL_TTL_MS = 20_000;
@@ -44,6 +45,48 @@ export class BybitExecutionService implements ExecutionDataService {
   ) {}
 
   async getPnlReport(context: ServiceRequestContext, equityStartUsd?: number, equityEndUsd?: number): Promise<PnLReport> {
+    if (context.category === "spot") {
+      const executions: Array<Record<string, unknown>> = [];
+      const chunks = splitRangeByMaxWindow(context.from, context.to);
+
+      for (const chunk of chunks) {
+        let cursor: string | undefined;
+
+        for (let page = 0; page < 20; page += 1) {
+          const key = cacheKeys.executionHistory(context.category, chunk.from, chunk.to, cursor);
+          let payload = this.cache.get<{
+            list?: Array<Record<string, unknown>>;
+            nextPageCursor?: string;
+          }>(key);
+
+          if (!payload) {
+            payload = (await this.client.getExecutionList(
+              context.category,
+              chunk.from,
+              chunk.to,
+              cursor,
+              context.timeoutMs
+            )) as { list?: Array<Record<string, unknown>>; nextPageCursor?: string };
+            this.cache.set(key, payload, CLOSED_PNL_TTL_MS);
+          }
+
+          executions.push(...(payload.list ?? []));
+          cursor = payload.nextPageCursor;
+          if (!cursor) {
+            break;
+          }
+        }
+      }
+
+      return normalizeSpotPnlReport(
+        { list: executions },
+        context.from,
+        context.to,
+        equityStartUsd,
+        equityEndUsd
+      );
+    }
+
     const events: Array<Record<string, unknown>> = [];
     const chunks = splitRangeByMaxWindow(context.from, context.to);
 
