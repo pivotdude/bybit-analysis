@@ -9,12 +9,20 @@ const COMMANDS: CommandName[] = [
   "performance",
   "risk",
   "bots",
+  "permissions",
   "config",
   "health"
 ];
 
 function isCommand(value: string): value is CommandName {
   return COMMANDS.includes(value as CommandName);
+}
+
+function parseIdList(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }
 
 export function parseArgs(argv: string[]): ParsedCliArgs {
@@ -63,6 +71,20 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
       case "--category":
         options.category = consumeValue() as ParsedCliOptions["category"];
         break;
+      case "--fgrid-bot-ids": {
+        const value = consumeValue();
+        if (value !== undefined) {
+          options.futuresGridBotIds = parseIdList(value);
+        }
+        break;
+      }
+      case "--spot-grid-ids": {
+        const value = consumeValue();
+        if (value !== undefined) {
+          options.spotGridBotIds = parseIdList(value);
+        }
+        break;
+      }
       case "--format":
         options.format = consumeValue() as ParsedCliOptions["format"];
         break;
@@ -116,19 +138,26 @@ export function renderHelp(): string {
     "  performance  ROI and capital efficiency analysis",
     "  risk         Leverage and downside risk analysis",
     "  bots         Optional bot/copy-trading analytics",
+    "  permissions  API key permissions diagnostics",
     "  config       Effective runtime config (redacted)",
     "  health       API/connectivity/readiness checks",
     "",
     "Global options:",
     "  --api-key <value>",
     "  --api-secret <value>",
-    "  --category <linear|spot>",
+    "  --category <linear|spot|bot>",
+    "  --fgrid-bot-ids <id1,id2,...>",
+    "  --spot-grid-ids <id1,id2,...>",
     "  --format <md|compact>",
     "  --from <ISO8601>",
     "  --to <ISO8601>",
     "  --window <7d|30d|90d>",
     "  --lang <en>",
     "  --timeout-ms <number>",
-    "  --help, -h"
+    "  --help, -h",
+    "",
+    "Bot IDs can also be provided via env:",
+    "  BYBIT_FGRID_BOT_IDS=<id1,id2,...>",
+    "  BYBIT_SPOT_GRID_IDS=<id1,id2,...>"
   ].join("\n");
 }

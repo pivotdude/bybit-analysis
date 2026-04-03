@@ -1,22 +1,83 @@
-import type { AccountDataService, HealthCheckResult, ServiceRequestContext } from "../contracts/AccountDataService";
+import type {
+  AccountDataService,
+  ApiKeyPermissionInfo,
+  HealthCheckResult,
+  ServiceRequestContext
+} from "../contracts/AccountDataService";
 import type { PositionDataService } from "../contracts/PositionDataService";
+import type { BotDataService } from "../contracts/BotDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeAccountSnapshot } from "../normalizers/accountSnapshot.normalizer";
-import type { AccountSnapshot } from "../../types/domain.types";
+import type { AccountSnapshot, AssetBalance, BotReport } from "../../types/domain.types";
 
 const WALLET_TTL_MS = 15_000;
 const SERVER_TIME_TTL_MS = 10_000;
+const API_KEY_INFO_TTL_MS = 15_000;
+
+function aggregateBotBalances(report: BotReport): AssetBalance[] {
+  const grouped = new Map<string, AssetBalance>();
+
+  for (const bot of report.bots) {
+    const asset = (bot.quoteAsset ?? "USD").toUpperCase();
+    const walletBalance = bot.allocatedCapitalUsd ?? 0;
+    const availableBalance = bot.availableBalanceUsd ?? 0;
+    const usdValue = bot.equityUsd ?? walletBalance + (bot.unrealizedPnlUsd ?? 0);
+
+    const current = grouped.get(asset) ?? {
+      asset,
+      walletBalance: 0,
+      availableBalance: 0,
+      usdValue: 0
+    };
+
+    current.walletBalance += walletBalance;
+    current.availableBalance += availableBalance;
+    current.usdValue += usdValue;
+
+    grouped.set(asset, current);
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => b.usdValue - a.usdValue);
+}
 
 export class BybitAccountService implements AccountDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
     private readonly positionsService: PositionDataService,
+    private readonly botService: BotDataService,
     private readonly cache: CacheStore
   ) {}
 
   async getAccountSnapshot(context: ServiceRequestContext): Promise<AccountSnapshot> {
+    if (context.category === "bot") {
+      const botReport = await this.botService.getBotReport(context);
+      const positions = await this.positionsService.getOpenPositions(context);
+      const balances = aggregateBotBalances(botReport);
+
+      const walletBalanceUsd = botReport.totalAllocatedUsd ?? 0;
+      const unrealizedPnlUsd = botReport.bots.reduce((sum, bot) => sum + (bot.unrealizedPnlUsd ?? 0), 0);
+      const availableBalanceUsd = botReport.bots.reduce((sum, bot) => sum + (bot.availableBalanceUsd ?? 0), 0);
+      const totalEquityUsd =
+        botReport.bots.reduce((sum, bot) => sum + (bot.equityUsd ?? 0), 0) ||
+        walletBalanceUsd + unrealizedPnlUsd;
+
+      return {
+        source: "bybit",
+        exchange: "bybit",
+        category: context.category,
+        capturedAt: new Date().toISOString(),
+        accountId: "BOT",
+        totalEquityUsd,
+        walletBalanceUsd,
+        availableBalanceUsd,
+        unrealizedPnlUsd,
+        positions,
+        balances
+      };
+    }
+
     const key = cacheKeys.walletBalance(context.category);
     const cached = this.cache.get<unknown>(key);
 
@@ -57,7 +118,8 @@ export class BybitAccountService implements AccountDataService {
     }
 
     try {
-      await this.client.getWalletBalance(context.category, context.timeoutMs);
+      const authCategory = context.category === "bot" ? "linear" : context.category;
+      await this.client.getWalletBalance(authCategory, context.timeoutMs);
       diagnostics.push("auth_ok");
     } catch (error) {
       auth = "failed";
@@ -80,5 +142,38 @@ export class BybitAccountService implements AccountDataService {
       timeDriftMs,
       diagnostics
     };
+  }
+
+  async getApiKeyPermissionInfo(context: ServiceRequestContext): Promise<ApiKeyPermissionInfo> {
+    const key = cacheKeys.apiKeyInfo();
+    const cached = this.cache.get<ApiKeyPermissionInfo>(key);
+    if (cached) {
+      return cached;
+    }
+
+    const raw = (await this.client.getApiKeyInfo(context.timeoutMs)) as Record<string, unknown>;
+    const permissionsRaw =
+      typeof raw.permissions === "object" && raw.permissions !== null
+        ? (raw.permissions as Record<string, unknown>)
+        : {};
+
+    const permissions: Record<string, string[]> = {};
+    for (const [scope, value] of Object.entries(permissionsRaw)) {
+      if (Array.isArray(value)) {
+        permissions[scope] = value.map((item) => String(item));
+      }
+    }
+
+    const normalized: ApiKeyPermissionInfo = {
+      apiKey: raw.apiKey ? String(raw.apiKey) : undefined,
+      note: raw.note ? String(raw.note) : undefined,
+      readOnly: String(raw.readOnly ?? "1") !== "0",
+      isMaster: raw.isMaster !== undefined ? String(raw.isMaster) === "1" : undefined,
+      ips: Array.isArray(raw.ips) ? raw.ips.map((item) => String(item)) : [],
+      permissions
+    };
+
+    this.cache.set(key, normalized, API_KEY_INFO_TTL_MS);
+    return normalized;
   }
 }

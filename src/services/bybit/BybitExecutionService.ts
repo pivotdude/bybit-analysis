@@ -1,11 +1,12 @@
 import type { ExecutionDataService } from "../contracts/ExecutionDataService";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
+import type { BotDataService } from "../contracts/BotDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePnlReport } from "../normalizers/pnl.normalizer";
 import { normalizeSpotPnlReport } from "../normalizers/spotPnl.normalizer";
-import type { PnLReport } from "../../types/domain.types";
+import type { PnLReport, SymbolPnL } from "../../types/domain.types";
 
 const CLOSED_PNL_TTL_MS = 20_000;
 const MAX_CLOSED_PNL_RANGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -38,13 +39,66 @@ function splitRangeByMaxWindow(from: string, to: string): TimeChunk[] {
   return chunks;
 }
 
+function toBotPnlReport(
+  context: ServiceRequestContext,
+  report: Awaited<ReturnType<BotDataService["getBotReport"]>>,
+  equityStartUsd?: number,
+  equityEndUsd?: number
+): PnLReport {
+  const bySymbol: SymbolPnL[] = report.bots
+    .map((bot) => {
+      const realizedPnlUsd = bot.realizedPnlUsd ?? 0;
+      const unrealizedPnlUsd = bot.unrealizedPnlUsd ?? 0;
+      return {
+        symbol: bot.symbol ?? bot.name,
+        realizedPnlUsd,
+        unrealizedPnlUsd,
+        netPnlUsd: realizedPnlUsd + unrealizedPnlUsd,
+        tradesCount: bot.openPositions
+      };
+    })
+    .sort((left, right) => right.netPnlUsd - left.netPnlUsd);
+
+  const realizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.realizedPnlUsd, 0);
+  const unrealizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.unrealizedPnlUsd, 0);
+  const netPnlUsd = realizedPnlUsd + unrealizedPnlUsd;
+  const roiPct =
+    equityStartUsd && equityStartUsd > 0 && typeof equityEndUsd === "number"
+      ? ((equityEndUsd - equityStartUsd) / equityStartUsd) * 100
+      : undefined;
+
+  return {
+    source: "bybit",
+    generatedAt: new Date().toISOString(),
+    periodFrom: context.from,
+    periodTo: context.to,
+    realizedPnlUsd,
+    unrealizedPnlUsd,
+    fees: {
+      tradingFeesUsd: 0,
+      fundingFeesUsd: 0
+    },
+    netPnlUsd,
+    roiPct,
+    bySymbol,
+    bestSymbols: bySymbol.slice(0, 5),
+    worstSymbols: [...bySymbol].reverse().slice(0, 5)
+  };
+}
+
 export class BybitExecutionService implements ExecutionDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
+    private readonly botService: BotDataService,
     private readonly cache: CacheStore
   ) {}
 
   async getPnlReport(context: ServiceRequestContext, equityStartUsd?: number, equityEndUsd?: number): Promise<PnLReport> {
+    if (context.category === "bot") {
+      const report = await this.botService.getBotReport(context);
+      return toBotPnlReport(context, report, equityStartUsd, equityEndUsd);
+    }
+
     if (context.category === "spot") {
       const executions: Array<Record<string, unknown>> = [];
       const chunks = splitRangeByMaxWindow(context.from, context.to);

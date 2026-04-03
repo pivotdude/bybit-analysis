@@ -18,6 +18,8 @@ export interface HandlerDeps {
 export function toServiceContext(config: RuntimeConfig): ServiceRequestContext {
   return {
     category: config.category,
+    futuresGridBotIds: config.futuresGridBotIds,
+    spotGridBotIds: config.spotGridBotIds,
     from: config.timeRange.from,
     to: config.timeRange.to,
     timeoutMs: config.timeoutMs

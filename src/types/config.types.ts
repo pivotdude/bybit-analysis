@@ -5,6 +5,8 @@ export interface ResolvedConfigSources {
   apiKey: "cli" | "env" | "default";
   apiSecret: "cli" | "env" | "default";
   category: "cli" | "env" | "default";
+  futuresGridBotIds: "cli" | "env" | "default";
+  spotGridBotIds: "cli" | "env" | "default";
   format: "cli" | "env" | "default";
   lang: "cli" | "env" | "default";
   timeoutMs: "cli" | "env" | "default";
@@ -15,6 +17,8 @@ export interface RuntimeConfig {
   apiKey: string;
   apiSecret: string;
   category: MarketCategory;
+  futuresGridBotIds: string[];
+  spotGridBotIds: string[];
   format: OutputFormat;
   lang: string;
   timeoutMs: number;
@@ -24,6 +28,8 @@ export interface RuntimeConfig {
 
 export interface RedactedConfigView {
   category: MarketCategory;
+  futuresGridBotIds: string[];
+  spotGridBotIds: string[];
   format: OutputFormat;
   lang: string;
   timeoutMs: number;

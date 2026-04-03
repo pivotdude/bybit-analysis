@@ -1,4 +1,4 @@
-export type MarketCategory = "linear" | "spot";
+export type MarketCategory = "linear" | "spot" | "bot";
 export type PositionSide = "long" | "short";
 export type MarginMode = "cross" | "isolated";
 export type RiskBand = "low" | "medium" | "high";
@@ -165,11 +165,26 @@ export interface AlertRule<TData = unknown> {
 export interface BotSummary {
   botId: string;
   name: string;
+  botType?: "futures_grid" | "spot_grid" | "unknown";
+  symbol?: string;
+  baseAsset?: string;
+  quoteAsset?: string;
   status: "running" | "stopped" | "unknown";
+  side?: "long" | "short" | "neutral" | "unknown";
+  entryPrice?: number;
+  markPrice?: number;
+  quantity?: number;
+  leverage?: number;
+  liquidationPrice?: number;
   allocatedCapitalUsd?: number;
   exposureUsd?: number;
   realizedPnlUsd?: number;
   unrealizedPnlUsd?: number;
+  gridProfitUsd?: number;
+  availableBalanceUsd?: number;
+  equityUsd?: number;
+  closeReason?: string;
+  botCloseCode?: string;
   roiPct?: number;
   openPositions?: number;
 }

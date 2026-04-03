@@ -20,6 +20,16 @@ function parseWindow(windowValue: string): number | null {
   return amount;
 }
 
+function parseCsvIds(input: string | undefined): string[] {
+  if (!input) {
+    return [];
+  }
+  return input
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
 function toIso(input: string, field: string): string {
   const date = new Date(input);
   if (Number.isNaN(date.getTime())) {
@@ -85,15 +95,21 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
   const now = new Date();
 
   const apiKey = options.apiKey ?? env.BYBIT_API_KEY ?? "";
-  const apiSecret = options.apiSecret ?? env.BYBIT_SECRET ?? "";
+  const apiSecret = options.apiSecret ?? env.BYBIT_SECRET ?? env.BYBIT_API_SECRET ?? "";
   const category = (options.category ?? env.DEFAULT_CATEGORY ?? DEFAULT_CATEGORY) as MarketCategory;
+  const futuresGridBotIds =
+    options.futuresGridBotIds ??
+    parseCsvIds(env.BYBIT_FGRID_BOT_IDS);
+  const spotGridBotIds =
+    options.spotGridBotIds ??
+    parseCsvIds(env.BYBIT_SPOT_GRID_IDS);
   const format = (options.format ?? (env.DEFAULT_FORMAT as "md" | "compact") ?? DEFAULT_FORMAT);
   const lang = options.lang ?? env.DEFAULT_LANG ?? DEFAULT_LANG;
   const timeoutMs = options.timeoutMs ?? Number(env.DEFAULT_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
   const timeRange = resolveTimeRange(options, env, now);
 
-  if (category !== "linear" && category !== "spot") {
-    throw new Error(`Invalid category: ${category}. Expected linear|spot`);
+  if (category !== "linear" && category !== "spot" && category !== "bot") {
+    throw new Error(`Invalid category: ${category}. Expected linear|spot|bot`);
   }
   if (format !== "md" && format !== "compact") {
     throw new Error(`Invalid format: ${format}. Expected md|compact`);
@@ -109,14 +125,18 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     apiKey,
     apiSecret,
     category,
+    futuresGridBotIds,
+    spotGridBotIds,
     format,
     lang,
     timeoutMs,
     timeRange: timeRange.value,
     sources: {
       apiKey: options.apiKey ? "cli" : env.BYBIT_API_KEY ? "env" : "default",
-      apiSecret: options.apiSecret ? "cli" : env.BYBIT_SECRET ? "env" : "default",
+      apiSecret: options.apiSecret ? "cli" : env.BYBIT_SECRET || env.BYBIT_API_SECRET ? "env" : "default",
       category: options.category ? "cli" : env.DEFAULT_CATEGORY ? "env" : "default",
+      futuresGridBotIds: options.futuresGridBotIds ? "cli" : env.BYBIT_FGRID_BOT_IDS ? "env" : "default",
+      spotGridBotIds: options.spotGridBotIds ? "cli" : env.BYBIT_SPOT_GRID_IDS ? "env" : "default",
       format: options.format ? "cli" : env.DEFAULT_FORMAT ? "env" : "default",
       lang: options.lang ? "cli" : env.DEFAULT_LANG ? "env" : "default",
       timeoutMs: options.timeoutMs ? "cli" : env.DEFAULT_TIMEOUT_MS ? "env" : "default",
@@ -127,13 +147,15 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
 
 export function validateCredentials(config: RuntimeConfig): void {
   if (!config.apiKey || !config.apiSecret) {
-    throw new Error("Missing credentials: BYBIT_API_KEY and BYBIT_SECRET are required for this command");
+    throw new Error("Missing credentials: BYBIT_API_KEY and BYBIT_SECRET (or BYBIT_API_SECRET) are required for this command");
   }
 }
 
 export function toRedactedConfigView(config: RuntimeConfig): RedactedConfigView {
   return {
     category: config.category,
+    futuresGridBotIds: config.futuresGridBotIds,
+    spotGridBotIds: config.spotGridBotIds,
     format: config.format,
     lang: config.lang,
     timeoutMs: config.timeoutMs,

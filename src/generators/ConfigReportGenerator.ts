@@ -19,6 +19,8 @@ export class ConfigReportGenerator {
             headers: ["Key", "Value"],
             rows: [
               ["category", view.category],
+              ["futuresGridBotIds", view.futuresGridBotIds.join(",") || "<none>"],
+              ["spotGridBotIds", view.spotGridBotIds.join(",") || "<none>"],
               ["format", view.format],
               ["lang", view.lang],
               ["timeoutMs", String(view.timeoutMs)],

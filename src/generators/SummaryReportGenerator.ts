@@ -22,6 +22,11 @@ export class SummaryReportGenerator {
       return this.generateSpotSummary(account, pnl);
     }
 
+    if (context.category === "bot") {
+      const botReport = await this.botService.getBotReport(context);
+      return this.generateBotSummary(account, pnl, botReport);
+    }
+
     let botReport: Awaited<ReturnType<BotDataService["getBotReport"]>> | undefined;
     try {
       botReport = await this.botService.getBotReport(context);
@@ -107,6 +112,57 @@ export class SummaryReportGenerator {
             alertRows.length === 0
               ? [{ severity: "info", message: "No active alerts" }]
               : undefined
+        }
+      ]
+    };
+  }
+
+  private generateBotSummary(
+    account: Awaited<ReturnType<AccountDataService["getAccountSnapshot"]>>,
+    pnl: Awaited<ReturnType<ExecutionDataService["getPnlReport"]>>,
+    botReport: Awaited<ReturnType<BotDataService["getBotReport"]>>
+  ): ReportDocument {
+    const botRows = botReport.bots.map((bot) => [
+      bot.name,
+      bot.status,
+      fmtUsd(bot.allocatedCapitalUsd ?? 0),
+      fmtUsd(bot.exposureUsd ?? 0),
+      fmtUsd(bot.realizedPnlUsd ?? 0),
+      fmtUsd(bot.unrealizedPnlUsd ?? 0),
+      typeof bot.roiPct === "number" ? fmtPct(bot.roiPct) : "N/A"
+    ]);
+
+    return {
+      command: "summary",
+      title: "Bot Portfolio Summary",
+      generatedAt: new Date().toISOString(),
+      sections: [
+        {
+          title: "Bot KPI",
+          type: "kpi",
+          kpis: [
+            { label: "Availability", value: botReport.availability },
+            { label: "Bots", value: String(botReport.bots.length) },
+            { label: "Total Equity", value: fmtUsd(account.totalEquityUsd) },
+            { label: "Allocated Capital", value: fmtUsd(botReport.totalAllocatedUsd ?? 0) },
+            { label: "Net PnL", value: fmtUsd(pnl.netPnlUsd) }
+          ]
+        },
+        {
+          title: "Bot Breakdown",
+          type: "table",
+          table: {
+            headers: ["Bot", "Status", "Allocated", "Exposure", "Realized", "Unrealized", "ROI"],
+            rows: botRows
+          }
+        },
+        {
+          title: "Notes",
+          type: "text",
+          text: [
+            botReport.availabilityReason ?? "Metrics are aggregated from grid bot detail endpoints.",
+            "Use --fgrid-bot-ids and/or --spot-grid-ids to select tracked bots."
+          ]
         }
       ]
     };

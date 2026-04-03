@@ -13,6 +13,7 @@ import { configHandler } from "./commandHandlers/config.handler";
 import { exposureHandler } from "./commandHandlers/exposure.handler";
 import { healthHandler } from "./commandHandlers/health.handler";
 import { performanceHandler } from "./commandHandlers/performance.handler";
+import { permissionsHandler } from "./commandHandlers/permissions.handler";
 import { pnlHandler } from "./commandHandlers/pnl.handler";
 import { positionsHandler } from "./commandHandlers/positions.handler";
 import { riskHandler } from "./commandHandlers/risk.handler";
@@ -25,10 +26,10 @@ function buildDeps(parsed: ParsedCliArgs): HandlerDeps {
   const config = resolveRuntimeConfig(parsed.options);
   const cache = new MemoryCacheStore();
   const client = createBybitClient(config);
-  const positionService = new BybitPositionService(client, cache);
-  const accountService = new BybitAccountService(client, positionService, cache);
-  const executionService = new BybitExecutionService(client, cache);
-  const botService = new BybitBotService();
+  const botService = new BybitBotService(client, cache);
+  const positionService = new BybitPositionService(client, botService, cache);
+  const accountService = new BybitAccountService(client, positionService, botService, cache);
+  const executionService = new BybitExecutionService(client, botService, cache);
 
   return {
     config,
@@ -56,6 +57,14 @@ export async function executeCommand(parsed: ParsedCliArgs): Promise<string> {
   }
 
   if (parsed.command !== "config" && parsed.command !== "health") {
+    if (
+      deps.config.category === "bot" &&
+      deps.config.futuresGridBotIds.length === 0 &&
+      deps.config.spotGridBotIds.length === 0
+    ) {
+      throw new UsageError("For --category bot provide --fgrid-bot-ids and/or --spot-grid-ids");
+    }
+
     try {
       validateCredentials(deps.config);
     } catch (error) {
@@ -80,6 +89,8 @@ export async function executeCommand(parsed: ParsedCliArgs): Promise<string> {
       return riskHandler(deps);
     case "bots":
       return botsHandler(deps);
+    case "permissions":
+      return permissionsHandler(deps);
     case "config":
       return configHandler(deps);
     case "health":

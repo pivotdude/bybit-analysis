@@ -9,6 +9,7 @@ export type CommandName =
   | "performance"
   | "risk"
   | "bots"
+  | "permissions"
   | "config"
   | "health";
 
@@ -23,6 +24,8 @@ export interface ParsedCliOptions {
   apiKey?: string;
   apiSecret?: string;
   category?: MarketCategory;
+  futuresGridBotIds?: string[];
+  spotGridBotIds?: string[];
   format?: OutputFormat;
   from?: string;
   to?: string;

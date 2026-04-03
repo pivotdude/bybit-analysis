@@ -47,6 +47,23 @@ export class BotsReportGenerator {
           }
         },
         {
+          title: "Technical Details",
+          type: "table",
+          table: {
+            headers: ["Bot ID", "Type", "Symbol", "Side", "Leverage", "Grid Profit", "Close Reason", "Close Code"],
+            rows: analysis.bots.map((bot) => [
+              bot.botId,
+              bot.botType ?? "unknown",
+              bot.symbol ?? "-",
+              bot.side ?? "unknown",
+              typeof bot.leverage === "number" ? `${bot.leverage.toFixed(2)}x` : "-",
+              fmtUsd(bot.gridProfitUsd ?? 0),
+              bot.closeReason ?? "-",
+              bot.botCloseCode ?? "-"
+            ])
+          }
+        },
+        {
           title: "Bot Risk Notes",
           type: "text",
           text: [
