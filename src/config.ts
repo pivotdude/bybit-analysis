@@ -8,6 +8,7 @@ import type {
   ResolvedConfigSources,
   RuntimeConfig
 } from "./types/config.types";
+import { redactSecretValue } from "./security/redaction";
 
 const DEFAULT_CATEGORY: MarketCategory = "linear";
 const DEFAULT_FORMAT = "md" as const;
@@ -215,16 +216,6 @@ function resolveTimeRange(options: ParsedCliOptions, env: Record<string, string 
   return { value: defaultTimeRange(now), source: "default" };
 }
 
-function maskSecret(input: string): string {
-  if (!input) {
-    return "<missing>";
-  }
-  if (input.length <= 8) {
-    return "*".repeat(input.length);
-  }
-  return `${input.slice(0, 4)}...${input.slice(-4)}`;
-}
-
 export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<string, string | undefined> = Bun.env): RuntimeConfig {
   const now = new Date();
   const resolvedProfile = resolveProfile(options, env);
@@ -356,8 +347,8 @@ export function toRedactedConfigView(config: RuntimeConfig): RedactedConfigView 
     timeoutMs: config.timeoutMs,
     timeRange: config.timeRange,
     pagination: config.pagination,
-    apiKey: maskSecret(config.apiKey),
-    apiSecret: maskSecret(config.apiSecret),
+    apiKey: redactSecretValue(config.apiKey).display,
+    apiSecret: redactSecretValue(config.apiSecret).display,
     sources: config.sources
   };
 }

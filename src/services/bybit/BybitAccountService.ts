@@ -11,6 +11,7 @@ import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeAccountSnapshot } from "../normalizers/accountSnapshot.normalizer";
 import type { AccountSnapshot, AssetBalance, BotReport } from "../../types/domain.types";
+import { redactIpWhitelist, redactSecretValue } from "../../security/redaction";
 
 const WALLET_TTL_MS = 15_000;
 const SERVER_TIME_TTL_MS = 10_000;
@@ -170,12 +171,20 @@ export class BybitAccountService implements AccountDataService {
       }
     }
 
+    const apiKey = raw.apiKey ? String(raw.apiKey) : undefined;
+    const ipWhitelist = Array.isArray(raw.ips) ? raw.ips.map((item) => String(item)) : [];
+    const apiKeyRedaction = redactSecretValue(apiKey);
+    const ipWhitelistRedaction = redactIpWhitelist(ipWhitelist);
+
     const normalized: ApiKeyPermissionInfo = {
-      apiKey: raw.apiKey ? String(raw.apiKey) : undefined,
+      apiKeyStatus: apiKeyRedaction.presence,
+      apiKeyDisplay: apiKeyRedaction.display,
       note: raw.note ? String(raw.note) : undefined,
       readOnly: String(raw.readOnly ?? "1") !== "0",
       isMaster: raw.isMaster !== undefined ? String(raw.isMaster) === "1" : undefined,
-      ips: Array.isArray(raw.ips) ? raw.ips.map((item) => String(item)) : [],
+      ipWhitelistRestricted: ipWhitelistRedaction.restricted,
+      ipWhitelistCount: ipWhitelistRedaction.count,
+      ipWhitelistDisplay: ipWhitelistRedaction.display,
       permissions
     };
 

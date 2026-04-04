@@ -39,8 +39,12 @@ const accountService: AccountDataService = {
     diagnostics: []
   }),
   getApiKeyPermissionInfo: async () => ({
+    apiKeyStatus: "present",
+    apiKeyDisplay: "<redacted>",
     readOnly: true,
-    ips: [],
+    ipWhitelistRestricted: false,
+    ipWhitelistCount: 0,
+    ipWhitelistDisplay: "not configured",
     permissions: {}
   })
 };
