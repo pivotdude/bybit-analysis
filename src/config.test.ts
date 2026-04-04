@@ -24,6 +24,11 @@ describe("toRedactedConfigView", () => {
         executionsMaxPagesPerChunk: 100,
         limitMode: "error"
       },
+      ambientEnv: {
+        enabled: true,
+        source: "default",
+        usedVars: []
+      },
       sources: {
         profile: "cli",
         profilesFile: "cli",
@@ -53,6 +58,11 @@ describe("toRedactedConfigView", () => {
     expect(view.futuresGridBotIds).not.toContain("fgrid-id-1");
     expect(view.spotGridBotIds).not.toContain("spot-id-1");
     expect(view.configReportMode).toBe("safe");
+    expect(view.ambientEnv).toEqual({
+      enabled: true,
+      source: "default",
+      usedVars: []
+    });
   });
 
   it("shows expanded values only in explicit diagnostic mode", () => {
@@ -71,6 +81,11 @@ describe("toRedactedConfigView", () => {
       },
       pagination: {
         limitMode: "error"
+      },
+      ambientEnv: {
+        enabled: true,
+        source: "default",
+        usedVars: ["BYBIT_API_KEY", "BYBIT_API_SECRET"]
       },
       sources: {
         profile: "default",
@@ -97,5 +112,6 @@ describe("toRedactedConfigView", () => {
     expect(view.futuresGridBotIds).toBe("fgrid-id-1");
     expect(view.spotGridBotIds).toBe("spot-id-1,spot-id-2");
     expect(view.configReportMode).toBe("diagnostic");
+    expect(view.ambientEnv.usedVars).toEqual(["BYBIT_API_KEY", "BYBIT_API_SECRET"]);
   });
 });

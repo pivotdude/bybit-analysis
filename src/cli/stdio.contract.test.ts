@@ -10,6 +10,7 @@ const BYBIT_ENV_KEYS = [
   "BYBIT_SOURCE_MODE",
   "BYBIT_FGRID_BOT_IDS",
   "BYBIT_SPOT_GRID_IDS",
+  "BYBIT_DISABLE_ENV",
   "BYBIT_CONFIG_DIAGNOSTICS",
   "BYBIT_ALLOW_INSECURE_CLI_SECRETS"
 ] as const;
@@ -31,7 +32,7 @@ function createCliEnv(): Record<string, string> {
 
 function runCli(args: string[]): { exitCode: number; stdout: string; stderr: string } {
   const processResult = Bun.spawnSync({
-    cmd: ["bun", "run", "src/index.ts", ...args],
+    cmd: ["bun", "--no-env-file", "run", "src/index.ts", ...args],
     cwd: process.cwd(),
     env: createCliEnv(),
     stdout: "pipe",
@@ -91,6 +92,14 @@ describe("CLI stdout/stderr contract", () => {
 
   it("routes runtime usage errors to stderr and keeps stdout empty", () => {
     const result = runCli(["summary", "--source", "bot"]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("For --source bot provide --fgrid-bot-ids and/or --spot-grid-ids");
+  });
+
+  it("keeps bot-mode validation hermetic even when env opt-out is explicit", () => {
+    const result = runCli(["summary", "--source", "bot", "--no-env"]);
 
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toBe("");

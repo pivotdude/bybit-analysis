@@ -69,7 +69,7 @@ function appendIdList(existing: string[] | undefined, value: string): string[] {
 
 export function parseArgs(
   argv: string[],
-  env: Record<string, string | undefined> = Bun.env
+  env: Record<string, string | undefined> = {}
 ): ParsedCliArgs {
   const options: ParsedCliOptions = {};
   const errors: string[] = [];
@@ -147,6 +147,9 @@ export function parseArgs(
           }
           break;
         }
+        case "--no-env":
+          options.noEnv = true;
+          break;
         case "--profile":
           options.profile = consumeValue();
           break;
@@ -273,6 +276,7 @@ function renderOptionsSection(): string[] {
     "Global options:",
     "  --api-key <value>  [deprecated, insecure; disabled by default]",
     "  --api-secret <value>  [deprecated, insecure; disabled by default]",
+    "  --no-env  disable ambient BYBIT_* env resolution for deterministic runs",
     "  --profile <name>",
     "  --profiles-file <path>",
     "  --category <linear|spot>",
@@ -318,6 +322,7 @@ function renderGlobalHelp(): string {
     "  General runtime fields: CLI args -> profile (if applicable) -> env -> defaults.",
     "  Credentials: profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults.",
     "  Time range: --from + --to -> --window -> BYBIT_WINDOW -> default 30d window.",
+    `  Ambient env can be disabled with --no-env or ${ENV_VARS.disableEnv}=1.`,
     "",
     "Credential input (recommended):",
     "  1) Environment variables or .env: BYBIT_API_KEY + BYBIT_SECRET (or BYBIT_API_SECRET).",
@@ -344,8 +349,10 @@ function renderGlobalHelp(): string {
     `  ${ENV_VARS.executionsMaxPagesPerChunk}=<number>`,
     `  ${ENV_VARS.paginationLimitMode}=<error|partial>`,
     `  ${ENV_VARS.configDiagnostics}=<1|true|yes|on>`,
+    `  ${ENV_VARS.disableEnv}=<1|true|yes|on>`,
     "",
-    `${ENV_VARS.configDiagnostics}=1 enables expanded config details`
+    `${ENV_VARS.configDiagnostics}=1 enables expanded config details`,
+    `${ENV_VARS.disableEnv}=1 disables ambient BYBIT_* env loading`
   ].join("\n");
 }
 

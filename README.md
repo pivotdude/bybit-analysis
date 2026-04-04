@@ -129,6 +129,7 @@ Example (`pnl` section):
 - `--positions-max-pages <number>`
 - `--executions-max-pages-per-chunk <number>`
 - `--pagination-limit-mode <error|partial>`
+- `--no-env`
 - `--help, -h`
 
 ## Config & Environment Contract
@@ -139,6 +140,7 @@ Supported env vars:
 - `BYBIT_SECRET`
 - `BYBIT_API_SECRET`
 - `BYBIT_ALLOW_INSECURE_CLI_SECRETS`
+- `BYBIT_DISABLE_ENV`
 - `BYBIT_PROFILE`
 - `BYBIT_PROFILES_FILE`
 - `BYBIT_CATEGORY`
@@ -158,6 +160,7 @@ Precedence rules:
 - General runtime fields: `CLI args -> profile (if applicable) -> env -> defaults`
 - Credentials: `profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
 - Time range: `--from + --to -> --window -> BYBIT_WINDOW -> default 30d window`
+- Ambient env loading can be disabled with `--no-env` or `BYBIT_DISABLE_ENV=1`
 
 Legacy hidden aliases are intentionally removed and not supported:
 
@@ -188,11 +191,11 @@ Output formats:
 Recommended production paths:
 
 - Environment variables (`BYBIT_API_KEY` + `BYBIT_SECRET` or `BYBIT_API_SECRET`)
-- `.env` file (loaded by Bun runtime)
+- Explicit env-file launch, for example `bun --env-file=.env run src/index.ts ...`
 - Credential profile file (`--profile` + `--profiles-file`)
 - OS secret store -> export to env before launch
 
-Example (`.env`):
+Example (`.env` used explicitly via `bun --env-file=.env ...`):
 
 ```env
 BYBIT_API_KEY=xxx
@@ -206,8 +209,10 @@ Legacy path (deprecated, insecure):
 
 ## Config Priority
 
-- General runtime fields: `CLI args -> profile (if applicable) -> .env/env -> defaults`
-- Credentials only: `profile -> .env/env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
+- General runtime fields: `CLI args -> profile (if applicable) -> env -> defaults`
+- Credentials only: `profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
+- Repo-local `.env` is not auto-loaded; the repository sets `bunfig.toml` with `env = false` for hermetic CLI/test runs.
+- Use `--no-env` or `BYBIT_DISABLE_ENV=1` when you need deterministic argv-only resolution even if the parent process exported `BYBIT_*` vars.
 
 ## Credential Profiles
 

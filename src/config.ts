@@ -3,6 +3,7 @@ import { resolve as resolvePath } from "node:path";
 import type { ParsedCliOptions, TimeRange } from "./types/command.types";
 import type { IntegrationMode, MarketCategory } from "./types/domain.types";
 import type {
+  AmbientEnvResolution,
   ConfigReportMode,
   PaginationLimitMode,
   RedactedConfigView,
@@ -243,7 +244,76 @@ function resolveTimeRange(options: ParsedCliOptions, env: Record<string, string 
   return { value: defaultTimeRange(now), source: "default" };
 }
 
-export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<string, string | undefined> = Bun.env): RuntimeConfig {
+function resolveUsedEnvVars(
+  options: ParsedCliOptions,
+  env: Record<string, string | undefined>,
+  sources: ResolvedConfigSources
+): string[] {
+  const usedVars = new Set<string>();
+
+  if (sources.profile === "env") {
+    usedVars.add(ENV_VARS.profile);
+  }
+  if (sources.profilesFile === "env") {
+    usedVars.add(ENV_VARS.profilesFile);
+  }
+  if (sources.apiKey === "env") {
+    usedVars.add(ENV_VARS.apiKey);
+  }
+  if (sources.apiSecret === "env") {
+    usedVars.add(env[ENV_VARS.secret] ? ENV_VARS.secret : ENV_VARS.apiSecret);
+  }
+  if (sources.category === "env") {
+    usedVars.add(ENV_VARS.category);
+  }
+  if (sources.sourceMode === "env") {
+    usedVars.add(ENV_VARS.sourceMode);
+  }
+  if (sources.futuresGridBotIds === "env") {
+    usedVars.add(ENV_VARS.futuresGridBotIds);
+  }
+  if (sources.spotGridBotIds === "env") {
+    usedVars.add(ENV_VARS.spotGridBotIds);
+  }
+  if (sources.format === "env") {
+    usedVars.add(ENV_VARS.format);
+  }
+  if (sources.timeoutMs === "env") {
+    usedVars.add(ENV_VARS.timeoutMs);
+  }
+  if (sources.timeRange === "env") {
+    usedVars.add(ENV_VARS.window);
+  }
+  if (sources.positionsMaxPages === "env") {
+    usedVars.add(ENV_VARS.positionsMaxPages);
+  }
+  if (sources.executionsMaxPagesPerChunk === "env") {
+    usedVars.add(ENV_VARS.executionsMaxPagesPerChunk);
+  }
+  if (sources.paginationLimitMode === "env") {
+    usedVars.add(ENV_VARS.paginationLimitMode);
+  }
+  if (options.configDiagnostics || isTruthyEnvValue(env[ENV_VARS.configDiagnostics])) {
+    if (!options.configDiagnostics && env[ENV_VARS.configDiagnostics]) {
+      usedVars.add(ENV_VARS.configDiagnostics);
+    }
+  }
+  if (isTruthyEnvValue(env[ENV_VARS.allowInsecureCliSecrets])) {
+    usedVars.add(ENV_VARS.allowInsecureCliSecrets);
+  }
+
+  return [...usedVars].sort();
+}
+
+export function resolveRuntimeConfig(
+  options: ParsedCliOptions,
+  env: Record<string, string | undefined> = {},
+  ambientEnv: AmbientEnvResolution = {
+    enabled: true,
+    source: "default",
+    usedVars: []
+  }
+): RuntimeConfig {
   const now = new Date();
   const resolvedProfile = resolveProfile(options, env);
   const profile = resolvedProfile?.value;
@@ -304,6 +374,59 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     throw new Error(`Invalid time range: --from must be earlier than --to`);
   }
 
+  const sources: ResolvedConfigSources = {
+    profile: options.profile ? "cli" : env[ENV_VARS.profile] ? "env" : "default",
+    profilesFile: options.profilesFile ? "cli" : env[ENV_VARS.profilesFile] ? "env" : "default",
+    apiKey: profile?.apiKey ? "profile" : env[ENV_VARS.apiKey] ? "env" : legacyCliApiKey ? "cli" : "default",
+    apiSecret: profile?.apiSecret
+      ? "profile"
+      : env[ENV_VARS.secret] || env[ENV_VARS.apiSecret]
+        ? "env"
+        : legacyCliApiSecret
+          ? "cli"
+          : "default",
+    category: options.category ? "cli" : profile?.category ? "profile" : env[ENV_VARS.category] ? "env" : "default",
+    sourceMode: options.sourceMode
+      ? "cli"
+      : profile?.sourceMode
+        ? "profile"
+        : env[ENV_VARS.sourceMode]
+          ? "env"
+          : "default",
+    futuresGridBotIds: options.futuresGridBotIds
+      ? "cli"
+      : profile?.futuresGridBotIds
+        ? "profile"
+        : env[ENV_VARS.futuresGridBotIds]
+          ? "env"
+          : "default",
+    spotGridBotIds: options.spotGridBotIds
+      ? "cli"
+      : profile?.spotGridBotIds
+        ? "profile"
+        : env[ENV_VARS.spotGridBotIds]
+          ? "env"
+          : "default",
+    format: options.format ? "cli" : env[ENV_VARS.format] ? "env" : "default",
+    timeoutMs: options.timeoutMs ? "cli" : env[ENV_VARS.timeoutMs] ? "env" : "default",
+    timeRange: timeRange.source,
+    positionsMaxPages: options.positionsMaxPages ? "cli" : env[ENV_VARS.positionsMaxPages] ? "env" : "default",
+    executionsMaxPagesPerChunk: options.executionsMaxPagesPerChunk
+      ? "cli"
+      : env[ENV_VARS.executionsMaxPagesPerChunk]
+        ? "env"
+        : "default",
+    paginationLimitMode: options.paginationLimitMode
+      ? "cli"
+      : env[ENV_VARS.paginationLimitMode]
+        ? "env"
+        : "default"
+  };
+  const resolvedAmbientEnv: AmbientEnvResolution = {
+    ...ambientEnv,
+    usedVars: resolveUsedEnvVars(options, env, sources)
+  };
+
   return {
     profile: resolvedProfile?.name,
     profilesFile: resolvedProfile ? profilesFile : undefined,
@@ -322,58 +445,8 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
       limitMode: paginationLimitMode
     },
     configReportMode,
-    sources: {
-      profile: options.profile ? "cli" : env[ENV_VARS.profile] ? "env" : "default",
-      profilesFile: options.profilesFile ? "cli" : env[ENV_VARS.profilesFile] ? "env" : "default",
-      apiKey: profile?.apiKey ? "profile" : env[ENV_VARS.apiKey] ? "env" : legacyCliApiKey ? "cli" : "default",
-      apiSecret: profile?.apiSecret
-        ? "profile"
-        : env[ENV_VARS.secret] || env[ENV_VARS.apiSecret]
-          ? "env"
-          : legacyCliApiSecret
-            ? "cli"
-            : "default",
-      category: options.category ? "cli" : profile?.category ? "profile" : env[ENV_VARS.category] ? "env" : "default",
-      sourceMode: options.sourceMode
-        ? "cli"
-        : profile?.sourceMode
-          ? "profile"
-          : env[ENV_VARS.sourceMode]
-            ? "env"
-            : "default",
-      futuresGridBotIds: options.futuresGridBotIds
-        ? "cli"
-        : profile?.futuresGridBotIds
-          ? "profile"
-          : env[ENV_VARS.futuresGridBotIds]
-            ? "env"
-            : "default",
-      spotGridBotIds: options.spotGridBotIds
-        ? "cli"
-        : profile?.spotGridBotIds
-          ? "profile"
-          : env[ENV_VARS.spotGridBotIds]
-            ? "env"
-            : "default",
-      format: options.format ? "cli" : env[ENV_VARS.format] ? "env" : "default",
-      timeoutMs: options.timeoutMs ? "cli" : env[ENV_VARS.timeoutMs] ? "env" : "default",
-      timeRange: timeRange.source,
-      positionsMaxPages: options.positionsMaxPages
-        ? "cli"
-        : env[ENV_VARS.positionsMaxPages]
-          ? "env"
-          : "default",
-      executionsMaxPagesPerChunk: options.executionsMaxPagesPerChunk
-        ? "cli"
-        : env[ENV_VARS.executionsMaxPagesPerChunk]
-          ? "env"
-          : "default",
-      paginationLimitMode: options.paginationLimitMode
-        ? "cli"
-        : env[ENV_VARS.paginationLimitMode]
-          ? "env"
-          : "default"
-    }
+    sources,
+    ambientEnv: resolvedAmbientEnv
   };
 }
 
@@ -421,6 +494,7 @@ export function toRedactedConfigView(
     apiKey: diagnostic ? apiKeyRedacted : summarizeCredentialPresence(config.apiKey),
     apiSecret: diagnostic ? apiSecretRedacted : summarizeCredentialPresence(config.apiSecret),
     configReportMode: mode,
-    sources: config.sources
+    sources: config.sources,
+    ambientEnv: config.ambientEnv
   };
 }

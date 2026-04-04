@@ -36,7 +36,10 @@ export class ConfigReportGenerator {
               ["from", fmtIso(view.timeRange.from)],
               ["to", fmtIso(view.timeRange.to)],
               ["apiKey", view.apiKey],
-              ["apiSecret", view.apiSecret]
+              ["apiSecret", view.apiSecret],
+              ["ambientEnv.enabled", String(view.ambientEnv.enabled)],
+              ["ambientEnv.source", view.ambientEnv.source],
+              ["ambientEnv.usedVars", view.ambientEnv.usedVars.join(",") || "<none>"]
             ]
           }
         },

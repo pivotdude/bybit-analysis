@@ -1,11 +1,14 @@
 #!/usr/bin/env bun
 import { executeCommand, UsageError } from "./cli/commandRouter";
 import { parseArgs, renderHelp } from "./cli/parseArgs";
+import { resolveCliRuntimeEnv } from "./cli/runtimeEnv";
 
 const USAGE_HINT = "Hint: run with --help to see usage.";
 
 async function main(): Promise<void> {
-  const parsed = parseArgs(Bun.argv.slice(2));
+  const argv = Bun.argv.slice(2);
+  const runtimeEnv = resolveCliRuntimeEnv(argv);
+  const parsed = parseArgs(argv, runtimeEnv.values);
 
   if (parsed.options.help && parsed.errors.length === 0) {
     process.stdout.write(`${renderHelp(parsed.command)}\n`);
@@ -27,7 +30,7 @@ async function main(): Promise<void> {
   }
 
   try {
-    const markdown = await executeCommand(parsed);
+    const markdown = await executeCommand(parsed, runtimeEnv.values, runtimeEnv.ambientEnv);
     process.stdout.write(markdown);
   } catch (error) {
     if (error instanceof UsageError) {

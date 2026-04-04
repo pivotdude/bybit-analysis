@@ -34,6 +34,15 @@ describe("parseArgs CLI conventions", () => {
     assert: (parsed: ReturnType<typeof parseArgs>) => void;
   }> = [
     {
+      name: "supports deterministic env opt-out flag",
+      argv: ["summary", "--no-env"],
+      assert: (parsed) => {
+        expect(parsed.command).toBe("summary");
+        expect(parsed.errors).toEqual([]);
+        expect(parsed.options.noEnv).toBe(true);
+      }
+    },
+    {
       name: "supports --flag=value syntax",
       argv: ["summary", "--format=compact", "--timeout-ms=15000"],
       assert: (parsed) => {
@@ -109,9 +118,11 @@ describe("renderHelp", () => {
 
     expect(help).toContain("--api-key <value>  [deprecated, insecure; disabled by default]");
     expect(help).toContain("--api-secret <value>  [deprecated, insecure; disabled by default]");
+    expect(help).toContain("--no-env  disable ambient BYBIT_* env resolution for deterministic runs");
     expect(help).toContain("BYBIT_ALLOW_INSECURE_CLI_SECRETS=1");
     expect(help).toContain("--config-diagnostics  show expanded config diagnostics (sensitive identifiers)");
     expect(help).toContain("BYBIT_CONFIG_DIAGNOSTICS=1 enables expanded config details");
+    expect(help).toContain("BYBIT_DISABLE_ENV=1 disables ambient BYBIT_* env loading");
     expect(help).not.toContain("--lang");
   });
 

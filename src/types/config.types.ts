@@ -4,6 +4,13 @@ import type { OutputFormat, TimeRange } from "./command.types";
 export type ConfigSource = "cli" | "profile" | "env" | "default";
 export type PaginationLimitMode = "error" | "partial";
 export type ConfigReportMode = "safe" | "diagnostic";
+export type AmbientEnvSource = "default" | "cli" | "env";
+
+export interface AmbientEnvResolution {
+  enabled: boolean;
+  source: AmbientEnvSource;
+  usedVars: string[];
+}
 
 export interface PaginationSafetyConfig {
   positionsMaxPages?: number;
@@ -42,6 +49,7 @@ export interface RuntimeConfig {
   timeRange: TimeRange;
   pagination: PaginationSafetyConfig;
   sources: ResolvedConfigSources;
+  ambientEnv: AmbientEnvResolution;
   configReportMode?: ConfigReportMode;
 }
 
@@ -60,4 +68,5 @@ export interface RedactedConfigView {
   apiSecret: string;
   configReportMode: ConfigReportMode;
   sources: ResolvedConfigSources;
+  ambientEnv: AmbientEnvResolution;
 }

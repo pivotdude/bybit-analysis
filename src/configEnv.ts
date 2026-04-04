@@ -1,4 +1,5 @@
 export const ENV_VARS = {
+  disableEnv: "BYBIT_DISABLE_ENV",
   allowInsecureCliSecrets: "BYBIT_ALLOW_INSECURE_CLI_SECRETS",
   configDiagnostics: "BYBIT_CONFIG_DIAGNOSTICS",
   profile: "BYBIT_PROFILE",
@@ -19,6 +20,7 @@ export const ENV_VARS = {
 } as const;
 
 export const SUPPORTED_ENV_VARS = [
+  ENV_VARS.disableEnv,
   ENV_VARS.apiKey,
   ENV_VARS.secret,
   ENV_VARS.apiSecret,
