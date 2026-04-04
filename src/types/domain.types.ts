@@ -68,6 +68,8 @@ export interface FeeBreakdown {
   otherFeesUsd?: number;
 }
 
+export type RoiSupportStatus = "supported" | "unsupported";
+
 export interface SymbolPnL {
   symbol: string;
   realizedPnlUsd: number;
@@ -117,6 +119,10 @@ export interface PnLReport {
   unrealizedPnlUsd: number;
   fees: FeeBreakdown;
   netPnlUsd: number;
+  roiStatus: RoiSupportStatus;
+  roiUnsupportedReason?: string;
+  roiStartEquityUsd?: number;
+  roiEndEquityUsd?: number;
   roiPct?: number;
   bySymbol: SymbolPnL[];
   bestSymbols: SymbolPnL[];

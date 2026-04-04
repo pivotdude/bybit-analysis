@@ -170,6 +170,11 @@ const executionService: ExecutionDataService = {
           fundingFeesUsd: -4
         },
         netPnlUsd: 439,
+        roiStatus: "supported",
+        roiUnsupportedReason: undefined,
+        roiStartEquityUsd: 10_000,
+        roiEndEquityUsd: 10_439,
+        roiPct: 4.39,
         bySymbol: [
           {
             symbol: "BTCUSDT",
@@ -210,6 +215,11 @@ const executionService: ExecutionDataService = {
           fundingFeesUsd: 0
         },
         netPnlUsd: 65,
+        roiStatus: "supported",
+        roiUnsupportedReason: undefined,
+        roiStartEquityUsd: 8_000,
+        roiEndEquityUsd: 8_065,
+        roiPct: 0.8125,
         bySymbol: [
           {
             symbol: "SOLUSDT",
@@ -242,6 +252,10 @@ const executionService: ExecutionDataService = {
         fundingFeesUsd: 0
       },
       netPnlUsd: 115,
+      roiStatus: "unsupported",
+      roiUnsupportedReason: "starting equity is unavailable for the requested period window",
+      roiStartEquityUsd: undefined,
+      roiEndEquityUsd: 12_000,
       bySymbol: [],
       bestSymbols: [],
       worstSymbols: [],
