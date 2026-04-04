@@ -182,9 +182,6 @@ export function parseArgs(
         case "--window":
           options.window = consumeValue();
           break;
-        case "--lang":
-          options.lang = consumeValue();
-          break;
         case "--timeout-ms": {
           const value = consumeValue();
           if (value !== undefined) {
@@ -283,7 +280,6 @@ function renderOptionsSection(): string[] {
     "  --from <ISO8601>",
     "  --to <ISO8601>",
     "  --window <7d|30d|90d>",
-    "  --lang <en>",
     "  --timeout-ms <number>",
     "  --positions-max-pages <number>",
     "  --executions-max-pages-per-chunk <number>",
@@ -337,7 +333,6 @@ function renderGlobalHelp(): string {
     `  ${ENV_VARS.futuresGridBotIds}=<id1,id2,...>`,
     `  ${ENV_VARS.spotGridBotIds}=<id1,id2,...>`,
     `  ${ENV_VARS.format}=<md|compact>`,
-    `  ${ENV_VARS.lang}=<en>`,
     `  ${ENV_VARS.timeoutMs}=<number>`,
     `  ${ENV_VARS.window}=<7d|30d|90d>`,
     `  ${ENV_VARS.positionsMaxPages}=<number>`,

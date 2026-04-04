@@ -20,7 +20,6 @@ export interface ResolvedConfigSources {
   futuresGridBotIds: ConfigSource;
   spotGridBotIds: ConfigSource;
   format: ConfigSource;
-  lang: ConfigSource;
   timeoutMs: ConfigSource;
   timeRange: ConfigSource;
   positionsMaxPages: ConfigSource;
@@ -37,7 +36,6 @@ export interface RuntimeConfig {
   futuresGridBotIds: string[];
   spotGridBotIds: string[];
   format: OutputFormat;
-  lang: string;
   timeoutMs: number;
   timeRange: TimeRange;
   pagination: PaginationSafetyConfig;
@@ -52,7 +50,6 @@ export interface RedactedConfigView {
   futuresGridBotIds: string;
   spotGridBotIds: string;
   format: OutputFormat;
-  lang: string;
   timeoutMs: number;
   timeRange: TimeRange;
   pagination: PaginationSafetyConfig;

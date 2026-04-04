@@ -116,7 +116,6 @@ Example (`pnl` section):
 - `--from <ISO8601>`
 - `--to <ISO8601>`
 - `--window <7d|30d|90d>`
-- `--lang <en>`
 - `--timeout-ms <number>`
 - `--positions-max-pages <number>`
 - `--executions-max-pages-per-chunk <number>`
@@ -137,7 +136,6 @@ Supported env vars:
 - `BYBIT_FGRID_BOT_IDS`
 - `BYBIT_SPOT_GRID_IDS`
 - `BYBIT_FORMAT`
-- `BYBIT_LANG`
 - `BYBIT_TIMEOUT_MS`
 - `BYBIT_WINDOW`
 - `BYBIT_POSITIONS_MAX_PAGES`
@@ -156,7 +154,6 @@ Legacy hidden aliases are intentionally removed and not supported:
 - `WINDOW`
 - `DEFAULT_CATEGORY`
 - `DEFAULT_FORMAT`
-- `DEFAULT_LANG`
 - `DEFAULT_TIMEOUT_MS`
 
 CLI parsing conventions:

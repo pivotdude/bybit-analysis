@@ -95,6 +95,12 @@ describe("parseArgs config diagnostics", () => {
     expect(parsed.errors).toEqual([]);
     expect(parsed.options.configDiagnostics).toBe(true);
   });
+
+  it("rejects removed --lang option", () => {
+    const parsed = parseArgs(["config", "--lang", "en"], {});
+
+    expect(parsed.errors).toContain("Unknown option: --lang");
+  });
 });
 
 describe("renderHelp", () => {
@@ -106,6 +112,7 @@ describe("renderHelp", () => {
     expect(help).toContain("BYBIT_ALLOW_INSECURE_CLI_SECRETS=1");
     expect(help).toContain("--config-diagnostics  show expanded config diagnostics (sensitive identifiers)");
     expect(help).toContain("BYBIT_CONFIG_DIAGNOSTICS=1 enables expanded config details");
+    expect(help).not.toContain("--lang");
   });
 
   it("renders command-specific usage when command is provided", () => {

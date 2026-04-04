@@ -10,7 +10,6 @@ export const ENV_VARS = {
   futuresGridBotIds: "BYBIT_FGRID_BOT_IDS",
   spotGridBotIds: "BYBIT_SPOT_GRID_IDS",
   format: "BYBIT_FORMAT",
-  lang: "BYBIT_LANG",
   timeoutMs: "BYBIT_TIMEOUT_MS",
   window: "BYBIT_WINDOW",
   positionsMaxPages: "BYBIT_POSITIONS_MAX_PAGES",
@@ -29,7 +28,6 @@ export const SUPPORTED_ENV_VARS = [
   ENV_VARS.futuresGridBotIds,
   ENV_VARS.spotGridBotIds,
   ENV_VARS.format,
-  ENV_VARS.lang,
   ENV_VARS.timeoutMs,
   ENV_VARS.window,
   ENV_VARS.positionsMaxPages,
@@ -42,6 +40,5 @@ export const LEGACY_UNSUPPORTED_ENV_VARS = [
   "WINDOW",
   "DEFAULT_CATEGORY",
   "DEFAULT_FORMAT",
-  "DEFAULT_LANG",
   "DEFAULT_TIMEOUT_MS"
 ] as const;

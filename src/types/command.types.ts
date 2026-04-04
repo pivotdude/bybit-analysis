@@ -32,7 +32,6 @@ export interface ParsedCliOptions {
   from?: string;
   to?: string;
   window?: string;
-  lang?: string;
   timeoutMs?: number;
   positionsMaxPages?: number;
   executionsMaxPagesPerChunk?: number;
