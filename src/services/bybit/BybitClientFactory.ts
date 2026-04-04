@@ -20,6 +20,31 @@ export interface BybitRequestContext {
   hasRequestBody: boolean;
 }
 
+export interface BybitRetryPolicy {
+  maxAttempts: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+  jitterRatio: number;
+  retryOnTransportErrors: boolean;
+  retryOnHttp5xx: boolean;
+  retryableHttpStatuses: number[];
+}
+
+export interface BybitRetryInfo {
+  attempts: number;
+  retries: number;
+  maxAttempts: number;
+  delaysMs: number[];
+  totalDelayMs: number;
+}
+
+export interface BybitClientOptions {
+  retryPolicy?: Partial<BybitRetryPolicy>;
+  sleep?: (delayMs: number) => Promise<void>;
+  random?: () => number;
+  fetchFn?: typeof fetch;
+}
+
 const ERROR_BODY_FRAGMENT_MAX_CHARS = 512;
 const BASE_URL = "https://api.bybit.com";
 const WRITE_ENDPOINT_GUARD = [
@@ -30,17 +55,54 @@ const WRITE_ENDPOINT_GUARD = [
   "/v5/spot-lever-token",
   "/v5/loan"
 ];
+const RETRYABLE_TRANSPORT_ERROR_PATTERNS = [
+  "timed out",
+  "timeout",
+  "network",
+  "reset",
+  "econnreset",
+  "econnrefused",
+  "enotfound",
+  "eai_again",
+  "temporarily unavailable"
+];
+
+export const DEFAULT_BYBIT_RETRY_POLICY: BybitRetryPolicy = {
+  maxAttempts: 4,
+  baseDelayMs: 250,
+  maxDelayMs: 4_000,
+  jitterRatio: 0.2,
+  retryOnTransportErrors: true,
+  retryOnHttp5xx: true,
+  retryableHttpStatuses: [429]
+};
+
+interface BybitClientRuntimeOptions {
+  retryPolicy: BybitRetryPolicy;
+  sleep: (delayMs: number) => Promise<void>;
+  random: () => number;
+  fetchFn: typeof fetch;
+}
+
+function createSleep(delayMs: number): Promise<void> {
+  if (delayMs <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
 
 export class BybitTransportError extends Error {
   readonly endpoint: string;
   readonly requestContext: BybitRequestContext;
+  retryInfo?: BybitRetryInfo;
 
-  constructor(requestContext: BybitRequestContext, cause: unknown) {
+  constructor(requestContext: BybitRequestContext, cause: unknown, retryInfo?: BybitRetryInfo) {
     const reason = cause instanceof Error ? cause.message : String(cause);
     super(`Bybit transport failure while requesting ${requestContext.method} ${requestContext.endpoint}: ${reason}`, { cause });
     this.name = "BybitTransportError";
     this.endpoint = requestContext.endpoint;
     this.requestContext = requestContext;
+    this.retryInfo = retryInfo;
   }
 }
 
@@ -52,6 +114,8 @@ export class BybitHttpError extends Error {
   readonly rawBodyFragment?: string;
   readonly bybitRetCode?: number;
   readonly bybitRetMsg?: string;
+  readonly retryAfterMs?: number;
+  retryInfo?: BybitRetryInfo;
 
   constructor(args: {
     status: number;
@@ -60,6 +124,8 @@ export class BybitHttpError extends Error {
     rawBodyFragment?: string;
     bybitRetCode?: number;
     bybitRetMsg?: string;
+    retryAfterMs?: number;
+    retryInfo?: BybitRetryInfo;
   }) {
     const bybitContext =
       args.bybitRetCode !== undefined
@@ -74,6 +140,8 @@ export class BybitHttpError extends Error {
     this.rawBodyFragment = args.rawBodyFragment;
     this.bybitRetCode = args.bybitRetCode;
     this.bybitRetMsg = args.bybitRetMsg;
+    this.retryAfterMs = args.retryAfterMs;
+    this.retryInfo = args.retryInfo;
   }
 }
 
@@ -82,14 +150,16 @@ export class BybitApiError extends Error {
   readonly retMsg: string;
   readonly endpoint: string;
   readonly requestContext: BybitRequestContext;
+  retryInfo?: BybitRetryInfo;
 
-  constructor(retCode: number, retMsg: string, requestContext: BybitRequestContext) {
+  constructor(retCode: number, retMsg: string, requestContext: BybitRequestContext, retryInfo?: BybitRetryInfo) {
     super(`Bybit API error ${retCode}: ${retMsg} [${requestContext.method} ${requestContext.endpoint}]`);
     this.name = "BybitApiError";
     this.retCode = retCode;
     this.retMsg = retMsg;
     this.endpoint = requestContext.endpoint;
     this.requestContext = requestContext;
+    this.retryInfo = retryInfo;
   }
 }
 
@@ -98,12 +168,14 @@ export class BybitMalformedResponseError extends Error {
   readonly requestContext: BybitRequestContext;
   readonly contentType?: string;
   readonly rawBodyFragment?: string;
+  retryInfo?: BybitRetryInfo;
 
   constructor(args: {
     reason: string;
     requestContext: BybitRequestContext;
     contentType?: string;
     rawBodyFragment?: string;
+    retryInfo?: BybitRetryInfo;
   }) {
     super(`Bybit response parse error: ${args.reason} [${args.requestContext.method} ${args.requestContext.endpoint}]`);
     this.name = "BybitMalformedResponseError";
@@ -111,6 +183,7 @@ export class BybitMalformedResponseError extends Error {
     this.requestContext = args.requestContext;
     this.contentType = args.contentType;
     this.rawBodyFragment = args.rawBodyFragment;
+    this.retryInfo = args.retryInfo;
   }
 }
 
@@ -165,8 +238,69 @@ function isBybitEnvelopeLike(payload: unknown): payload is { retCode: number; re
   return typeof record.retCode === "number" && typeof record.retMsg === "string";
 }
 
+function resolveRetryPolicy(policy?: Partial<BybitRetryPolicy>): BybitRetryPolicy {
+  const retryableHttpStatuses = policy?.retryableHttpStatuses?.length
+    ? [...new Set(policy.retryableHttpStatuses.filter((status) => Number.isInteger(status) && status >= 100 && status <= 599))]
+    : DEFAULT_BYBIT_RETRY_POLICY.retryableHttpStatuses;
+
+  return {
+    maxAttempts: Math.max(1, Math.floor(policy?.maxAttempts ?? DEFAULT_BYBIT_RETRY_POLICY.maxAttempts)),
+    baseDelayMs: Math.max(0, Math.floor(policy?.baseDelayMs ?? DEFAULT_BYBIT_RETRY_POLICY.baseDelayMs)),
+    maxDelayMs: Math.max(0, Math.floor(policy?.maxDelayMs ?? DEFAULT_BYBIT_RETRY_POLICY.maxDelayMs)),
+    jitterRatio: Math.min(1, Math.max(0, policy?.jitterRatio ?? DEFAULT_BYBIT_RETRY_POLICY.jitterRatio)),
+    retryOnTransportErrors: policy?.retryOnTransportErrors ?? DEFAULT_BYBIT_RETRY_POLICY.retryOnTransportErrors,
+    retryOnHttp5xx: policy?.retryOnHttp5xx ?? DEFAULT_BYBIT_RETRY_POLICY.retryOnHttp5xx,
+    retryableHttpStatuses
+  };
+}
+
+function parseRetryAfterMs(headerValue: string | null): number | undefined {
+  if (!headerValue) {
+    return undefined;
+  }
+
+  const trimmed = headerValue.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const asSeconds = Number(trimmed);
+  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+    return Math.round(asSeconds * 1_000);
+  }
+
+  const asDateMs = Date.parse(trimmed);
+  if (Number.isNaN(asDateMs)) {
+    return undefined;
+  }
+
+  return Math.max(0, asDateMs - Date.now());
+}
+
+function hasTransientTransportSignature(cause: unknown): boolean {
+  if (!(cause instanceof Error)) {
+    return false;
+  }
+
+  const normalized = `${cause.name} ${cause.message}`.toLowerCase();
+  return RETRYABLE_TRANSPORT_ERROR_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
+function isRetryableHttpStatus(status: number, policy: BybitRetryPolicy): boolean {
+  return policy.retryableHttpStatuses.includes(status) || (policy.retryOnHttp5xx && status >= 500 && status <= 599);
+}
+
 export class BybitReadonlyClient {
-  constructor(private readonly config: RuntimeConfig) {}
+  private readonly runtimeOptions: BybitClientRuntimeOptions;
+
+  constructor(private readonly config: RuntimeConfig, options?: BybitClientOptions) {
+    this.runtimeOptions = {
+      retryPolicy: resolveRetryPolicy(options?.retryPolicy),
+      sleep: options?.sleep ?? createSleep,
+      random: options?.random ?? Math.random,
+      fetchFn: options?.fetchFn ?? fetch
+    };
+  }
 
   async getServerTime(timeoutMs?: number): Promise<{ timeNano: string; timeSecond: string }> {
     return this.requestPublic("/v5/market/time", {}, timeoutMs ?? this.config.timeoutMs);
@@ -293,10 +427,6 @@ export class BybitReadonlyClient {
     const recvWindow = "5000";
     const query = toQueryString(args.query ?? {});
     const bodyString = args.body ? JSON.stringify(args.body) : "";
-    const timestamp = Date.now().toString();
-    const payload = method === "GET" ? query : bodyString;
-    const signaturePayload = `${timestamp}${this.config.apiKey}${recvWindow}${payload}`;
-    const signature = createHmac("sha256", this.config.apiSecret).update(signaturePayload).digest("hex");
 
     const url = `${BASE_URL}${path}${query ? `?${query}` : ""}`;
     const requestContext: BybitRequestContext = {
@@ -308,21 +438,28 @@ export class BybitReadonlyClient {
       hasRequestBody: method === "POST"
     };
 
-    const response = await this.fetchWithTransportContext({
-      method,
-      headers: {
-        "X-BAPI-API-KEY": this.config.apiKey,
-        "X-BAPI-SIGN": signature,
-        "X-BAPI-SIGN-TYPE": "2",
-        "X-BAPI-TIMESTAMP": timestamp,
-        "X-BAPI-RECV-WINDOW": recvWindow,
-        ...(method === "POST" ? { "Content-Type": "application/json" } : {})
-      },
-      body: method === "POST" ? bodyString : undefined,
-      signal: AbortSignal.timeout(args.timeoutMs)
-    }, requestContext);
+    return this.executeWithRetry<T>(async () => {
+      const timestamp = Date.now().toString();
+      const payload = method === "GET" ? query : bodyString;
+      const signaturePayload = `${timestamp}${this.config.apiKey}${recvWindow}${payload}`;
+      const signature = createHmac("sha256", this.config.apiSecret).update(signaturePayload).digest("hex");
 
-    return this.handleResponse<T>(response, requestContext);
+      const response = await this.fetchWithTransportContext({
+        method,
+        headers: {
+          "X-BAPI-API-KEY": this.config.apiKey,
+          "X-BAPI-SIGN": signature,
+          "X-BAPI-SIGN-TYPE": "2",
+          "X-BAPI-TIMESTAMP": timestamp,
+          "X-BAPI-RECV-WINDOW": recvWindow,
+          ...(method === "POST" ? { "Content-Type": "application/json" } : {})
+        },
+        body: method === "POST" ? bodyString : undefined,
+        signal: AbortSignal.timeout(args.timeoutMs)
+      }, requestContext);
+
+      return this.handleResponse<T>(response, requestContext);
+    });
   }
 
   private async requestPublic<T>(path: string, params: Record<string, string | number | undefined>, timeoutMs: number): Promise<T> {
@@ -338,20 +475,97 @@ export class BybitReadonlyClient {
       hasRequestBody: false
     };
 
-    const response = await this.fetchWithTransportContext({
-      method: "GET",
-      signal: AbortSignal.timeout(timeoutMs)
-    }, requestContext);
+    return this.executeWithRetry<T>(async () => {
+      const response = await this.fetchWithTransportContext({
+        method: "GET",
+        signal: AbortSignal.timeout(timeoutMs)
+      }, requestContext);
 
-    return this.handleResponse<T>(response, requestContext);
+      return this.handleResponse<T>(response, requestContext);
+    });
   }
 
   private async fetchWithTransportContext(init: RequestInit, requestContext: BybitRequestContext): Promise<Response> {
     try {
-      return await fetch(requestContext.url, init);
+      return await this.runtimeOptions.fetchFn(requestContext.url, init);
     } catch (error) {
       throw new BybitTransportError(requestContext, error);
     }
+  }
+
+  private async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
+    const delaysMs: number[] = [];
+    const policy = this.runtimeOptions.retryPolicy;
+
+    for (let attempt = 1; attempt <= policy.maxAttempts; attempt += 1) {
+      try {
+        return await operation();
+      } catch (error) {
+        const shouldRetry = this.shouldRetryError(error, attempt);
+        if (!shouldRetry) {
+          throw this.attachRetryInfo(error, attempt, delaysMs);
+        }
+
+        const delayMs = this.calculateRetryDelayMs(error, attempt);
+        delaysMs.push(delayMs);
+        await this.runtimeOptions.sleep(delayMs);
+      }
+    }
+
+    throw new Error("retry loop terminated unexpectedly");
+  }
+
+  private shouldRetryError(error: unknown, attempt: number): boolean {
+    const hasAttemptsLeft = attempt < this.runtimeOptions.retryPolicy.maxAttempts;
+    if (!hasAttemptsLeft) {
+      return false;
+    }
+
+    if (error instanceof BybitHttpError) {
+      return isRetryableHttpStatus(error.status, this.runtimeOptions.retryPolicy);
+    }
+
+    if (error instanceof BybitTransportError) {
+      if (!this.runtimeOptions.retryPolicy.retryOnTransportErrors) {
+        return false;
+      }
+      return hasTransientTransportSignature(error.cause) || error.cause instanceof TypeError;
+    }
+
+    return false;
+  }
+
+  private calculateRetryDelayMs(error: unknown, attempt: number): number {
+    const policy = this.runtimeOptions.retryPolicy;
+    const exponentialBase = Math.min(policy.maxDelayMs, policy.baseDelayMs * 2 ** (attempt - 1));
+    const jitterWindow = exponentialBase * policy.jitterRatio;
+    const jittered = Math.round(exponentialBase + (this.runtimeOptions.random() * 2 - 1) * jitterWindow);
+    const bounded = Math.max(0, jittered);
+
+    if (error instanceof BybitHttpError && error.retryAfterMs !== undefined) {
+      return Math.max(bounded, error.retryAfterMs);
+    }
+
+    return bounded;
+  }
+
+  private attachRetryInfo(error: unknown, attempts: number, delaysMs: number[]): unknown {
+    const retryInfo = this.createRetryInfo(attempts, delaysMs);
+    if (error instanceof BybitTransportError || error instanceof BybitHttpError || error instanceof BybitApiError || error instanceof BybitMalformedResponseError) {
+      error.retryInfo = retryInfo;
+      return error;
+    }
+    return error;
+  }
+
+  private createRetryInfo(attempts: number, delaysMs: number[]): BybitRetryInfo {
+    return {
+      attempts,
+      retries: Math.max(0, attempts - 1),
+      maxAttempts: this.runtimeOptions.retryPolicy.maxAttempts,
+      delaysMs: [...delaysMs],
+      totalDelayMs: delaysMs.reduce((total, delay) => total + delay, 0)
+    };
   }
 
   private async handleResponse<T>(response: Response, requestContext: BybitRequestContext): Promise<T> {
@@ -371,6 +585,7 @@ export class BybitReadonlyClient {
     const { bodyText, readError } = await this.readBodyTextSafe(response);
     const contentType = response.headers.get("content-type");
     const rawBodyFragment = readError ? `<unavailable: ${readError}>` : createBodyFragment(bodyText);
+    const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
 
     let bybitRetCode: number | undefined;
     let bybitRetMsg: string | undefined;
@@ -389,7 +604,8 @@ export class BybitReadonlyClient {
       requestContext,
       rawBodyFragment,
       bybitRetCode,
-      bybitRetMsg
+      bybitRetMsg,
+      retryAfterMs
     });
   }
 
@@ -454,6 +670,6 @@ export class BybitReadonlyClient {
   }
 }
 
-export function createBybitClient(config: RuntimeConfig): BybitReadonlyClient {
-  return new BybitReadonlyClient(config);
+export function createBybitClient(config: RuntimeConfig, options?: BybitClientOptions): BybitReadonlyClient {
+  return new BybitReadonlyClient(config, options);
 }
