@@ -183,9 +183,6 @@ export function parseArgs(
         case "--window":
           options.window = consumeValue();
           break;
-        case "--lang":
-          options.lang = consumeValue();
-          break;
         case "--timeout-ms": {
           const value = consumeValue();
           if (value !== undefined) {
@@ -284,7 +281,6 @@ function renderOptionsSection(): string[] {
     "  --from <ISO8601>",
     "  --to <ISO8601>",
     "  --window <7d|30d|90d>",
-    "  --lang <en>",
     "  --timeout-ms <number>",
     "  --positions-max-pages <number>",
     "  --executions-max-pages-per-chunk <number>",

@@ -13,7 +13,6 @@ describe("toRedactedConfigView", () => {
       futuresGridBotIds: ["fgrid-id-1"],
       spotGridBotIds: ["spot-id-1", "spot-id-2"],
       format: "md",
-      lang: "en",
       timeoutMs: 10_000,
       timeRange: {
         from: "2026-01-01T00:00:00.000Z",
@@ -33,7 +32,6 @@ describe("toRedactedConfigView", () => {
         futuresGridBotIds: "default",
         spotGridBotIds: "default",
         format: "default",
-        lang: "default",
         timeoutMs: "default",
         timeRange: "default",
         positionsMaxPages: "default",
@@ -63,7 +61,6 @@ describe("toRedactedConfigView", () => {
       futuresGridBotIds: ["fgrid-id-1"],
       spotGridBotIds: ["spot-id-1", "spot-id-2"],
       format: "md",
-      lang: "en",
       timeoutMs: 10_000,
       timeRange: {
         from: "2026-01-01T00:00:00.000Z",
@@ -81,7 +78,6 @@ describe("toRedactedConfigView", () => {
         futuresGridBotIds: "env",
         spotGridBotIds: "env",
         format: "default",
-        lang: "default",
         timeoutMs: "default",
         timeRange: "default",
         positionsMaxPages: "default",

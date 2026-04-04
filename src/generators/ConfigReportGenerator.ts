@@ -25,7 +25,6 @@ export class ConfigReportGenerator {
               ["futuresGridBotIds", view.futuresGridBotIds],
               ["spotGridBotIds", view.spotGridBotIds],
               ["format", view.format],
-              ["lang", view.lang],
               ["timeoutMs", String(view.timeoutMs)],
               ["pagination.positionsMaxPages", String(view.pagination.positionsMaxPages ?? "<none>")],
               [
