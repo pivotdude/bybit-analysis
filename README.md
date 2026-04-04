@@ -103,3 +103,5 @@ Permissions check:
 ```bash
 bun run src/index.ts permissions
 ```
+
+Security note: `config` and `permissions` outputs are redacted for logs/CI and do not print raw API keys, API secrets, or full IP whitelist values.
