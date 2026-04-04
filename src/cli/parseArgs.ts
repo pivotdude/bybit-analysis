@@ -187,6 +187,9 @@ export function parseArgs(
         }
         break;
       }
+      case "--config-diagnostics":
+        options.configDiagnostics = true;
+        break;
       default:
         errors.push(`Unknown option: ${token}`);
     }
@@ -235,6 +238,7 @@ export function renderHelp(): string {
     "  --positions-max-pages <number>",
     "  --executions-max-pages-per-chunk <number>",
     "  --pagination-limit-mode <error|partial>",
+    "  --config-diagnostics  show expanded config diagnostics (sensitive identifiers)",
     "  --help, -h",
     "",
     "Credential input (recommended):",
@@ -256,6 +260,9 @@ export function renderHelp(): string {
     "Pagination safety (optional):",
     "  BYBIT_POSITIONS_MAX_PAGES=<number>",
     "  BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK=<number>",
-    "  BYBIT_PAGINATION_LIMIT_MODE=<error|partial>"
+    "  BYBIT_PAGINATION_LIMIT_MODE=<error|partial>",
+    "",
+    "Config diagnostics mode (optional):",
+    "  BYBIT_CONFIG_DIAGNOSTICS=1 enables expanded config details"
   ].join("\n");
 }

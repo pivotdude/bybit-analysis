@@ -3,6 +3,7 @@ import { resolve as resolvePath } from "node:path";
 import type { ParsedCliOptions, TimeRange } from "./types/command.types";
 import type { MarketCategory } from "./types/domain.types";
 import type {
+  ConfigReportMode,
   PaginationLimitMode,
   RedactedConfigView,
   ResolvedConfigSources,
@@ -18,6 +19,8 @@ const DEFAULT_WINDOW_DAYS = 30;
 const DEFAULT_PROFILES_FILE = ".bybit-profiles.json";
 const DEFAULT_PAGINATION_LIMIT_MODE: PaginationLimitMode = "error";
 const ALLOW_INSECURE_SECRET_FLAGS_ENV = "BYBIT_ALLOW_INSECURE_CLI_SECRETS";
+const CONFIG_DIAGNOSTICS_ENV = "BYBIT_CONFIG_DIAGNOSTICS";
+const DEFAULT_CONFIG_REPORT_MODE: ConfigReportMode = "safe";
 
 function parseWindow(windowValue: string): number | null {
   const match = /^(\d+)(d)$/i.exec(windowValue.trim());
@@ -190,6 +193,16 @@ function resolvePaginationLimitMode(raw: string | undefined, fieldName: string):
   throw new Error(`Invalid ${fieldName}: ${raw}. Expected error|partial`);
 }
 
+function resolveConfigReportMode(
+  options: ParsedCliOptions,
+  env: Record<string, string | undefined>
+): ConfigReportMode {
+  if (options.configDiagnostics || isTruthyEnvValue(env[CONFIG_DIAGNOSTICS_ENV])) {
+    return "diagnostic";
+  }
+  return DEFAULT_CONFIG_REPORT_MODE;
+}
+
 function resolveTimeRange(options: ParsedCliOptions, env: Record<string, string | undefined>, now: Date): { value: TimeRange; source: ResolvedConfigSources["timeRange"] } {
   if (options.from || options.to) {
     if (!options.from || !options.to) {
@@ -262,6 +275,7 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     options.paginationLimitMode ?? env.BYBIT_PAGINATION_LIMIT_MODE,
     options.paginationLimitMode ? "--pagination-limit-mode" : "BYBIT_PAGINATION_LIMIT_MODE"
   );
+  const configReportMode = resolveConfigReportMode(options, env);
 
   if (category !== "linear" && category !== "spot" && category !== "bot") {
     throw new Error(`Invalid category: ${category}. Expected linear|spot|bot`);
@@ -293,6 +307,7 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
       executionsMaxPagesPerChunk,
       limitMode: paginationLimitMode
     },
+    configReportMode,
     sources: {
       profile: options.profile ? "cli" : env.BYBIT_PROFILE ? "env" : "default",
       profilesFile: options.profilesFile ? "cli" : env.BYBIT_PROFILES_FILE ? "env" : "default",
@@ -348,20 +363,44 @@ export function validateCredentials(config: RuntimeConfig): void {
   }
 }
 
-export function toRedactedConfigView(config: RuntimeConfig): RedactedConfigView {
+function summarizeConfiguredIds(ids: string[]): string {
+  if (ids.length === 0) {
+    return "<none>";
+  }
+  const suffix = ids.length === 1 ? "id" : "ids";
+  return `configured (${ids.length} ${suffix})`;
+}
+
+function summarizeCredentialPresence(value: string): string {
+  return redactSecretValue(value).presence === "present" ? "<configured>" : "<missing>";
+}
+
+export function toRedactedConfigView(
+  config: RuntimeConfig,
+  mode: ConfigReportMode = config.configReportMode ?? DEFAULT_CONFIG_REPORT_MODE
+): RedactedConfigView {
+  const diagnostic = mode === "diagnostic";
+  const apiKeyRedacted = redactSecretValue(config.apiKey).display;
+  const apiSecretRedacted = redactSecretValue(config.apiSecret).display;
+
   return {
     profile: config.profile,
     profilesFile: config.profilesFile,
     category: config.category,
-    futuresGridBotIds: config.futuresGridBotIds,
-    spotGridBotIds: config.spotGridBotIds,
+    futuresGridBotIds: diagnostic
+      ? config.futuresGridBotIds.join(",") || "<none>"
+      : summarizeConfiguredIds(config.futuresGridBotIds),
+    spotGridBotIds: diagnostic
+      ? config.spotGridBotIds.join(",") || "<none>"
+      : summarizeConfiguredIds(config.spotGridBotIds),
     format: config.format,
     lang: config.lang,
     timeoutMs: config.timeoutMs,
     timeRange: config.timeRange,
     pagination: config.pagination,
-    apiKey: redactSecretValue(config.apiKey).display,
-    apiSecret: redactSecretValue(config.apiSecret).display,
+    apiKey: diagnostic ? apiKeyRedacted : summarizeCredentialPresence(config.apiKey),
+    apiSecret: diagnostic ? apiSecretRedacted : summarizeCredentialPresence(config.apiSecret),
+    configReportMode: mode,
     sources: config.sources
   };
 }

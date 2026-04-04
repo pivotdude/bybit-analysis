@@ -3,6 +3,7 @@ import type { OutputFormat, TimeRange } from "./command.types";
 
 export type ConfigSource = "cli" | "profile" | "env" | "default";
 export type PaginationLimitMode = "error" | "partial";
+export type ConfigReportMode = "safe" | "diagnostic";
 
 export interface PaginationSafetyConfig {
   positionsMaxPages?: number;
@@ -41,14 +42,15 @@ export interface RuntimeConfig {
   timeRange: TimeRange;
   pagination: PaginationSafetyConfig;
   sources: ResolvedConfigSources;
+  configReportMode?: ConfigReportMode;
 }
 
 export interface RedactedConfigView {
   profile?: string;
   profilesFile?: string;
   category: MarketCategory;
-  futuresGridBotIds: string[];
-  spotGridBotIds: string[];
+  futuresGridBotIds: string;
+  spotGridBotIds: string;
   format: OutputFormat;
   lang: string;
   timeoutMs: number;
@@ -56,5 +58,6 @@ export interface RedactedConfigView {
   pagination: PaginationSafetyConfig;
   apiKey: string;
   apiSecret: string;
+  configReportMode: ConfigReportMode;
   sources: ResolvedConfigSources;
 }
