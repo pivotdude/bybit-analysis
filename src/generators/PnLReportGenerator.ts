@@ -2,10 +2,33 @@ import { PnLAnalyzer } from "../analyzers/orchestrators/PnLAnalyzer";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ReportDocument } from "../types/report.types";
+import type { ReportSectionType } from "../types/report.types";
 import { fmtIso, fmtPct, fmtUsd } from "./formatters";
 import { mergeDataCompleteness } from "../services/reliability/dataCompleteness";
-import { pushDataCompletenessSections } from "./dataCompleteness";
+import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
+
+export const PNL_SCHEMA_VERSION = "pnl-markdown-v1";
+
+export const PNL_SECTION_CONTRACT = {
+  period: { id: "pnl.period", title: "Period", type: "text" },
+  summary: { id: "pnl.summary", title: "PnL Summary", type: "kpi" },
+  roiStatus: { id: "pnl.roi_status", title: "ROI Status", type: "text" },
+  symbolBreakdown: { id: "pnl.symbol_breakdown", title: "Symbol Breakdown", type: "table" },
+  winnersLosers: { id: "pnl.winners_losers", title: "Winners/Losers", type: "table" },
+  dataCompleteness: { id: "pnl.data_completeness", title: "Data Completeness", type: "alerts" }
+} as const satisfies Record<string, { id: string; title: string; type: ReportSectionType }>;
+
+export const PNL_SECTION_ORDER = [
+  "period",
+  "summary",
+  "roiStatus",
+  "symbolBreakdown",
+  "winnersLosers",
+  "dataCompleteness"
+] as const satisfies readonly (keyof typeof PNL_SECTION_CONTRACT)[];
+
+const section = createSectionBuilder(PNL_SECTION_CONTRACT);
 
 export class PnLReportGenerator {
   private readonly analyzer = new PnLAnalyzer();
@@ -49,14 +72,10 @@ export class PnLReportGenerator {
       .filter((item) => !winnerSymbols.has(item.symbol) && item.netPnlUsd < 0)
       .map((item) => ["Loser", item.symbol, fmtUsd(item.netPnlUsd)]);
     const sections: ReportDocument["sections"] = [
-      {
-        title: "Period",
-        type: "text",
+      section("period", {
         text: [`From: ${fmtIso(analysis.periodFrom)}`, `To: ${fmtIso(analysis.periodTo)}`]
-      },
-      {
-        title: "PnL Summary",
-        type: "kpi",
+      }),
+      section("summary", {
         kpis: [
           { label: "Realized PnL", value: fmtUsd(analysis.realizedPnlUsd) },
           { label: "Unrealized PnL", value: fmtUsd(analysis.unrealizedPnlUsd) },
@@ -64,15 +83,11 @@ export class PnLReportGenerator {
           { label: "Net PnL", value: fmtUsd(analysis.netPnlUsd) },
           { label: "ROI", value: roi }
         ]
-      },
-      {
-        title: "ROI Status",
-        type: "text",
+      }),
+      section("roiStatus", {
         text: roiStatusLines
-      },
-      {
-        title: "Symbol Breakdown",
-        type: "table",
+      }),
+      section("symbolBreakdown", {
         table: {
           headers: ["Symbol", "Realized", "Unrealized", "Net", "Trades"],
           rows: analysis.bySymbol.map((item) => [
@@ -83,10 +98,8 @@ export class PnLReportGenerator {
             String(item.tradesCount ?? 0)
           ])
         }
-      },
-      {
-        title: "Winners/Losers",
-        type: "table",
+      }),
+      section("winnersLosers", {
         table: {
           headers: ["Bucket", "Symbol", "Net PnL"],
           rows: [
@@ -94,15 +107,20 @@ export class PnLReportGenerator {
             ...(loserRows.length > 0 ? loserRows : [["Loser", "-", "No losing symbols in period"]])
           ]
         }
-      }
+      })
     ];
 
     const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness);
-    pushDataCompletenessSections(sections, dataCompleteness);
+    sections.push(
+      section("dataCompleteness", {
+        alerts: buildDataCompletenessAlerts(dataCompleteness)
+      })
+    );
 
     return {
       command: "pnl",
       title: "PnL Analytics",
+      schemaVersion: PNL_SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
       sections,
       dataCompleteness

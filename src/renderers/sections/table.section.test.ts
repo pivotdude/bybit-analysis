@@ -32,7 +32,7 @@ describe("renderTable", () => {
 
     expect(lines[0]).toBe("| Field | Value |");
     expect(lines[2]).toBe("| closeReason | tp\\|sl<br />manual\\\\override |");
-    expect(countUnescapedPipes(lines[2])).toBe(3);
+    expect(countUnescapedPipes(lines[2]!)).toBe(3);
   });
 
   it("applies the same escaping in compact mode", () => {
@@ -46,7 +46,7 @@ describe("renderTable", () => {
 
     expect(lines[0]).toBe("|Field|Value|");
     expect(lines[2]).toBe("|note|risk\\|ops<br />line2|");
-    expect(countUnescapedPipes(lines[2])).toBe(3);
+    expect(countUnescapedPipes(lines[2]!)).toBe(3);
   });
 
   it("keeps long cell text without truncation", () => {
@@ -57,6 +57,6 @@ describe("renderTable", () => {
     });
 
     expect(lines[2]).toContain(longText);
-    expect(lines[2].includes("...")).toBe(false);
+    expect(lines[2]!.includes("...")).toBe(false);
   });
 });

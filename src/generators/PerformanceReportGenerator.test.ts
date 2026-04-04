@@ -87,8 +87,9 @@ describe("PerformanceReportGenerator", () => {
     const report = await generator.generate(context);
     const section = report.sections.find((item) => item.title === "Capital Efficiency");
 
-    expect(section?.kpis?.[0]?.value).toBe("unsupported");
-    expect(section?.kpis?.[1]?.value).toBe("unsupported");
+    expect(section?.type).toBe("kpi");
+    expect(section && section.type === "kpi" ? section.kpis[0]?.value : undefined).toBe("unsupported");
+    expect(section && section.type === "kpi" ? section.kpis[1]?.value : undefined).toBe("unsupported");
     expect(pnlRequest?.accountSnapshot?.unrealizedPnlUsd).toBe(17);
     expect(pnlRequest?.equityStartUsd).toBeUndefined();
     expect(pnlRequest?.equityEndUsd).toBe(1_000);

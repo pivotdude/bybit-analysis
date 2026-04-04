@@ -216,7 +216,11 @@ describe("SummaryReportGenerator", () => {
     expect(report.command).toBe("summary");
     expect(report.sections.some((section) => section.title === "Overview")).toBe(true);
     expect(report.dataCompleteness?.state).toBe("degraded");
-    expect(alertsSection?.alerts?.some((alert) => alert.message.includes("bot endpoint unavailable"))).toBe(true);
+    expect(
+      alertsSection && alertsSection.type === "alerts"
+        ? alertsSection.alerts.some((alert) => alert.message.includes("bot endpoint unavailable"))
+        : false
+    ).toBe(true);
     expect(
       report.dataCompleteness?.issues.some(
         (issue) =>

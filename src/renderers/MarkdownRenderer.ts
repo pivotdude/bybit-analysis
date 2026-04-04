@@ -17,40 +17,26 @@ export class MarkdownRenderer implements ReportRenderer {
     }
 
     lines.push(`Generated at: ${new Date(report.generatedAt).toISOString()}`);
-    if (report.schemaVersion) {
-      lines.push(`Schema: ${report.schemaVersion}`);
-    }
+    lines.push(`Schema: ${report.schemaVersion}`);
 
     for (const section of report.sections) {
       if (!compact) {
         lines.push("");
       }
-      lines.push(
-        section.id
-          ? `${sectionHeadingPrefix} [${section.id}] ${section.title}`
-          : `${sectionHeadingPrefix} ${section.title}`
-      );
+      lines.push(`${sectionHeadingPrefix} [${section.id}] ${section.title}`);
 
       switch (section.type) {
         case "kpi":
-          if (section.kpis) {
-            lines.push(...renderKpis(section.kpis));
-          }
+          lines.push(...renderKpis(section.kpis));
           break;
         case "table":
-          if (section.table) {
-            lines.push(...renderTable(section.table, compact));
-          }
+          lines.push(...renderTable(section.table, compact));
           break;
         case "alerts":
-          if (section.alerts) {
-            lines.push(...renderAlerts(section.alerts));
-          }
+          lines.push(...renderAlerts(section.alerts));
           break;
         case "text":
-          if (section.text) {
-            lines.push(...section.text);
-          }
+          lines.push(...section.text);
           break;
         default:
           break;

@@ -10,6 +10,7 @@ import {
   mergeDataCompleteness
 } from "../services/reliability/dataCompleteness";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
+import { createSectionBuilder } from "./reportContract";
 
 export const SUMMARY_SCHEMA_VERSION = "summary-markdown-v1";
 
@@ -48,26 +49,7 @@ export const SUMMARY_SECTION_ORDER = [
 ] as const satisfies readonly (keyof typeof SUMMARY_SECTION_CONTRACT)[];
 
 type SummarySectionKey = keyof typeof SUMMARY_SECTION_CONTRACT;
-
-type SummarySectionPayloadByType = {
-  text: { text: NonNullable<ReportSection["text"]> };
-  kpi: { kpis: NonNullable<ReportSection["kpis"]> };
-  table: { table: NonNullable<ReportSection["table"]> };
-  alerts: { alerts: NonNullable<ReportSection["alerts"]> };
-};
-
-function section<K extends SummarySectionKey>(
-  key: K,
-  payload: SummarySectionPayloadByType[(typeof SUMMARY_SECTION_CONTRACT)[K]["type"]]
-): ReportSection {
-  const contract = SUMMARY_SECTION_CONTRACT[key];
-  return {
-    id: contract.id,
-    title: contract.title,
-    type: contract.type,
-    ...payload
-  };
-}
+const section = createSectionBuilder(SUMMARY_SECTION_CONTRACT);
 
 const STABLE_ASSETS = new Set(["USDT", "USDC", "USD", "USDE", "FDUSD", "DAI", "TUSD", "USDD"]);
 

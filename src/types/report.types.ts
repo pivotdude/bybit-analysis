@@ -17,21 +17,35 @@ export interface MarkdownAlert {
   message: string;
 }
 
-export interface ReportSection {
-  id?: string;
+interface ReportSectionBase<TType extends ReportSectionType> {
+  id: string;
   title: string;
-  type: ReportSectionType;
-  text?: string[];
-  kpis?: MarkdownKpi[];
-  table?: MarkdownTable;
-  alerts?: MarkdownAlert[];
+  type: TType;
 }
+
+export type ReportTextSection = ReportSectionBase<"text"> & {
+  text: string[];
+};
+
+export type ReportKpiSection = ReportSectionBase<"kpi"> & {
+  kpis: MarkdownKpi[];
+};
+
+export type ReportTableSection = ReportSectionBase<"table"> & {
+  table: MarkdownTable;
+};
+
+export type ReportAlertsSection = ReportSectionBase<"alerts"> & {
+  alerts: MarkdownAlert[];
+};
+
+export type ReportSection = ReportTextSection | ReportKpiSection | ReportTableSection | ReportAlertsSection;
 
 export interface ReportDocument {
   command: string;
   title: string;
   generatedAt: string;
-  schemaVersion?: string;
+  schemaVersion: string;
   sections: ReportSection[];
   dataCompleteness?: DataCompleteness;
 }
