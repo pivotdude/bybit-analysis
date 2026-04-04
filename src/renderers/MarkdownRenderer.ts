@@ -7,17 +7,29 @@ import { renderTable } from "./sections/table.section";
 
 export class MarkdownRenderer implements ReportRenderer {
   render(report: ReportDocument, format: OutputFormat): string {
+    const compact = format === "compact";
+    const sectionHeadingPrefix = compact ? "###" : "##";
     const lines: string[] = [];
+
     lines.push(`# ${report.title}`);
-    lines.push("");
+    if (!compact) {
+      lines.push("");
+    }
+
     lines.push(`Generated at: ${new Date(report.generatedAt).toISOString()}`);
     if (report.schemaVersion) {
       lines.push(`Schema: ${report.schemaVersion}`);
     }
 
     for (const section of report.sections) {
-      lines.push("");
-      lines.push(section.id ? `## [${section.id}] ${section.title}` : `## ${section.title}`);
+      if (!compact) {
+        lines.push("");
+      }
+      lines.push(
+        section.id
+          ? `${sectionHeadingPrefix} [${section.id}] ${section.title}`
+          : `${sectionHeadingPrefix} ${section.title}`
+      );
 
       switch (section.type) {
         case "kpi":
@@ -27,8 +39,7 @@ export class MarkdownRenderer implements ReportRenderer {
           break;
         case "table":
           if (section.table) {
-            const maxRows = format === "compact" ? 10 : undefined;
-            lines.push(...renderTable(section.table, maxRows));
+            lines.push(...renderTable(section.table, compact));
           }
           break;
         case "alerts":
@@ -38,8 +49,7 @@ export class MarkdownRenderer implements ReportRenderer {
           break;
         case "text":
           if (section.text) {
-            const textLines = format === "compact" ? section.text.slice(0, 6) : section.text;
-            lines.push(...textLines);
+            lines.push(...section.text);
           }
           break;
         default:
@@ -47,7 +57,9 @@ export class MarkdownRenderer implements ReportRenderer {
       }
     }
 
-    lines.push("");
+    if (!compact) {
+      lines.push("");
+    }
     return lines.join("\n");
   }
 }

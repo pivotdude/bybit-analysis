@@ -97,6 +97,11 @@ Fixed section order:
 - `--pagination-limit-mode <error|partial>`
 - `--help, -h`
 
+Output formats:
+
+- `md` - standard Markdown layout.
+- `compact` - lossless Markdown layout with tighter spacing (presentation-only; no row/text truncation).
+
 ## Credentials (Secure Default)
 
 Recommended production paths:
