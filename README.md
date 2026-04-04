@@ -130,6 +130,40 @@ Example (`pnl` section):
 - `--pagination-limit-mode <error|partial>`
 - `--help, -h`
 
+## Config & Environment Contract
+
+Supported env vars:
+
+- `BYBIT_API_KEY`
+- `BYBIT_SECRET`
+- `BYBIT_API_SECRET`
+- `BYBIT_ALLOW_INSECURE_CLI_SECRETS`
+- `BYBIT_PROFILE`
+- `BYBIT_PROFILES_FILE`
+- `BYBIT_CATEGORY`
+- `BYBIT_FGRID_BOT_IDS`
+- `BYBIT_SPOT_GRID_IDS`
+- `BYBIT_FORMAT`
+- `BYBIT_TIMEOUT_MS`
+- `BYBIT_WINDOW`
+- `BYBIT_POSITIONS_MAX_PAGES`
+- `BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK`
+- `BYBIT_PAGINATION_LIMIT_MODE`
+- `BYBIT_CONFIG_DIAGNOSTICS`
+
+Precedence rules:
+
+- General runtime fields: `CLI args -> profile (if applicable) -> env -> defaults`
+- Credentials: `profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
+- Time range: `--from + --to -> --window -> BYBIT_WINDOW -> default 30d window`
+
+Legacy hidden aliases are intentionally removed and not supported:
+
+- `WINDOW`
+- `DEFAULT_CATEGORY`
+- `DEFAULT_FORMAT`
+- `DEFAULT_TIMEOUT_MS`
+
 CLI parsing conventions:
 
 - Value options support both `--flag value` and `--flag=value`.
@@ -170,7 +204,8 @@ Legacy path (deprecated, insecure):
 
 ## Config Priority
 
-`profile > .env/env > legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) > defaults`
+- General runtime fields: `CLI args -> profile (if applicable) -> .env/env -> defaults`
+- Credentials only: `profile -> .env/env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
 
 ## Credential Profiles
 
