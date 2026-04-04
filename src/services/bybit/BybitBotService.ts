@@ -10,6 +10,46 @@ import { completeDataCompleteness, degradedDataCompleteness } from "../reliabili
 
 const BOT_DETAIL_TTL_MS = 15_000;
 const BOT_REPORT_TTL_MS = 10_000;
+// Keep the pool conservative to improve batch latency without creating large rate spikes.
+const BOT_DETAIL_CONCURRENCY = 3;
+
+interface BotFetchTask {
+  botId: string;
+  kind: "futures_grid" | "spot_grid";
+}
+
+type BotFetchOutcome =
+  | {
+      bot: BotSummary;
+    }
+  | {
+      issueMessage: string;
+    };
+
+async function mapWithConcurrency<TInput, TOutput>(
+  items: TInput[],
+  concurrency: number,
+  worker: (item: TInput, index: number) => Promise<TOutput>
+): Promise<TOutput[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const boundedConcurrency = Math.max(1, Math.min(concurrency, items.length));
+  const results = new Array<TOutput>(items.length);
+  let nextIndex = 0;
+
+  async function runWorker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await worker(items[currentIndex], currentIndex);
+    }
+  }
+
+  await Promise.all(Array.from({ length: boundedConcurrency }, () => runWorker()));
+  return results;
+}
 
 function sum(values: Array<number | undefined>): number {
   return values.reduce<number>((acc, value) => acc + (typeof value === "number" ? value : 0), 0);
@@ -50,35 +90,44 @@ export class BybitBotService implements BotDataService {
       };
     }
 
+    const tasks: BotFetchTask[] = [
+      ...context.futuresGridBotIds.map((botId) => ({ botId, kind: "futures_grid" as const })),
+      ...context.spotGridBotIds.map((botId) => ({ botId, kind: "spot_grid" as const }))
+    ];
+    const outcomes = await mapWithConcurrency(tasks, BOT_DETAIL_CONCURRENCY, async (task): Promise<BotFetchOutcome> => {
+      try {
+        if (task.kind === "futures_grid") {
+          const detail = await this.getFuturesGridDetail(task.botId, context.timeoutMs);
+          return {
+            bot: normalizeFuturesGridBotSummary(task.botId, detail)
+          };
+        }
+
+        const detail = await this.getSpotGridDetail(task.botId, context.timeoutMs);
+        return {
+          bot: normalizeSpotGridBotSummary(task.botId, detail)
+        };
+      } catch (error) {
+        return {
+          issueMessage: `${task.kind}:${task.botId}:${error instanceof Error ? error.message : String(error)}`
+        };
+      }
+    });
+
     const bots: BotSummary[] = [];
     const issues: BotReport["dataCompleteness"]["issues"] = [];
-
-    for (const botId of context.futuresGridBotIds) {
-      try {
-        const detail = await this.getFuturesGridDetail(botId, context.timeoutMs);
-        bots.push(normalizeFuturesGridBotSummary(botId, detail));
-      } catch (error) {
-        issues.push(
-          buildOptionalItemIssue({
-            scope: "bots",
-            message: `futures_grid:${botId}:${error instanceof Error ? error.message : String(error)}`
-          })
-        );
+    for (const outcome of outcomes) {
+      if ("bot" in outcome) {
+        bots.push(outcome.bot);
+        continue;
       }
-    }
 
-    for (const botId of context.spotGridBotIds) {
-      try {
-        const detail = await this.getSpotGridDetail(botId, context.timeoutMs);
-        bots.push(normalizeSpotGridBotSummary(botId, detail));
-      } catch (error) {
-        issues.push(
-          buildOptionalItemIssue({
-            scope: "bots",
-            message: `spot_grid:${botId}:${error instanceof Error ? error.message : String(error)}`
-          })
-        );
-      }
+      issues.push(
+        buildOptionalItemIssue({
+          scope: "bots",
+          message: outcome.issueMessage
+        })
+      );
     }
 
     const totalAllocatedUsd = sum(bots.map((bot) => bot.allocatedCapitalUsd));
