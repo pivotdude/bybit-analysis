@@ -57,6 +57,7 @@ export class PermissionsReportGenerator {
             { label: "Read Only", value: info.readOnly ? "yes" : "no" },
             { label: "Is Master UID", value: info.isMaster === undefined ? "unknown" : info.isMaster ? "yes" : "no" },
             { label: "Permission Scopes", value: String(Object.keys(info.permissions).length) },
+            { label: "IP Whitelist", value: info.ipWhitelistRestricted ? `yes (${info.ipWhitelistCount})` : "no" },
             { label: "Bot Readiness", value: botReadiness }
           ]
         },
@@ -66,9 +67,10 @@ export class PermissionsReportGenerator {
           table: {
             headers: ["Field", "Value"],
             rows: [
-              ["apiKey", info.apiKey ?? "<hidden>"],
+              ["apiKey", info.apiKeyDisplay],
+              ["apiKeyStatus", info.apiKeyStatus],
               ["note", info.note ?? "<none>"],
-              ["ipWhitelist", info.ips.join(", ") || "<none>"]
+              ["ipWhitelist", info.ipWhitelistDisplay]
             ]
           }
         },

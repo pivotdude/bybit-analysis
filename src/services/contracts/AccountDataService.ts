@@ -19,11 +19,14 @@ export interface HealthCheckResult {
 }
 
 export interface ApiKeyPermissionInfo {
-  apiKey?: string;
+  apiKeyStatus: "present" | "missing";
+  apiKeyDisplay: string;
   note?: string;
   readOnly: boolean;
   isMaster?: boolean;
-  ips: string[];
+  ipWhitelistRestricted: boolean;
+  ipWhitelistCount: number;
+  ipWhitelistDisplay: string;
   permissions: Record<string, string[]>;
 }
 
