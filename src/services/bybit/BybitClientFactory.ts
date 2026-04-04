@@ -110,7 +110,14 @@ export class BybitReadonlyClient {
     });
   }
 
-  async getExecutionList(category: MarketCategory, from: string, to: string, cursor?: string, timeoutMs?: number): Promise<unknown> {
+  async getExecutionList(
+    category: MarketCategory,
+    from: string,
+    to: string,
+    cursor?: string,
+    timeoutMs?: number,
+    symbol?: string
+  ): Promise<unknown> {
     if (category === "bot") {
       throw new Error("getExecutionList does not support category=bot");
     }
@@ -120,6 +127,7 @@ export class BybitReadonlyClient {
         category,
         startTime: new Date(from).getTime(),
         endTime: new Date(to).getTime(),
+        symbol,
         execType: "Trade",
         limit: 100,
         cursor

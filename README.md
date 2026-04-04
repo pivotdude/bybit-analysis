@@ -28,6 +28,12 @@ bun run src/index.ts <command> [options]
 - `config` - Effective runtime config (redacted)
 - `health` - API/connectivity/readiness checks
 
+## Spot PnL Inventory Method
+
+- Cost basis method: `weighted_average`.
+- Opening inventory at `--from` is reconstructed from pre-window spot executions (lookback: last 365 days) for symbols sold inside the window.
+- If sell quantity cannot be matched to reconstructed inventory, the report is marked `dataCompleteness.partial=true`, and unmatched quantity is excluded from realized PnL (no fallback to sell execution price).
+
 ## Global Options
 
 - `--api-key <value>`
