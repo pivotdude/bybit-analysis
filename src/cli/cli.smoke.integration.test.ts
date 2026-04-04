@@ -10,6 +10,7 @@ const BYBIT_ENV_KEYS = [
   "BYBIT_SOURCE_MODE",
   "BYBIT_FGRID_BOT_IDS",
   "BYBIT_SPOT_GRID_IDS",
+  "BYBIT_DISABLE_ENV",
   "BYBIT_CONFIG_DIAGNOSTICS"
 ] as const;
 
@@ -33,7 +34,7 @@ function runCli(
   envOverrides: Record<string, string> = {}
 ): { exitCode: number; stdout: string; stderr: string } {
   const processResult = Bun.spawnSync({
-    cmd: ["bun", "run", "src/index.ts", ...args],
+    cmd: ["bun", "--no-env-file", "run", "src/index.ts", ...args],
     cwd: process.cwd(),
     env: {
       ...createCliEnv(),
@@ -124,6 +125,27 @@ describe("CLI smoke/integration", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("# Runtime Configuration");
+  });
+
+  it("reports hermetic ambient env mode and used env vars", () => {
+    const result = runCli([
+      "config",
+      "--no-env",
+      "--from",
+      "2026-01-01T00:00:00.000Z",
+      "--to",
+      "2026-01-02T00:00:00.000Z"
+    ], {
+      BYBIT_CATEGORY: "spot",
+      BYBIT_TIMEOUT_MS: "15000"
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("| ambientEnv.enabled | false |");
+    expect(result.stdout).toContain("| ambientEnv.source | cli |");
+    expect(result.stdout).toContain("| ambientEnv.usedVars | <none> |");
+    expect(result.stdout).toContain("| category | linear |");
   });
 
   it("keeps compact output lossless for table records vs markdown", () => {

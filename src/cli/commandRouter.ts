@@ -1,3 +1,4 @@
+import type { AmbientEnvResolution } from "../types/config.types";
 import { resolveRuntimeConfig, validateCredentials } from "../config";
 import { MemoryCacheStore } from "../services/cache/MemoryCacheStore";
 import { createServiceBundle } from "../services/composition/createServiceBundle";
@@ -18,8 +19,12 @@ import type { HandlerDeps } from "./commandHandlers/shared";
 
 export class UsageError extends Error {}
 
-function buildDeps(parsed: ParsedCliArgs): HandlerDeps {
-  const config = resolveRuntimeConfig(parsed.options);
+function buildDeps(
+  parsed: ParsedCliArgs,
+  env: Record<string, string | undefined>,
+  ambientEnv: AmbientEnvResolution
+): HandlerDeps {
+  const config = resolveRuntimeConfig(parsed.options, env, ambientEnv);
   const cache = new MemoryCacheStore();
   const {
     accountService,
@@ -38,7 +43,15 @@ function buildDeps(parsed: ParsedCliArgs): HandlerDeps {
   };
 }
 
-export async function executeCommand(parsed: ParsedCliArgs): Promise<string> {
+export async function executeCommand(
+  parsed: ParsedCliArgs,
+  env: Record<string, string | undefined> = {},
+  ambientEnv: AmbientEnvResolution = {
+    enabled: true,
+    source: "default",
+    usedVars: []
+  }
+): Promise<string> {
   if (parsed.errors.length > 0) {
     throw new UsageError(parsed.errors.join("; "));
   }
@@ -48,7 +61,7 @@ export async function executeCommand(parsed: ParsedCliArgs): Promise<string> {
 
   let deps: HandlerDeps;
   try {
-    deps = buildDeps(parsed);
+    deps = buildDeps(parsed, env, ambientEnv);
   } catch (error) {
     throw new UsageError(error instanceof Error ? error.message : String(error));
   }
