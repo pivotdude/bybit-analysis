@@ -3,7 +3,7 @@ import type { ServiceRequestContext } from "../contracts/AccountDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
-import { normalizeFuturesGridBotSummary, normalizeSpotGridBotSummary } from "../normalizers/bot.normalizer";
+import { normalizeFuturesGridBotSummary, normalizeSpotGridBotSummary } from "./normalizers/bot.normalizer";
 import type { BotReport, BotSummary } from "../../types/domain.types";
 import { BYBIT_PARTIAL_FAILURE_POLICY, buildOptionalItemIssue, runWithRetries } from "./partialFailurePolicy";
 import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";

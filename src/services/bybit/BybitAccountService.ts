@@ -9,7 +9,7 @@ import type { BotDataService } from "../contracts/BotDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
-import { normalizeAccountSnapshot } from "../normalizers/accountSnapshot.normalizer";
+import { normalizeAccountSnapshot } from "./normalizers/accountSnapshot.normalizer";
 import type { AccountSnapshot, AssetBalance, BotReport } from "../../types/domain.types";
 import { redactIpWhitelist, redactSecretValue } from "../../security/redaction";
 import { mergeDataCompleteness } from "../reliability/dataCompleteness";

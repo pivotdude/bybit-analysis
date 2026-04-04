@@ -1,7 +1,9 @@
-import type { DataCompleteness, Position } from "../../types/domain.types";
+import type { DataCompleteness, DataSource, ExchangeId, Position } from "../../types/domain.types";
 import type { ServiceRequestContext } from "./AccountDataService";
 
 export interface PositionDataResult {
+  source: DataSource;
+  exchange: ExchangeId;
   positions: Position[];
   dataCompleteness: DataCompleteness;
 }

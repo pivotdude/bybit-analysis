@@ -2,6 +2,14 @@
 
 Read-only analytics CLI for Bybit accounts. Outputs structured Markdown optimized for human and LLM consumption.
 
+## Exchange Readiness Status
+
+- Shared domain entities use extensible exchange identifiers (no hardcoded `exchange: "bybit"` contract in core types).
+- Exchange-specific DTO mapping/normalization lives under `src/services/bybit/normalizers`.
+- Composition root is provider-based via `src/services/composition/createServiceBundle.ts`.
+- Current implementation status: only the `bybit` provider is implemented and registered.
+- This is not full multi-exchange support yet; it is a structural split so new providers can be added without rewriting shared domain models.
+
 ## Install
 
 ```bash

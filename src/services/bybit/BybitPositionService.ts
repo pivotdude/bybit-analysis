@@ -4,7 +4,7 @@ import type { BotDataService } from "../contracts/BotDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
-import { normalizePositions } from "../normalizers/position.normalizer";
+import { normalizePositions } from "./normalizers/position.normalizer";
 import type { Position } from "../../types/domain.types";
 import {
   buildPaginationLimitMessage,
@@ -85,6 +85,8 @@ export class BybitPositionService implements PositionDataService {
   async getOpenPositions(context: ServiceRequestContext): Promise<PositionDataResult> {
     if (context.category === "spot") {
       return {
+        source: "bybit",
+        exchange: "bybit",
         positions: [],
         dataCompleteness: completeDataCompleteness()
       };
@@ -93,6 +95,8 @@ export class BybitPositionService implements PositionDataService {
     if (context.category === "bot") {
       const report = await this.botService.getBotReport(context);
       return {
+        source: "bybit",
+        exchange: "bybit",
         positions: toBotPositions(context, report.bots),
         dataCompleteness: report.dataCompleteness
       };
@@ -173,6 +177,8 @@ export class BybitPositionService implements PositionDataService {
     }
 
     const result: PositionDataResult = {
+      source: "bybit",
+      exchange: "bybit",
       positions: normalizePositions({ list: allRows }, context.category),
       dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
     };

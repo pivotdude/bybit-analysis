@@ -4,10 +4,11 @@ export type MarginMode = "cross" | "isolated";
 export type RiskBand = "low" | "medium" | "high";
 export type DataSource = "bybit" | "freqtrade" | "portfolio";
 export type PriceSource = "mark" | "last" | "index";
+export type ExchangeId = "bybit" | (string & {});
 
 export interface AccountSnapshot {
   source: DataSource;
-  exchange: "bybit";
+  exchange: ExchangeId;
   category: MarketCategory;
   capturedAt: string;
   accountId?: string;
@@ -41,7 +42,7 @@ export interface AssetBalance {
 
 export interface Position {
   source: DataSource;
-  exchange: "bybit";
+  exchange: ExchangeId;
   category: MarketCategory;
   symbol: string;
   baseAsset: string;

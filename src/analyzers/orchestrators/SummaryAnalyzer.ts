@@ -35,7 +35,7 @@ export class SummaryAnalyzer {
       balance: this.balanceAnalyzer.analyze(account),
       pnl: this.pnlAnalyzer.analyze(pnl),
       positions: positionsAnalysis,
-      exposure: this.exposureAnalyzer.analyze(account.positions),
+      exposure: this.exposureAnalyzer.analyze(account.positions, account.source),
       performance: this.performanceAnalyzer.analyze(account, pnl),
       risk: this.riskAnalyzer.analyze(account, account.positions),
       bots: botReport ? this.botsAnalyzer.analyze(botReport) : undefined

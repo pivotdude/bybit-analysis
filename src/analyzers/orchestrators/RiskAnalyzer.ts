@@ -77,7 +77,7 @@ export class RiskAnalyzer {
     };
 
     return {
-      source: "bybit",
+      source: account.source,
       asOf: new Date().toISOString(),
       ...core,
       alerts: buildAlerts(account, positions, core)

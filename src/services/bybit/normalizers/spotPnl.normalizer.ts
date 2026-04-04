@@ -1,6 +1,6 @@
-import type { PnLReport, SymbolPnL } from "../../types/domain.types";
-import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
-import { normalizeRoi } from "./roi.normalizer";
+import type { PnLReport, SymbolPnL } from "../../../types/domain.types";
+import { completeDataCompleteness, degradedDataCompleteness } from "../../reliability/dataCompleteness";
+import { normalizeRoi } from "../../normalizers/roi.normalizer";
 
 interface SymbolParts {
   baseAsset: string;

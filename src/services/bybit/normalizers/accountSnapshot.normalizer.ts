@@ -5,8 +5,8 @@ import type {
   EquitySnapshot,
   MarketCategory,
   Position
-} from "../../types/domain.types";
-import { completeDataCompleteness } from "../reliability/dataCompleteness";
+} from "../../../types/domain.types";
+import { completeDataCompleteness } from "../../reliability/dataCompleteness";
 
 function toNumber(input: unknown): number {
   const value = Number(input);

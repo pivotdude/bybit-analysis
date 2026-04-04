@@ -1,4 +1,4 @@
-import type { BotSummary } from "../../types/domain.types";
+import type { BotSummary } from "../../../types/domain.types";
 
 interface FuturesGridDetailEnvelope {
   detail?: Record<string, unknown>;

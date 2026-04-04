@@ -1,4 +1,4 @@
-import type { MarketCategory, Position, PriceSource } from "../../types/domain.types";
+import type { MarketCategory, Position, PriceSource } from "../../../types/domain.types";
 
 function toNumber(input: unknown): number {
   const value = Number(input);

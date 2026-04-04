@@ -100,6 +100,8 @@ describe("BybitAccountService#getAccountSnapshot", () => {
 
     const positionsService: PositionDataService = {
       getOpenPositions: async () => ({
+        source: "bybit",
+        exchange: "bybit",
         positions: [],
         dataCompleteness: {
           state: "complete",

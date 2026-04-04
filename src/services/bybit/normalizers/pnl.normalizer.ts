@@ -1,6 +1,6 @@
-import type { PnLReport, SymbolPnL } from "../../types/domain.types";
-import { completeDataCompleteness } from "../reliability/dataCompleteness";
-import { normalizeRoi } from "./roi.normalizer";
+import type { PnLReport, SymbolPnL } from "../../../types/domain.types";
+import { completeDataCompleteness } from "../../reliability/dataCompleteness";
+import { normalizeRoi } from "../../normalizers/roi.normalizer";
 
 function toNumber(input: unknown): number {
   const value = Number(input);
