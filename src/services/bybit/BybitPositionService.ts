@@ -14,10 +14,8 @@ import type { PaginationLimitMode } from "./pagination";
 import type { PositionDataResult } from "../contracts/PositionDataService";
 import {
   BYBIT_PARTIAL_FAILURE_POLICY,
-  DEFAULT_PAGE_FETCH_ATTEMPTS,
   buildPageFetchIssue,
-  buildPaginationIssue,
-  runWithRetries
+  buildPaginationIssue
 } from "./partialFailurePolicy";
 import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
 
@@ -120,10 +118,7 @@ export class BybitPositionService implements PositionDataService {
         nextPageCursor?: string;
       };
       try {
-        result = (await runWithRetries(
-          () => this.client.getPositions(context.category, cursor, context.timeoutMs),
-          DEFAULT_PAGE_FETCH_ATTEMPTS
-        )) as {
+        result = (await this.client.getPositions(context.category, cursor, context.timeoutMs)) as {
           list?: Array<Record<string, unknown>>;
           nextPageCursor?: string;
         };
@@ -133,7 +128,6 @@ export class BybitPositionService implements PositionDataService {
           criticality: BYBIT_PARTIAL_FAILURE_POLICY.positions.criticality,
           page,
           cursor,
-          retries: DEFAULT_PAGE_FETCH_ATTEMPTS,
           error
         });
 

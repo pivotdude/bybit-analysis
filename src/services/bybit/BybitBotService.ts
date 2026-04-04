@@ -9,7 +9,7 @@ import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeFuturesGridBotSummary, normalizeSpotGridBotSummary } from "./normalizers/bot.normalizer";
 import type { BotReport, BotSummary } from "../../types/domain.types";
-import { BYBIT_PARTIAL_FAILURE_POLICY, buildOptionalItemIssue, runWithRetries } from "./partialFailurePolicy";
+import { buildOptionalItemIssue } from "./partialFailurePolicy";
 import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
 
 const BOT_DETAIL_TTL_MS = 15_000;
@@ -190,8 +190,7 @@ export class BybitBotService implements BotDataService {
       return cached;
     }
 
-    const retries = BYBIT_PARTIAL_FAILURE_POLICY.bot_detail.partialOnFailure === "per_item" ? 3 : 1;
-    const result = await runWithRetries(() => this.client.getFuturesGridBotDetail(botId, timeoutMs), retries);
+    const result = await this.client.getFuturesGridBotDetail(botId, timeoutMs);
     this.cache.set(key, result, BOT_DETAIL_TTL_MS);
     return result;
   }
@@ -203,8 +202,7 @@ export class BybitBotService implements BotDataService {
       return cached;
     }
 
-    const retries = BYBIT_PARTIAL_FAILURE_POLICY.bot_detail.partialOnFailure === "per_item" ? 3 : 1;
-    const result = await runWithRetries(() => this.client.getSpotGridBotDetail(botId, timeoutMs), retries);
+    const result = await this.client.getSpotGridBotDetail(botId, timeoutMs);
     this.cache.set(key, result, BOT_DETAIL_TTL_MS);
     return result;
   }

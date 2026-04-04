@@ -108,8 +108,10 @@ describe("BybitPositionService pagination", () => {
   });
 
   it("fails fast when first positions page cannot be fetched", async () => {
+    let calls = 0;
     const client = {
       getPositions: async () => {
+        calls += 1;
         throw new Error("temporary transport issue");
       }
     } as unknown as BybitReadonlyClient;
@@ -117,6 +119,27 @@ describe("BybitPositionService pagination", () => {
     const service = new BybitPositionService(client, botService, new MemoryCacheStore());
 
     await expect(service.getOpenPositions(context)).rejects.toThrow("Failed to fetch page 1");
+    expect(calls).toBe(1);
+  });
+
+  it("uses transport retry metadata in page failure message", async () => {
+    let calls = 0;
+    const error = Object.assign(new Error("too many requests"), {
+      retryInfo: {
+        attempts: 4
+      }
+    });
+
+    const client = {
+      getPositions: async () => {
+        calls += 1;
+        throw error;
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    await expect(service.getOpenPositions(context)).rejects.toThrow("after 4 attempts");
+    expect(calls).toBe(1);
   });
 
   it("degrades when subsequent positions page fails", async () => {

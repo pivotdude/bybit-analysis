@@ -1,8 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import type { RuntimeConfig } from "../../types/config.types";
 import { MemoryCacheStore } from "../cache/MemoryCacheStore";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
 import { BybitExecutionService } from "./BybitExecutionService";
-import type { BybitReadonlyClient } from "./BybitClientFactory";
+import { createBybitClient, type BybitReadonlyClient } from "./BybitClientFactory";
 import { PaginationLimitReachedError } from "./pagination";
 
 const spotContext: ServiceRequestContext = {
@@ -399,6 +400,61 @@ describe("BybitExecutionService pagination", () => {
 
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
     await expect(service.getPnlReport({ context: linearContext })).rejects.toThrow("Failed to fetch page 1");
+  });
+
+  it("does not amplify client 429 retries in service pagination flow", async () => {
+    let closedPnlCalls = 0;
+    const retryDelays: number[] = [];
+
+    const client = createBybitClient(
+      {
+        apiKey: "test-api-key",
+        apiSecret: "test-api-secret",
+        timeoutMs: 5_000
+      } as RuntimeConfig,
+      {
+        sleep: async (delayMs) => {
+          retryDelays.push(delayMs);
+        },
+        random: () => 0,
+        retryPolicy: {
+          maxAttempts: 2,
+          baseDelayMs: 100,
+          maxDelayMs: 1_000,
+          jitterRatio: 0
+        },
+        fetchFn: async (url: string | URL | Request) => {
+          const urlText = typeof url === "string" ? url : url.toString();
+
+          if (urlText.includes("/v5/position/closed-pnl")) {
+            closedPnlCalls += 1;
+            return new Response("{\"retCode\":10006,\"retMsg\":\"too many requests\"}", {
+              status: 429,
+              statusText: "Too Many Requests",
+              headers: {
+                "content-type": "application/json",
+                "retry-after": "2"
+              }
+            });
+          }
+
+          if (urlText.includes("/v5/account/wallet-balance")) {
+            return new Response("{\"retCode\":0,\"retMsg\":\"OK\",\"result\":{\"list\":[{\"totalPerpUPL\":\"0\"}]},\"time\":1}", {
+              status: 200,
+              statusText: "OK",
+              headers: { "content-type": "application/json" }
+            });
+          }
+
+          throw new Error(`unexpected endpoint in test: ${urlText}`);
+        }
+      }
+    );
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    await expect(service.getPnlReport({ context: linearContext })).rejects.toThrow("after 2 attempts");
+    expect(closedPnlCalls).toBe(2);
+    expect(retryDelays).toEqual([2_000]);
   });
 
   it("degrades when subsequent closed-pnl page fails", async () => {

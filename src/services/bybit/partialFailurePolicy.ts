@@ -12,8 +12,6 @@ interface PartialFailurePolicy {
   partialOnFailure: "never" | "per_item" | "after_first_page";
 }
 
-export const DEFAULT_PAGE_FETCH_ATTEMPTS = 3;
-
 export const BYBIT_PARTIAL_FAILURE_POLICY: Record<BybitPartialFailureDataType, PartialFailurePolicy> = {
   bot_detail: {
     criticality: "optional",
@@ -44,20 +42,22 @@ function toErrorMessage(error: unknown): string {
   return String(error);
 }
 
-export async function runWithRetries<T>(fetcher: () => Promise<T>, attempts: number = DEFAULT_PAGE_FETCH_ATTEMPTS): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      return await fetcher();
-    } catch (error) {
-      lastError = error;
-      if (attempt >= attempts) {
-        break;
-      }
-    }
+function getRetryAttempts(error: unknown): number {
+  if (!error || typeof error !== "object") {
+    return 1;
   }
 
-  throw lastError;
+  const retryInfo = (error as { retryInfo?: { attempts?: unknown } }).retryInfo;
+  if (!retryInfo || typeof retryInfo !== "object") {
+    return 1;
+  }
+
+  const attempts = retryInfo.attempts;
+  if (typeof attempts !== "number" || !Number.isFinite(attempts) || attempts < 1) {
+    return 1;
+  }
+
+  return Math.floor(attempts);
 }
 
 export function buildPageFetchIssue(args: {
@@ -65,16 +65,17 @@ export function buildPageFetchIssue(args: {
   criticality: DataCriticality;
   page: number;
   cursor?: string;
-  retries: number;
   error: unknown;
 }): DataCompletenessIssue {
   const cursorMessage = args.cursor ? ` (cursor=${args.cursor})` : "";
+  const attempts = getRetryAttempts(args.error);
+  const attemptLabel = attempts === 1 ? "attempt" : "attempts";
   return {
     code: "page_fetch_failed",
     scope: args.scope,
     severity: "warning",
     criticality: args.criticality,
-    message: `Failed to fetch page ${args.page}${cursorMessage} after ${args.retries} attempts: ${toErrorMessage(args.error)}`
+    message: `Failed to fetch page ${args.page}${cursorMessage} after ${attempts} ${attemptLabel}: ${toErrorMessage(args.error)}`
   };
 }
 
