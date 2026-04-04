@@ -43,6 +43,9 @@ bun run src/index.ts <command> [options]
 - `--window <7d|30d|90d>`
 - `--lang <en>`
 - `--timeout-ms <number>`
+- `--positions-max-pages <number>`
+- `--executions-max-pages-per-chunk <number>`
+- `--pagination-limit-mode <error|partial>`
 - `--help, -h`
 
 ## Config Priority
@@ -88,6 +91,12 @@ Or set bot IDs once via env:
 
 - `BYBIT_FGRID_BOT_IDS=<id1,id2,...>`
 - `BYBIT_SPOT_GRID_IDS=<id1,id2,...>`
+
+Pagination safety (optional):
+
+- `BYBIT_POSITIONS_MAX_PAGES=<number>`
+- `BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK=<number>`
+- `BYBIT_PAGINATION_LIMIT_MODE=<error|partial>`
 
 Example:
 

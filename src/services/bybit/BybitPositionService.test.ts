@@ -1,0 +1,101 @@
+import { describe, expect, it } from "bun:test";
+import { MemoryCacheStore } from "../cache/MemoryCacheStore";
+import type { ServiceRequestContext } from "../contracts/AccountDataService";
+import { BybitPositionService } from "./BybitPositionService";
+import type { BybitReadonlyClient } from "./BybitClientFactory";
+import { PaginationLimitReachedError } from "./pagination";
+
+const context: ServiceRequestContext = {
+  category: "linear",
+  futuresGridBotIds: [],
+  spotGridBotIds: [],
+  from: "2026-01-01T00:00:00.000Z",
+  to: "2026-01-31T00:00:00.000Z",
+  timeoutMs: 5_000
+};
+
+function createClient(totalPages: number): { client: BybitReadonlyClient; getCalls: () => number } {
+  let calls = 0;
+
+  const client = {
+    getPositions: async (_category: string, cursor?: string) => {
+      calls += 1;
+      const index = cursor ? Number(cursor.slice(1)) : 0;
+      const nextPageCursor = index + 1 < totalPages ? `c${index + 1}` : undefined;
+
+      return {
+        list: [
+          {
+            symbol: `BTCUSDT_${index}`,
+            size: "1",
+            side: "Buy",
+            markPrice: "100",
+            avgPrice: "90",
+            positionValue: "100",
+            leverage: "2",
+            unrealisedPnl: "5"
+          }
+        ],
+        nextPageCursor
+      };
+    }
+  } as unknown as BybitReadonlyClient;
+
+  return {
+    client,
+    getCalls: () => calls
+  };
+}
+
+const botService = {
+  getBotReport: async () => ({
+    source: "bybit" as const,
+    generatedAt: new Date().toISOString(),
+    availability: "available" as const,
+    bots: []
+  })
+};
+
+describe("BybitPositionService pagination", () => {
+  it("reads all pages when no safety limit is configured", async () => {
+    const { client, getCalls } = createClient(12);
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+
+    const result = await service.getOpenPositions(context);
+
+    expect(result.positions).toHaveLength(12);
+    expect(result.dataCompleteness.partial).toBe(false);
+    expect(getCalls()).toBe(12);
+  });
+
+  it("throws when safety limit is reached and nextPageCursor is still present", async () => {
+    const { client } = createClient(3);
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore(), { maxPages: 2 });
+
+    try {
+      await service.getOpenPositions(context);
+      throw new Error("expected pagination limit error");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PaginationLimitReachedError);
+      const paginationError = error as PaginationLimitReachedError;
+      expect(paginationError.context.endpoint).toBe("positions");
+      expect(paginationError.context.pageLimit).toBe(2);
+      expect(paginationError.context.pagesFetched).toBe(2);
+    }
+  });
+
+  it("returns partial result when safety limit is reached in partial mode", async () => {
+    const { client } = createClient(3);
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore(), {
+      maxPages: 2,
+      limitMode: "partial"
+    });
+
+    const result = await service.getOpenPositions(context);
+
+    expect(result.positions).toHaveLength(2);
+    expect(result.dataCompleteness.partial).toBe(true);
+    expect(result.dataCompleteness.warnings).toHaveLength(1);
+    expect(result.dataCompleteness.warnings[0]).toContain("positions");
+  });
+});

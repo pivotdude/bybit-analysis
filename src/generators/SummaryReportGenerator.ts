@@ -3,6 +3,7 @@ import type { AccountDataService, ServiceRequestContext } from "../services/cont
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
 import type { ReportDocument, ReportSection } from "../types/report.types";
+import type { DataCompleteness } from "../types/domain.types";
 import { fmtPct, fmtUsd } from "./formatters";
 
 export class SummaryReportGenerator {
@@ -36,84 +37,88 @@ export class SummaryReportGenerator {
 
     const summary = this.analyzer.analyze(account, pnl, botReport);
     const alertRows = summary.risk.alerts.map((alert) => [alert.severity, alert.message]);
+    const sections: ReportSection[] = [
+      {
+        title: "Executive Summary",
+        type: "kpi",
+        kpis: [
+          { label: "Total Equity", value: fmtUsd(summary.balance.snapshot.totalEquityUsd) },
+          { label: "Net PnL", value: fmtUsd(summary.pnl.netPnlUsd) },
+          { label: "Gross Exposure", value: fmtUsd(summary.exposure.grossExposureUsd) },
+          { label: "ROI", value: fmtPct(summary.performance.roiPct) },
+          { label: "Risk Alerts", value: String(summary.risk.alerts.length) }
+        ]
+      },
+      {
+        title: "Exposure",
+        type: "kpi",
+        kpis: [
+          { label: "Long", value: fmtUsd(summary.exposure.longExposureUsd) },
+          { label: "Short", value: fmtUsd(summary.exposure.shortExposureUsd) },
+          { label: "Net", value: fmtUsd(summary.exposure.netExposureUsd) },
+          { label: "Concentration Band", value: summary.exposure.concentration.band }
+        ]
+      },
+      {
+        title: "Performance",
+        type: "kpi",
+        kpis: [
+          { label: "Period Net PnL", value: fmtUsd(summary.performance.periodNetPnlUsd) },
+          { label: "ROI", value: fmtPct(summary.performance.roiPct) },
+          { label: "Capital Efficiency", value: fmtPct(summary.performance.capitalEfficiencyPct) },
+          { label: "Interpretation", value: summary.performance.interpretation }
+        ]
+      },
+      {
+        title: "Risk",
+        type: "kpi",
+        kpis: [
+          { label: "Weighted Avg Leverage", value: `${summary.risk.leverageUsage.weightedAvgLeverage.toFixed(2)}x` },
+          { label: "Max Leverage", value: `${summary.risk.leverageUsage.maxLeverageUsed.toFixed(2)}x` },
+          { label: "Notional / Equity", value: fmtPct(summary.risk.leverageUsage.notionalToEquityPct) },
+          { label: "Unrealized Loss / Equity", value: fmtPct(summary.risk.unrealizedLossRisk.unrealizedLossToEquityPct) }
+        ]
+      },
+      {
+        title: "Open Positions",
+        type: "table",
+        table: {
+          headers: ["Symbol", "Side", "Notional", "UPnL", "Leverage", "Price Source"],
+          rows: summary.positions.largestPositions.map((position) => [
+            position.symbol,
+            position.side,
+            fmtUsd(position.notionalUsd),
+            fmtUsd(position.unrealizedPnlUsd),
+            `${position.leverage.toFixed(2)}x`,
+            position.priceSource
+          ])
+        }
+      }
+    ];
+
+    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
+
+    sections.push({
+      title: "Alerts",
+      type: alertRows.length > 0 ? "table" : "alerts",
+      table:
+        alertRows.length > 0
+          ? {
+              headers: ["Severity", "Message"],
+              rows: alertRows
+            }
+          : undefined,
+      alerts:
+        alertRows.length === 0
+          ? [{ severity: "info", message: "No active alerts" }]
+          : undefined
+    });
 
     return {
       command: "summary",
       title: "Account Summary",
       generatedAt: summary.generatedAt,
-      sections: [
-        {
-          title: "Executive Summary",
-          type: "kpi",
-          kpis: [
-            { label: "Total Equity", value: fmtUsd(summary.balance.snapshot.totalEquityUsd) },
-            { label: "Net PnL", value: fmtUsd(summary.pnl.netPnlUsd) },
-            { label: "Gross Exposure", value: fmtUsd(summary.exposure.grossExposureUsd) },
-            { label: "ROI", value: fmtPct(summary.performance.roiPct) },
-            { label: "Risk Alerts", value: String(summary.risk.alerts.length) }
-          ]
-        },
-        {
-          title: "Exposure",
-          type: "kpi",
-          kpis: [
-            { label: "Long", value: fmtUsd(summary.exposure.longExposureUsd) },
-            { label: "Short", value: fmtUsd(summary.exposure.shortExposureUsd) },
-            { label: "Net", value: fmtUsd(summary.exposure.netExposureUsd) },
-            { label: "Concentration Band", value: summary.exposure.concentration.band }
-          ]
-        },
-        {
-          title: "Performance",
-          type: "kpi",
-          kpis: [
-            { label: "Period Net PnL", value: fmtUsd(summary.performance.periodNetPnlUsd) },
-            { label: "ROI", value: fmtPct(summary.performance.roiPct) },
-            { label: "Capital Efficiency", value: fmtPct(summary.performance.capitalEfficiencyPct) },
-            { label: "Interpretation", value: summary.performance.interpretation }
-          ]
-        },
-        {
-          title: "Risk",
-          type: "kpi",
-          kpis: [
-            { label: "Weighted Avg Leverage", value: `${summary.risk.leverageUsage.weightedAvgLeverage.toFixed(2)}x` },
-            { label: "Max Leverage", value: `${summary.risk.leverageUsage.maxLeverageUsed.toFixed(2)}x` },
-            { label: "Notional / Equity", value: fmtPct(summary.risk.leverageUsage.notionalToEquityPct) },
-            { label: "Unrealized Loss / Equity", value: fmtPct(summary.risk.unrealizedLossRisk.unrealizedLossToEquityPct) }
-          ]
-        },
-        {
-          title: "Open Positions",
-          type: "table",
-          table: {
-            headers: ["Symbol", "Side", "Notional", "UPnL", "Leverage", "Price Source"],
-            rows: summary.positions.largestPositions.map((position) => [
-              position.symbol,
-              position.side,
-              fmtUsd(position.notionalUsd),
-              fmtUsd(position.unrealizedPnlUsd),
-              `${position.leverage.toFixed(2)}x`,
-              position.priceSource
-            ])
-          }
-        },
-        {
-          title: "Alerts",
-          type: alertRows.length > 0 ? "table" : "alerts",
-          table:
-            alertRows.length > 0
-              ? {
-                  headers: ["Severity", "Message"],
-                  rows: alertRows
-                }
-              : undefined,
-          alerts:
-            alertRows.length === 0
-              ? [{ severity: "info", message: "No active alerts" }]
-              : undefined
-        }
-      ]
+      sections
     };
   }
 
@@ -132,39 +137,43 @@ export class SummaryReportGenerator {
       typeof bot.roiPct === "number" ? fmtPct(bot.roiPct) : "N/A"
     ]);
 
+    const sections: ReportSection[] = [
+      {
+        title: "Bot KPI",
+        type: "kpi",
+        kpis: [
+          { label: "Availability", value: botReport.availability },
+          { label: "Bots", value: String(botReport.bots.length) },
+          { label: "Total Equity", value: fmtUsd(account.totalEquityUsd) },
+          { label: "Allocated Capital", value: fmtUsd(botReport.totalAllocatedUsd ?? 0) },
+          { label: "Net PnL", value: fmtUsd(pnl.netPnlUsd) }
+        ]
+      },
+      {
+        title: "Bot Breakdown",
+        type: "table",
+        table: {
+          headers: ["Bot", "Status", "Allocated", "Exposure", "Realized", "Unrealized", "ROI"],
+          rows: botRows
+        }
+      },
+      {
+        title: "Notes",
+        type: "text",
+        text: [
+          botReport.availabilityReason ?? "Metrics are aggregated from grid bot detail endpoints.",
+          "Use --fgrid-bot-ids and/or --spot-grid-ids to select tracked bots."
+        ]
+      }
+    ];
+
+    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
+
     return {
       command: "summary",
       title: "Bot Portfolio Summary",
       generatedAt: new Date().toISOString(),
-      sections: [
-        {
-          title: "Bot KPI",
-          type: "kpi",
-          kpis: [
-            { label: "Availability", value: botReport.availability },
-            { label: "Bots", value: String(botReport.bots.length) },
-            { label: "Total Equity", value: fmtUsd(account.totalEquityUsd) },
-            { label: "Allocated Capital", value: fmtUsd(botReport.totalAllocatedUsd ?? 0) },
-            { label: "Net PnL", value: fmtUsd(pnl.netPnlUsd) }
-          ]
-        },
-        {
-          title: "Bot Breakdown",
-          type: "table",
-          table: {
-            headers: ["Bot", "Status", "Allocated", "Exposure", "Realized", "Unrealized", "ROI"],
-            rows: botRows
-          }
-        },
-        {
-          title: "Notes",
-          type: "text",
-          text: [
-            botReport.availabilityReason ?? "Metrics are aggregated from grid bot detail endpoints.",
-            "Use --fgrid-bot-ids and/or --spot-grid-ids to select tracked bots."
-          ]
-        }
-      ]
+      sections
     };
   }
 
@@ -270,11 +279,29 @@ export class SummaryReportGenerator {
       });
     }
 
+    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
+
     return {
       command: "summary",
       title: "Account Summary",
       generatedAt: new Date().toISOString(),
       sections
     };
+  }
+
+  private pushDataCompletenessSection(
+    sections: ReportSection[],
+    ...completeness: DataCompleteness[]
+  ): void {
+    const warnings = Array.from(new Set(completeness.flatMap((item) => (item.partial ? item.warnings : []))));
+    if (warnings.length === 0) {
+      return;
+    }
+
+    sections.push({
+      title: "Data Completeness",
+      type: "alerts",
+      alerts: warnings.map((message) => ({ severity: "warning", message }))
+    });
   }
 }

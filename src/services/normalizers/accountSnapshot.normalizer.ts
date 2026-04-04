@@ -1,4 +1,10 @@
-import type { AccountSnapshot, AssetBalance, MarketCategory, Position } from "../../types/domain.types";
+import type {
+  AccountSnapshot,
+  AssetBalance,
+  DataCompleteness,
+  MarketCategory,
+  Position
+} from "../../types/domain.types";
 
 function toNumber(input: unknown): number {
   const value = Number(input);
@@ -20,7 +26,12 @@ function normalizeBalances(input: unknown): AssetBalance[] {
     .sort((left, right) => right.usdValue - left.usdValue);
 }
 
-export function normalizeAccountSnapshot(input: unknown, category: MarketCategory, positions: Position[]): AccountSnapshot {
+export function normalizeAccountSnapshot(
+  input: unknown,
+  category: MarketCategory,
+  positions: Position[],
+  dataCompleteness: DataCompleteness = { partial: false, warnings: [] }
+): AccountSnapshot {
   const wallet = input as { list?: Array<Record<string, unknown>> } | undefined;
   const row = wallet?.list?.[0] ?? {};
   const balances = normalizeBalances(input);
@@ -39,6 +50,7 @@ export function normalizeAccountSnapshot(input: unknown, category: MarketCategor
     totalMaintenanceMarginUsd: toNumber(row.totalMaintenanceMargin) || undefined,
     unrealizedPnlUsd: toNumber(row.totalPerpUPL),
     positions,
-    balances
+    balances,
+    dataCompleteness
   };
 }

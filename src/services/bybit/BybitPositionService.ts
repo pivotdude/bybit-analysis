@@ -6,6 +6,12 @@ import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePositions } from "../normalizers/position.normalizer";
 import type { Position } from "../../types/domain.types";
+import {
+  buildPaginationLimitMessage,
+  PaginationLimitReachedError
+} from "./pagination";
+import type { PaginationLimitMode } from "./pagination";
+import type { PositionDataResult } from "../contracts/PositionDataService";
 
 const POSITIONS_TTL_MS = 15_000;
 
@@ -61,33 +67,47 @@ export class BybitPositionService implements PositionDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
     private readonly botService: BotDataService,
-    private readonly cache: CacheStore
+    private readonly cache: CacheStore,
+    private readonly paginationOptions: {
+      maxPages?: number;
+      limitMode?: PaginationLimitMode;
+    } = {}
   ) {}
 
-  async getOpenPositions(context: ServiceRequestContext): Promise<Position[]> {
+  async getOpenPositions(context: ServiceRequestContext): Promise<PositionDataResult> {
     if (context.category === "spot") {
-      return [];
+      return {
+        positions: [],
+        dataCompleteness: { partial: false, warnings: [] }
+      };
     }
 
     if (context.category === "bot") {
       const report = await this.botService.getBotReport(context);
-      return toBotPositions(context, report.bots);
+      return {
+        positions: toBotPositions(context, report.bots),
+        dataCompleteness: { partial: false, warnings: [] }
+      };
     }
 
     const key = cacheKeys.positions(context.category);
-    const cached = this.cache.get<Position[]>(key);
+    const cached = this.cache.get<PositionDataResult>(key);
     if (cached) {
       return cached;
     }
 
     const allRows: Array<Record<string, unknown>> = [];
     let cursor: string | undefined;
+    let pagesFetched = 0;
+    let partial = false;
+    const warnings: string[] = [];
 
-    for (let page = 0; page < 10; page += 1) {
+    while (true) {
       const result = (await this.client.getPositions(context.category, cursor, context.timeoutMs)) as {
         list?: Array<Record<string, unknown>>;
         nextPageCursor?: string;
       };
+      pagesFetched += 1;
 
       allRows.push(...(result.list ?? []));
       cursor = result.nextPageCursor;
@@ -95,10 +115,34 @@ export class BybitPositionService implements PositionDataService {
       if (!cursor) {
         break;
       }
+
+      if (this.paginationOptions.maxPages && pagesFetched >= this.paginationOptions.maxPages) {
+        const error = new PaginationLimitReachedError({
+          endpoint: "positions",
+          pageLimit: this.paginationOptions.maxPages,
+          pagesFetched,
+          nextPageCursor: cursor
+        });
+
+        if ((this.paginationOptions.limitMode ?? "error") === "error") {
+          throw error;
+        }
+
+        partial = true;
+        warnings.push(buildPaginationLimitMessage(error.context));
+        break;
+      }
     }
 
-    const normalized = normalizePositions({ list: allRows }, context.category);
-    this.cache.set(key, normalized, POSITIONS_TTL_MS);
-    return normalized;
+    const result: PositionDataResult = {
+      positions: normalizePositions({ list: allRows }, context.category),
+      dataCompleteness: {
+        partial,
+        warnings
+      }
+    };
+
+    this.cache.set(key, result, POSITIONS_TTL_MS);
+    return result;
   }
 }

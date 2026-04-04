@@ -21,6 +21,7 @@ export interface AccountSnapshot {
   equityHistory?: EquitySnapshot[];
   positions: Position[];
   balances: AssetBalance[];
+  dataCompleteness: DataCompleteness;
 }
 
 export interface EquitySnapshot {
@@ -75,6 +76,11 @@ export interface SymbolPnL {
   tradesCount?: number;
 }
 
+export interface DataCompleteness {
+  partial: boolean;
+  warnings: string[];
+}
+
 export interface PnLReport {
   source: DataSource;
   generatedAt: string;
@@ -88,6 +94,7 @@ export interface PnLReport {
   bySymbol: SymbolPnL[];
   bestSymbols: SymbolPnL[];
   worstSymbols: SymbolPnL[];
+  dataCompleteness: DataCompleteness;
 }
 
 export interface AssetExposure {

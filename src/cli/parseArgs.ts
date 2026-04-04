@@ -118,6 +118,41 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
         }
         break;
       }
+      case "--positions-max-pages": {
+        const value = consumeValue();
+        if (value !== undefined) {
+          const parsed = Number(value);
+          if (!Number.isInteger(parsed) || parsed <= 0) {
+            errors.push(`Invalid --positions-max-pages value: ${value}`);
+          } else {
+            options.positionsMaxPages = parsed;
+          }
+        }
+        break;
+      }
+      case "--executions-max-pages-per-chunk": {
+        const value = consumeValue();
+        if (value !== undefined) {
+          const parsed = Number(value);
+          if (!Number.isInteger(parsed) || parsed <= 0) {
+            errors.push(`Invalid --executions-max-pages-per-chunk value: ${value}`);
+          } else {
+            options.executionsMaxPagesPerChunk = parsed;
+          }
+        }
+        break;
+      }
+      case "--pagination-limit-mode": {
+        const value = consumeValue();
+        if (value !== undefined) {
+          if (value !== "error" && value !== "partial") {
+            errors.push(`Invalid --pagination-limit-mode value: ${value}. Expected error|partial`);
+          } else {
+            options.paginationLimitMode = value;
+          }
+        }
+        break;
+      }
       default:
         errors.push(`Unknown option: ${token}`);
     }
@@ -162,6 +197,9 @@ export function renderHelp(): string {
     "  --window <7d|30d|90d>",
     "  --lang <en>",
     "  --timeout-ms <number>",
+    "  --positions-max-pages <number>",
+    "  --executions-max-pages-per-chunk <number>",
+    "  --pagination-limit-mode <error|partial>",
     "  --help, -h",
     "",
     "Credential profiles:",
@@ -171,6 +209,11 @@ export function renderHelp(): string {
     "",
     "Bot IDs can also be provided via env:",
     "  BYBIT_FGRID_BOT_IDS=<id1,id2,...>",
-    "  BYBIT_SPOT_GRID_IDS=<id1,id2,...>"
+    "  BYBIT_SPOT_GRID_IDS=<id1,id2,...>",
+    "",
+    "Pagination safety (optional):",
+    "  BYBIT_POSITIONS_MAX_PAGES=<number>",
+    "  BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK=<number>",
+    "  BYBIT_PAGINATION_LIMIT_MODE=<error|partial>"
   ].join("\n");
 }

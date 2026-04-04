@@ -19,6 +19,11 @@ describe("toRedactedConfigView", () => {
         from: "2026-01-01T00:00:00.000Z",
         to: "2026-02-01T00:00:00.000Z"
       },
+      pagination: {
+        positionsMaxPages: 50,
+        executionsMaxPagesPerChunk: 100,
+        limitMode: "error"
+      },
       sources: {
         profile: "cli",
         profilesFile: "cli",
@@ -30,7 +35,10 @@ describe("toRedactedConfigView", () => {
         format: "default",
         lang: "default",
         timeoutMs: "default",
-        timeRange: "default"
+        timeRange: "default",
+        positionsMaxPages: "default",
+        executionsMaxPagesPerChunk: "default",
+        paginationLimitMode: "default"
       }
     };
 

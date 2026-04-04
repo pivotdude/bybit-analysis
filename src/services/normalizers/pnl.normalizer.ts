@@ -62,6 +62,10 @@ export function normalizePnlReport(input: unknown, periodFrom: string, periodTo:
     roiPct,
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
-    worstSymbols: [...bySymbol].reverse().slice(0, 5)
+    worstSymbols: [...bySymbol].reverse().slice(0, 5),
+    dataCompleteness: {
+      partial: false,
+      warnings: []
+    }
   };
 }

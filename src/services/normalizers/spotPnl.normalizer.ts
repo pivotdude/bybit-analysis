@@ -193,6 +193,10 @@ export function normalizeSpotPnlReport(
     roiPct,
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
-    worstSymbols: [...bySymbol].reverse().slice(0, 5)
+    worstSymbols: [...bySymbol].reverse().slice(0, 5),
+    dataCompleteness: {
+      partial: false,
+      warnings: []
+    }
   };
 }

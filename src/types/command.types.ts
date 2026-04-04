@@ -34,6 +34,9 @@ export interface ParsedCliOptions {
   window?: string;
   lang?: string;
   timeoutMs?: number;
+  positionsMaxPages?: number;
+  executionsMaxPagesPerChunk?: number;
+  paginationLimitMode?: "error" | "partial";
   help?: boolean;
 }
 
