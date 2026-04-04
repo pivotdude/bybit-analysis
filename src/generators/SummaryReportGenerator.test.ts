@@ -14,6 +14,12 @@ const linearContext: ServiceRequestContext = {
   timeoutMs: 5_000
 };
 
+const botContext: ServiceRequestContext = {
+  ...linearContext,
+  category: "bot",
+  futuresGridBotIds: ["fgrid-1"]
+};
+
 const accountService: AccountDataService = {
   getAccountSnapshot: async () => ({
     source: "bybit",
@@ -205,9 +211,25 @@ describe("SummaryReportGenerator", () => {
     const generator = new SummaryReportGenerator(accountService, executionService, failingBotService);
 
     const report = await generator.generate(linearContext);
+    const alertsSection = report.sections.find((section) => section.type === "alerts" && section.title === "Alerts");
 
     expect(report.command).toBe("summary");
     expect(report.sections.some((section) => section.title === "Overview")).toBe(true);
     expect(report.dataCompleteness?.state).toBe("degraded");
+    expect(alertsSection?.alerts?.some((alert) => alert.message.includes("bot endpoint unavailable"))).toBe(true);
+    expect(
+      report.dataCompleteness.issues.some(
+        (issue) =>
+          issue.scope === "bots" &&
+          issue.code === "optional_item_failed" &&
+          issue.message.includes("bot endpoint unavailable")
+      )
+    ).toBe(true);
+  });
+
+  it("fails summary generation when bot report fetch fails for bot category", async () => {
+    const generator = new SummaryReportGenerator(accountService, executionService, failingBotService);
+
+    await expect(generator.generate(botContext)).rejects.toThrow("bot endpoint unavailable");
   });
 });
