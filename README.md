@@ -116,7 +116,6 @@ Example (`pnl` section):
 - `--from <ISO8601>`
 - `--to <ISO8601>`
 - `--window <7d|30d|90d>`
-- `--lang <en>`
 - `--timeout-ms <number>`
 - `--positions-max-pages <number>`
 - `--executions-max-pages-per-chunk <number>`

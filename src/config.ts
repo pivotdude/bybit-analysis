@@ -13,7 +13,6 @@ import { redactSecretValue } from "./security/redaction";
 
 const DEFAULT_CATEGORY: MarketCategory = "linear";
 const DEFAULT_FORMAT = "md" as const;
-const DEFAULT_LANG = "en";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_WINDOW_DAYS = 30;
 const DEFAULT_PROFILES_FILE = ".bybit-profiles.json";
@@ -260,7 +259,6 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     profile?.spotGridBotIds ??
     parseCsvIds(env.BYBIT_SPOT_GRID_IDS);
   const format = (options.format ?? (env.DEFAULT_FORMAT as "md" | "compact") ?? DEFAULT_FORMAT);
-  const lang = options.lang ?? env.DEFAULT_LANG ?? DEFAULT_LANG;
   const timeoutMs = options.timeoutMs ?? Number(env.DEFAULT_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
   const timeRange = resolveTimeRange(options, env, now);
   const positionsMaxPages =
@@ -299,7 +297,6 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     futuresGridBotIds,
     spotGridBotIds,
     format,
-    lang,
     timeoutMs,
     timeRange: timeRange.value,
     pagination: {
@@ -335,7 +332,6 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
             ? "env"
             : "default",
       format: options.format ? "cli" : env.DEFAULT_FORMAT ? "env" : "default",
-      lang: options.lang ? "cli" : env.DEFAULT_LANG ? "env" : "default",
       timeoutMs: options.timeoutMs ? "cli" : env.DEFAULT_TIMEOUT_MS ? "env" : "default",
       timeRange: timeRange.source,
       positionsMaxPages: options.positionsMaxPages
@@ -394,7 +390,6 @@ export function toRedactedConfigView(
       ? config.spotGridBotIds.join(",") || "<none>"
       : summarizeConfiguredIds(config.spotGridBotIds),
     format: config.format,
-    lang: config.lang,
     timeoutMs: config.timeoutMs,
     timeRange: config.timeRange,
     pagination: config.pagination,
