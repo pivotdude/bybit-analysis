@@ -88,6 +88,15 @@ describe("parseArgs CLI conventions", () => {
   }
 });
 
+describe("parseArgs config diagnostics", () => {
+  it("enables expanded config diagnostics only with explicit flag", () => {
+    const parsed = parseArgs(["config", "--config-diagnostics"], {});
+
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.options.configDiagnostics).toBe(true);
+  });
+});
+
 describe("renderHelp", () => {
   it("marks raw credential flags as deprecated and insecure", () => {
     const help = renderHelp();
@@ -95,6 +104,8 @@ describe("renderHelp", () => {
     expect(help).toContain("--api-key <value>  [deprecated, insecure; disabled by default]");
     expect(help).toContain("--api-secret <value>  [deprecated, insecure; disabled by default]");
     expect(help).toContain("BYBIT_ALLOW_INSECURE_CLI_SECRETS=1");
+    expect(help).toContain("--config-diagnostics  show expanded config diagnostics (sensitive identifiers)");
+    expect(help).toContain("BYBIT_CONFIG_DIAGNOSTICS=1 enables expanded config details");
   });
 
   it("renders command-specific usage when command is provided", () => {

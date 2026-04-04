@@ -37,6 +37,7 @@ export interface ParsedCliOptions {
   positionsMaxPages?: number;
   executionsMaxPagesPerChunk?: number;
   paginationLimitMode?: "error" | "partial";
+  configDiagnostics?: boolean;
   help?: boolean;
 }
 

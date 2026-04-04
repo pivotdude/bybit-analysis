@@ -4,6 +4,37 @@ import type { ServiceRequestContext } from "../contracts/AccountDataService";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { BybitBotService } from "./BybitBotService";
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs: number = 1_000): Promise<void> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt <= timeoutMs) {
+    if (predicate()) {
+      return;
+    }
+    await sleep(1);
+  }
+
+  throw new Error(`Condition was not met within ${timeoutMs}ms`);
+}
+
+function createFuturesGridDetail(symbol: string): { detail: Record<string, string> } {
+  return {
+    detail: {
+      symbol,
+      status: "RUNNING",
+      total_investment: "100",
+      total_value: "120",
+      unrealised_pnl: "20",
+      realised_pnl: "0",
+      current_position: "1",
+      mark_price: "120"
+    }
+  };
+}
+
 const context: ServiceRequestContext = {
   category: "bot",
   futuresGridBotIds: ["f-ok", "f-fail"],
@@ -61,5 +92,56 @@ describe("BybitBotService partial failures", () => {
     expect(report.availability).toBe("not_available");
     expect(report.bots).toHaveLength(0);
     expect(report.dataCompleteness.partial).toBe(true);
+  });
+
+  it("loads bot details with bounded concurrency instead of strict serial execution", async () => {
+    const futuresGridBotIds = ["f-1", "f-2", "f-3", "f-4", "f-5"];
+    const started: string[] = [];
+    const deferredResolves = new Map<string, () => void>();
+    let inFlight = 0;
+    let maxInFlight = 0;
+
+    const client = {
+      getFuturesGridBotDetail: async (botId: string) => {
+        started.push(botId);
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+
+        await new Promise<void>((resolve) => {
+          deferredResolves.set(botId, () => {
+            inFlight -= 1;
+            resolve();
+          });
+        });
+
+        return createFuturesGridDetail(`SYM-${botId}`);
+      },
+      getSpotGridBotDetail: async () => ({ detail: {} })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitBotService(client, new MemoryCacheStore());
+    const reportPromise = service.getBotReport({
+      ...context,
+      futuresGridBotIds,
+      spotGridBotIds: []
+    });
+
+    await waitFor(() => started.length === 3);
+    expect(maxInFlight).toBeGreaterThan(1);
+    expect(maxInFlight).toBe(3);
+
+    deferredResolves.get("f-1")?.();
+    deferredResolves.get("f-2")?.();
+    deferredResolves.get("f-3")?.();
+
+    await waitFor(() => started.length === 5);
+    expect(maxInFlight).toBe(3);
+
+    deferredResolves.get("f-4")?.();
+    deferredResolves.get("f-5")?.();
+
+    const report = await reportPromise;
+    expect(report.bots).toHaveLength(5);
+    expect(report.dataCompleteness.partial).toBe(false);
   });
 });

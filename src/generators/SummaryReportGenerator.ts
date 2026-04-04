@@ -73,6 +73,7 @@ const STABLE_ASSETS = new Set(["USDT", "USDC", "USD", "USDE", "FDUSD", "DAI", "T
 interface BotLoadResult {
   report?: BotReport;
   dataCompleteness: DataCompleteness;
+  failureReason?: string;
 }
 
 export class SummaryReportGenerator {
@@ -165,7 +166,9 @@ export class SummaryReportGenerator {
     if (!botReport) {
       alerts.push({
         severity: "warning",
-        message: "Bot metrics unavailable due to optional enrichment failure."
+        message: bot.failureReason
+          ? `Bot metrics unavailable: ${bot.failureReason}`
+          : "Bot metrics unavailable due to optional enrichment failure."
       });
     }
 
@@ -300,15 +303,17 @@ export class SummaryReportGenerator {
         dataCompleteness: report.dataCompleteness
       };
     } catch (error) {
+      const failureReason = error instanceof Error ? error.message : String(error);
       return {
         report: undefined,
+        failureReason,
         dataCompleteness: degradedDataCompleteness([
           {
             code: "optional_item_failed",
             scope: "bots",
             severity: "warning",
             criticality: "optional",
-            message: `Bot summary enrichment failed: ${error instanceof Error ? error.message : String(error)}`
+            message: `Bot summary enrichment failed: ${failureReason}`
           }
         ])
       };

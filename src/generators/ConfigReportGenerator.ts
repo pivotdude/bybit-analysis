@@ -20,9 +20,10 @@ export class ConfigReportGenerator {
             rows: [
               ["profile", view.profile ?? "<none>"],
               ["profilesFile", view.profilesFile ?? "<none>"],
+              ["configReportMode", view.configReportMode],
               ["category", view.category],
-              ["futuresGridBotIds", view.futuresGridBotIds.join(",") || "<none>"],
-              ["spotGridBotIds", view.spotGridBotIds.join(",") || "<none>"],
+              ["futuresGridBotIds", view.futuresGridBotIds],
+              ["spotGridBotIds", view.spotGridBotIds],
               ["format", view.format],
               ["lang", view.lang],
               ["timeoutMs", String(view.timeoutMs)],
@@ -50,7 +51,11 @@ export class ConfigReportGenerator {
         {
           title: "Redacted Secrets",
           type: "text",
-          text: ["Secrets are masked by default and never printed in plaintext."]
+          text: [
+            "Secrets are masked by default and never printed in plaintext.",
+            "Safe mode suppresses credential-adjacent and operational identifiers.",
+            "Use --config-diagnostics or BYBIT_CONFIG_DIAGNOSTICS=1 for expanded diagnostics."
+          ]
         }
       ]
     };
