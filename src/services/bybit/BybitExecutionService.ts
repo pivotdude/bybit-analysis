@@ -15,12 +15,10 @@ import {
 import type { PaginationLimitMode } from "./pagination";
 import {
   BYBIT_PARTIAL_FAILURE_POLICY,
-  DEFAULT_PAGE_FETCH_ATTEMPTS,
   buildInvalidWindowIssue,
   buildPageFetchIssue,
   buildPaginationIssue,
-  buildSpotCostBasisIssue,
-  runWithRetries
+  buildSpotCostBasisIssue
 } from "./partialFailurePolicy";
 import {
   completeDataCompleteness,
@@ -201,17 +199,13 @@ export class BybitExecutionService implements ExecutionDataService {
 
         if (!payload) {
           try {
-            payload = (await runWithRetries(
-              () =>
-                this.client.getExecutionList(
-                  context.category,
-                  chunk.from,
-                  chunk.to,
-                  cursor,
-                  context.timeoutMs,
-                  options.symbol
-                ),
-              DEFAULT_PAGE_FETCH_ATTEMPTS
+            payload = (await this.client.getExecutionList(
+              context.category,
+              chunk.from,
+              chunk.to,
+              cursor,
+              context.timeoutMs,
+              options.symbol
             )) as { list?: Array<Record<string, unknown>>; nextPageCursor?: string };
             this.cache.set(key, payload, CLOSED_PNL_TTL_MS);
           } catch (error) {
@@ -220,7 +214,6 @@ export class BybitExecutionService implements ExecutionDataService {
               criticality: BYBIT_PARTIAL_FAILURE_POLICY[policyKey].criticality,
               page: pagesFetchedTotal + 1,
               cursor,
-              retries: DEFAULT_PAGE_FETCH_ATTEMPTS,
               error
             });
             const issue =
@@ -379,16 +372,12 @@ export class BybitExecutionService implements ExecutionDataService {
 
         if (!payload) {
           try {
-            payload = (await runWithRetries(
-              () =>
-                this.client.getClosedPnl(
-                  context.category,
-                  chunk.from,
-                  chunk.to,
-                  cursor,
-                  context.timeoutMs
-                ),
-              DEFAULT_PAGE_FETCH_ATTEMPTS
+            payload = (await this.client.getClosedPnl(
+              context.category,
+              chunk.from,
+              chunk.to,
+              cursor,
+              context.timeoutMs
             )) as { list?: Array<Record<string, unknown>>; nextPageCursor?: string };
             this.cache.set(key, payload, CLOSED_PNL_TTL_MS);
           } catch (error) {
@@ -397,7 +386,6 @@ export class BybitExecutionService implements ExecutionDataService {
               criticality: BYBIT_PARTIAL_FAILURE_POLICY.closed_pnl.criticality,
               page: pagesFetchedTotal + 1,
               cursor,
-              retries: DEFAULT_PAGE_FETCH_ATTEMPTS,
               error
             });
             if (pagesFetchedTotal === 0 && BYBIT_PARTIAL_FAILURE_POLICY.closed_pnl.partialOnFailure === "after_first_page") {
