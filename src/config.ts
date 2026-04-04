@@ -17,6 +17,7 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_WINDOW_DAYS = 30;
 const DEFAULT_PROFILES_FILE = ".bybit-profiles.json";
 const DEFAULT_PAGINATION_LIMIT_MODE: PaginationLimitMode = "error";
+const ALLOW_INSECURE_SECRET_FLAGS_ENV = "BYBIT_ALLOW_INSECURE_CLI_SECRETS";
 
 function parseWindow(windowValue: string): number | null {
   const match = /^(\d+)(d)$/i.exec(windowValue.trim());
@@ -38,6 +39,15 @@ function parseCsvIds(input: string | undefined): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function isTruthyEnvValue(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
 function parseIdList(input: unknown): string[] | undefined {
@@ -221,9 +231,12 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
   const resolvedProfile = resolveProfile(options, env);
   const profile = resolvedProfile?.value;
   const profilesFile = resolveProfilesPath(options, env);
+  const allowInsecureSecretFlags = isTruthyEnvValue(env[ALLOW_INSECURE_SECRET_FLAGS_ENV]);
+  const legacyCliApiKey = allowInsecureSecretFlags ? options.apiKey : undefined;
+  const legacyCliApiSecret = allowInsecureSecretFlags ? options.apiSecret : undefined;
 
-  const apiKey = options.apiKey ?? profile?.apiKey ?? env.BYBIT_API_KEY ?? "";
-  const apiSecret = options.apiSecret ?? profile?.apiSecret ?? env.BYBIT_SECRET ?? env.BYBIT_API_SECRET ?? "";
+  const apiKey = profile?.apiKey ?? env.BYBIT_API_KEY ?? legacyCliApiKey ?? "";
+  const apiSecret = profile?.apiSecret ?? env.BYBIT_SECRET ?? env.BYBIT_API_SECRET ?? legacyCliApiSecret ?? "";
   const category = (options.category ?? profile?.category ?? env.DEFAULT_CATEGORY ?? DEFAULT_CATEGORY) as MarketCategory;
   const futuresGridBotIds =
     options.futuresGridBotIds ??
@@ -283,13 +296,13 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     sources: {
       profile: options.profile ? "cli" : env.BYBIT_PROFILE ? "env" : "default",
       profilesFile: options.profilesFile ? "cli" : env.BYBIT_PROFILES_FILE ? "env" : "default",
-      apiKey: options.apiKey ? "cli" : profile?.apiKey ? "profile" : env.BYBIT_API_KEY ? "env" : "default",
-      apiSecret: options.apiSecret
-        ? "cli"
-        : profile?.apiSecret
-          ? "profile"
-          : env.BYBIT_SECRET || env.BYBIT_API_SECRET
-            ? "env"
+      apiKey: profile?.apiKey ? "profile" : env.BYBIT_API_KEY ? "env" : legacyCliApiKey ? "cli" : "default",
+      apiSecret: profile?.apiSecret
+        ? "profile"
+        : env.BYBIT_SECRET || env.BYBIT_API_SECRET
+          ? "env"
+          : legacyCliApiSecret
+            ? "cli"
             : "default",
       category: options.category ? "cli" : profile?.category ? "profile" : env.DEFAULT_CATEGORY ? "env" : "default",
       futuresGridBotIds: options.futuresGridBotIds
