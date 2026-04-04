@@ -290,7 +290,7 @@ export class SummaryReportGenerator {
 
   private async loadBotReport(context: ServiceRequestContext): Promise<BotLoadResult> {
     if (context.sourceMode === "bot") {
-      const report = await this.botService.getBotReport(context);
+      const report = await this.botService.getBotReport(context, { requirement: "required" });
       return {
         report,
         dataCompleteness: report.dataCompleteness
@@ -298,7 +298,7 @@ export class SummaryReportGenerator {
     }
 
     try {
-      const report = await this.botService.getBotReport(context);
+      const report = await this.botService.getBotReport(context, { requirement: "optional" });
       return {
         report,
         dataCompleteness: report.dataCompleteness

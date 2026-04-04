@@ -54,7 +54,7 @@ export class BybitAccountService implements AccountDataService {
 
   async getAccountSnapshot(context: ServiceRequestContext): Promise<AccountSnapshot> {
     if (context.sourceMode === "bot") {
-      const botReport = await this.botService.getBotReport(context);
+      const botReport = await this.botService.getBotReport(context, { requirement: "required" });
       const positionsResult = await this.positionsService.getOpenPositions(context);
       const balances = aggregateBotBalances(botReport);
 

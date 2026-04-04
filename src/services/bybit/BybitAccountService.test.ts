@@ -124,4 +124,64 @@ describe("BybitAccountService#getAccountSnapshot", () => {
     expect(snapshot.equityHistory?.[0]?.grossExposureUsd).toBe(2000);
     expect(snapshot.equityHistory?.[1]?.grossExposureUsd).toBe(2400);
   });
+
+  it("requests required bot data in bot source mode", async () => {
+    let requirement: string | undefined;
+    const client = {} as BybitReadonlyClient;
+
+    const positionsService: PositionDataService = {
+      getOpenPositions: async () => ({
+        source: "bybit",
+        exchange: "bybit",
+        positions: [],
+        dataCompleteness: {
+          state: "complete",
+          partial: false,
+          warnings: [],
+          issues: []
+        }
+      })
+    };
+
+    const botService: BotDataService = {
+      getBotReport: async (_context, options) => {
+        requirement = options?.requirement;
+        return {
+          source: "bybit",
+          generatedAt: new Date().toISOString(),
+          availability: "available",
+          bots: [
+            {
+              botId: "fgrid-1",
+              name: "BTC Grid",
+              status: "running",
+              quoteAsset: "USDT",
+              allocatedCapitalUsd: 100,
+              availableBalanceUsd: 80,
+              equityUsd: 110,
+              unrealizedPnlUsd: 10
+            }
+          ],
+          totalAllocatedUsd: 100,
+          dataCompleteness: {
+            state: "complete",
+            partial: false,
+            warnings: [],
+            issues: []
+          }
+        };
+      }
+    };
+
+    const service = new BybitAccountService(client, positionsService, botService, createMemoryCache());
+    const snapshot = await service.getAccountSnapshot({
+      ...requestContext,
+      sourceMode: "bot",
+      futuresGridBotIds: ["fgrid-1"]
+    });
+
+    expect(requirement).toBe("required");
+    expect(snapshot.walletBalanceUsd).toBe(100);
+    expect(snapshot.totalEquityUsd).toBe(110);
+  });
 });

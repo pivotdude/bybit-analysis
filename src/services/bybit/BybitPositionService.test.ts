@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryCacheStore } from "../cache/MemoryCacheStore";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
+import { RequiredBotDataUnavailableError } from "../contracts/BotDataService";
 import { BybitPositionService } from "./BybitPositionService";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { PaginationLimitReachedError } from "./pagination";
@@ -149,5 +150,80 @@ describe("BybitPositionService pagination", () => {
     expect(result.positions).toHaveLength(1);
     expect(result.dataCompleteness.partial).toBe(true);
     expect(result.dataCompleteness.issues[0]?.code).toBe("page_fetch_failed");
+  });
+
+  it("requests required bot data in bot source mode", async () => {
+    let requirement: string | undefined;
+    const client = {
+      getPositions: async () => ({
+        list: [],
+        nextPageCursor: undefined
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const requiredBotService = {
+      getBotReport: async (_context: ServiceRequestContext, options?: { requirement?: string }) => {
+        requirement = options?.requirement;
+        return {
+          source: "bybit" as const,
+          generatedAt: new Date().toISOString(),
+          availability: "available" as const,
+          bots: [
+            {
+              botId: "fgrid-1",
+              name: "BTC Grid",
+              status: "running" as const,
+              symbol: "BTCUSDT",
+              quoteAsset: "USDT",
+              side: "long" as const,
+              exposureUsd: 150,
+              markPrice: 150
+            }
+          ],
+          dataCompleteness: {
+            state: "complete" as const,
+            partial: false,
+            warnings: [],
+            issues: []
+          }
+        };
+      }
+    };
+
+    const service = new BybitPositionService(client, requiredBotService, new MemoryCacheStore());
+    const result = await service.getOpenPositions({
+      ...context,
+      sourceMode: "bot",
+      futuresGridBotIds: ["fgrid-1"]
+    });
+
+    expect(requirement).toBe("required");
+    expect(result.positions).toHaveLength(1);
+  });
+
+  it("fails closed in bot mode even when category is spot", async () => {
+    const client = {
+      getPositions: async () => ({
+        list: [],
+        nextPageCursor: undefined
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const requiredBotService = {
+      getBotReport: async () => {
+        throw new RequiredBotDataUnavailableError("required-input-failed: mandatory bot data is unavailable.");
+      }
+    };
+
+    const service = new BybitPositionService(client, requiredBotService, new MemoryCacheStore());
+
+    await expect(
+      service.getOpenPositions({
+        ...context,
+        category: "spot",
+        sourceMode: "bot",
+        futuresGridBotIds: ["bot-id-1"]
+      })
+    ).rejects.toBeInstanceOf(RequiredBotDataUnavailableError);
   });
 });

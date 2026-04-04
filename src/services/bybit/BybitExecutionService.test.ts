@@ -59,6 +59,52 @@ function spotTrade(args: {
 }
 
 describe("BybitExecutionService pagination", () => {
+  it("requests required bot data in bot source mode", async () => {
+    let requirement: string | undefined;
+    const service = new BybitExecutionService(
+      {} as BybitReadonlyClient,
+      {
+        getBotReport: async (_context, options) => {
+          requirement = options?.requirement;
+          return {
+            source: "bybit",
+            generatedAt: new Date().toISOString(),
+            availability: "available",
+            bots: [
+              {
+                botId: "fgrid-1",
+                name: "BTC Grid",
+                status: "running",
+                symbol: "BTCUSDT",
+                realizedPnlUsd: 30,
+                unrealizedPnlUsd: 5,
+                openPositions: 1
+              }
+            ],
+            dataCompleteness: {
+              state: "complete",
+              partial: false,
+              warnings: [],
+              issues: []
+            }
+          };
+        }
+      },
+      new MemoryCacheStore()
+    );
+
+    const report = await service.getPnlReport({
+      context: {
+        ...linearContext,
+        sourceMode: "bot",
+        futuresGridBotIds: ["fgrid-1"]
+      }
+    });
+
+    expect(requirement).toBe("required");
+    expect(report.netPnlUsd).toBe(35);
+  });
+
   it("returns supported ROI contract when start/end equity are provided", async () => {
     const client = {
       getClosedPnl: async () => ({

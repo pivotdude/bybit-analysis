@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryCacheStore } from "../cache/MemoryCacheStore";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
+import { RequiredBotDataUnavailableError } from "../contracts/BotDataService";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { BybitBotService } from "./BybitBotService";
 
@@ -45,6 +46,16 @@ const context: ServiceRequestContext = {
   timeoutMs: 5_000
 };
 
+const optionalLinearContext: ServiceRequestContext = {
+  ...context,
+  sourceMode: "market"
+};
+
+const optionalSpotContext: ServiceRequestContext = {
+  ...optionalLinearContext,
+  category: "spot"
+};
+
 describe("BybitBotService partial failures", () => {
   it("degrades when one bot detail fails and keeps successful bots", async () => {
     const client = {
@@ -77,7 +88,7 @@ describe("BybitBotService partial failures", () => {
     expect(report.availability).toBe("available");
   });
 
-  it("returns not_available (without throw) when all bot detail calls fail", async () => {
+  it("fails closed in bot mode when all bot detail calls fail", async () => {
     const client = {
       getFuturesGridBotDetail: async () => {
         throw new Error("auth error");
@@ -88,11 +99,33 @@ describe("BybitBotService partial failures", () => {
     } as unknown as BybitReadonlyClient;
 
     const service = new BybitBotService(client, new MemoryCacheStore());
-    const report = await service.getBotReport(context);
+    await expect(service.getBotReport(context)).rejects.toBeInstanceOf(RequiredBotDataUnavailableError);
+    await expect(service.getBotReport(context)).rejects.toThrow("required-input-failed");
+  });
 
-    expect(report.availability).toBe("not_available");
-    expect(report.bots).toHaveLength(0);
-    expect(report.dataCompleteness.partial).toBe(true);
+  it("keeps full bot-detail failure optional for linear/spot market mode enrichment", async () => {
+    const client = {
+      getFuturesGridBotDetail: async () => {
+        throw new Error("auth error");
+      },
+      getSpotGridBotDetail: async () => {
+        throw new Error("auth error");
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitBotService(client, new MemoryCacheStore());
+    const [linearReport, spotReport] = await Promise.all([
+      service.getBotReport(optionalLinearContext, { requirement: "optional" }),
+      service.getBotReport(optionalSpotContext, { requirement: "optional" })
+    ]);
+
+    expect(linearReport.availability).toBe("not_available");
+    expect(linearReport.bots).toHaveLength(0);
+    expect(linearReport.dataCompleteness.partial).toBe(true);
+
+    expect(spotReport.availability).toBe("not_available");
+    expect(spotReport.bots).toHaveLength(0);
+    expect(spotReport.dataCompleteness.partial).toBe(true);
   });
 
   it("loads bot details with bounded concurrency instead of strict serial execution", async () => {

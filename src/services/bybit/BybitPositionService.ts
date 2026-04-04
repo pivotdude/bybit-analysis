@@ -83,22 +83,22 @@ export class BybitPositionService implements PositionDataService {
   ) {}
 
   async getOpenPositions(context: ServiceRequestContext): Promise<PositionDataResult> {
+    if (context.sourceMode === "bot") {
+      const report = await this.botService.getBotReport(context, { requirement: "required" });
+      return {
+        source: "bybit",
+        exchange: "bybit",
+        positions: toBotPositions(context, report.bots),
+        dataCompleteness: report.dataCompleteness
+      };
+    }
+
     if (context.category === "spot") {
       return {
         source: "bybit",
         exchange: "bybit",
         positions: [],
         dataCompleteness: completeDataCompleteness()
-      };
-    }
-
-    if (context.sourceMode === "bot") {
-      const report = await this.botService.getBotReport(context);
-      return {
-        source: "bybit",
-        exchange: "bybit",
-        positions: toBotPositions(context, report.bots),
-        dataCompleteness: report.dataCompleteness
       };
     }
 
