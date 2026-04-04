@@ -3,11 +3,13 @@ import { describe, expect, it } from "bun:test";
 const decoder = new TextDecoder();
 const BYBIT_ENV_KEYS = [
   "BYBIT_API_KEY",
+  "BYBIT_SECRET",
   "BYBIT_API_SECRET",
   "BYBIT_PROFILE",
   "BYBIT_PROFILES_FILE",
   "BYBIT_FGRID_BOT_IDS",
-  "BYBIT_SPOT_GRID_IDS"
+  "BYBIT_SPOT_GRID_IDS",
+  "BYBIT_ALLOW_INSECURE_CLI_SECRETS"
 ] as const;
 
 function createCliEnv(): Record<string, string> {
@@ -82,5 +84,14 @@ describe("CLI stdout/stderr contract", () => {
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("For --category bot provide --fgrid-bot-ids and/or --spot-grid-ids");
+  });
+
+  it("rejects insecure credential flags in argv by default", () => {
+    const result = runCli(["summary", "--api-key", "cli_key", "--api-secret", "cli_secret"]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("Option --api-key is insecure and disabled by default");
+    expect(result.stderr).toContain("Option --api-secret is insecure and disabled by default");
   });
 });
