@@ -2,17 +2,28 @@
 import { executeCommand, UsageError } from "./cli/commandRouter";
 import { parseArgs, renderHelp } from "./cli/parseArgs";
 
+const USAGE_HINT = "Hint: run with --help to see usage.";
+
 async function main(): Promise<void> {
   const parsed = parseArgs(Bun.argv.slice(2));
 
-  if (parsed.options.help || !parsed.command) {
+  if (parsed.options.help && parsed.errors.length === 0) {
     process.stdout.write(`${renderHelp()}\n`);
-    process.exit(parsed.errors.length > 0 ? 2 : 0);
+    process.exit(0);
   }
 
   if (parsed.errors.length > 0) {
     process.stderr.write(`${parsed.errors.join("\n")}\n`);
+    process.stderr.write(`${USAGE_HINT}\n`);
     process.exit(2);
+    return;
+  }
+
+  if (!parsed.command) {
+    process.stderr.write("Command is required\n");
+    process.stderr.write(`${USAGE_HINT}\n`);
+    process.exit(2);
+    return;
   }
 
   try {
