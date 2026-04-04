@@ -1,5 +1,27 @@
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ReportDocument } from "../types/report.types";
+import type { ReportSectionType } from "../types/report.types";
+import { buildUnsupportedDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+
+export const PERMISSIONS_SCHEMA_VERSION = "permissions-markdown-v1";
+
+export const PERMISSIONS_SECTION_CONTRACT = {
+  summary: { id: "permissions.summary", title: "Summary", type: "kpi" },
+  keyMeta: { id: "permissions.key_meta", title: "Key Meta", type: "table" },
+  permissions: { id: "permissions.permissions", title: "Permissions", type: "table" },
+  notes: { id: "permissions.notes", title: "Notes", type: "text" },
+  dataCompleteness: { id: "permissions.data_completeness", title: "Data Completeness", type: "alerts" }
+} as const satisfies Record<string, { id: string; title: string; type: ReportSectionType }>;
+
+export const PERMISSIONS_SECTION_ORDER = [
+  "summary",
+  "keyMeta",
+  "permissions",
+  "notes",
+  "dataCompleteness"
+] as const satisfies readonly (keyof typeof PERMISSIONS_SECTION_CONTRACT)[];
+
+const section = createSectionBuilder(PERMISSIONS_SECTION_CONTRACT);
 
 function hasPermission(permissions: Record<string, string[]>, scope: string, value: string): boolean {
   const values = permissions[scope] ?? [];
@@ -48,11 +70,10 @@ export class PermissionsReportGenerator {
     return {
       command: "permissions",
       title: "API Key Permissions",
+      schemaVersion: PERMISSIONS_SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
       sections: [
-        {
-          title: "Summary",
-          type: "kpi",
+        section("summary", {
           kpis: [
             { label: "Read Only", value: info.readOnly ? "yes" : "no" },
             { label: "Is Master UID", value: info.isMaster === undefined ? "unknown" : info.isMaster ? "yes" : "no" },
@@ -60,10 +81,8 @@ export class PermissionsReportGenerator {
             { label: "IP Whitelist", value: info.ipWhitelistRestricted ? `yes (${info.ipWhitelistCount})` : "no" },
             { label: "Bot Readiness", value: botReadiness }
           ]
-        },
-        {
-          title: "Key Meta",
-          type: "table",
+        }),
+        section("keyMeta", {
           table: {
             headers: ["Field", "Value"],
             rows: [
@@ -73,20 +92,21 @@ export class PermissionsReportGenerator {
               ["ipWhitelist", info.ipWhitelistDisplay]
             ]
           }
-        },
-        {
-          title: "Permissions",
-          type: "table",
+        }),
+        section("permissions", {
           table: {
             headers: ["Scope", "Values"],
             rows: permissionRows.length > 0 ? permissionRows : [["<none>", "<none>"]]
           }
-        },
-        {
-          title: "Notes",
-          type: "text",
+        }),
+        section("notes", {
           text: notes
-        }
+        }),
+        section("dataCompleteness", {
+          alerts: buildUnsupportedDataCompletenessAlerts(
+            "Data completeness is not tracked for API permission metadata reports."
+          )
+        })
       ]
     };
   }

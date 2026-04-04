@@ -82,7 +82,7 @@ describe("CLI smoke/integration", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("# Runtime Configuration");
-    expect(result.stdout).toContain("## Effective Configuration");
+    expect(result.stdout).toContain("## [config.effective_configuration] Effective Configuration");
     expect(result.stdout).toContain("<configured>");
     expect(result.stdout).not.toContain(apiKey);
     expect(result.stdout).not.toContain(apiSecret);

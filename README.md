@@ -47,7 +47,7 @@ bun run test:coverage
 bun run verify
 ```
 
-Current suite covers production-critical paths: spot PnL normalization, pagination safety handling, secret redaction, CLI stdout/stderr contract, summary report schema contract, and CLI smoke/integration flow.
+Current suite covers production-critical paths: spot PnL normalization, pagination safety handling, secret redaction, CLI stdout/stderr contract, all report schema contracts, and CLI smoke/integration flow.
 
 ## Commands
 
@@ -62,6 +62,18 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 - `permissions` - API key permission diagnostics
 - `config` - Effective runtime config (redacted)
 - `health` - API/connectivity/readiness checks
+
+## Markdown Schema Contracts (All Commands)
+
+All commands now expose schema-stable Markdown contracts:
+
+- Report-level `Schema: <command>-markdown-v1` is present for every command.
+- Every section has a fixed `id` and is rendered as `## [section.id] Title`.
+- Section order and section type are fixed per command contract.
+- Sections are never removed because of missing data; reports use empty rows, `N/A`, `0`, `unsupported`, or info alerts.
+- `Data Completeness` is a fixed section in every command contract:
+  - Data-backed commands render merged completeness issues in that section.
+  - Non data-backed commands (for example `config`, `health`, `permissions`) render explicit `unsupported` completeness status.
 
 ## Summary Markdown Contract (`summary-markdown-v1`)
 

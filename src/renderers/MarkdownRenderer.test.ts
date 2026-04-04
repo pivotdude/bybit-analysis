@@ -11,6 +11,9 @@ function extractSectionBody(markdown: string, sectionTitle: string): string[] {
   const body: string[] = [];
   for (let index = headingIndex + 1; index < lines.length; index += 1) {
     const line = lines[index];
+    if (line === undefined) {
+      continue;
+    }
     if (/^#{1,6}\s/.test(line)) {
       break;
     }
@@ -51,6 +54,7 @@ describe("MarkdownRenderer", () => {
       command: "summary",
       title: "Lossless Compact Test",
       generatedAt: "2026-01-31T00:00:00.000Z",
+      schemaVersion: "test-markdown-v1",
       sections: [
         {
           id: "sample.table",

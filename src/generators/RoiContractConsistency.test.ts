@@ -126,7 +126,12 @@ function createExecutionService(requests: GetPnlReportRequest[]): ExecutionDataS
 }
 
 function findKpi(report: ReportDocument, sectionTitle: string, label: string): string | undefined {
-  return report.sections.find((section) => section.title === sectionTitle)?.kpis?.find((kpi) => kpi.label === label)?.value;
+  const section = report.sections.find((item) => item.title === sectionTitle);
+  if (!section || section.type !== "kpi") {
+    return undefined;
+  }
+
+  return section.kpis.find((kpi) => kpi.label === label)?.value;
 }
 
 describe("ROI contract consistency across commands", () => {
@@ -179,11 +184,26 @@ describe("ROI contract consistency across commands", () => {
     const perfInterpretation = performanceReport.sections.find((section) => section.title === "Interpretation");
     const summaryContract = summaryReport.sections.find((section) => section.title === "Summary Contract");
 
-    expect(pnlRoiStatus?.text?.[0]).toBe("Status: unsupported");
-    expect(pnlRoiStatus?.text?.[1]).toBe("Code: equity_history_unavailable");
-    expect(perfInterpretation?.text).toContain("ROI status: unsupported");
-    expect(perfInterpretation?.text).toContain("ROI unsupported code: equity_history_unavailable");
-    expect(summaryContract?.text).toContain("ROI status: unsupported");
-    expect(summaryContract?.text).toContain("ROI unsupported code: equity_history_unavailable");
+    expect(pnlRoiStatus?.type).toBe("text");
+    expect(pnlRoiStatus && pnlRoiStatus.type === "text" ? pnlRoiStatus.text[0] : undefined).toBe("Status: unsupported");
+    expect(pnlRoiStatus && pnlRoiStatus.type === "text" ? pnlRoiStatus.text[1] : undefined).toBe(
+      "Code: equity_history_unavailable"
+    );
+
+    expect(perfInterpretation?.type).toBe("text");
+    expect(perfInterpretation && perfInterpretation.type === "text" ? perfInterpretation.text : []).toContain(
+      "ROI status: unsupported"
+    );
+    expect(perfInterpretation && perfInterpretation.type === "text" ? perfInterpretation.text : []).toContain(
+      "ROI unsupported code: equity_history_unavailable"
+    );
+
+    expect(summaryContract?.type).toBe("text");
+    expect(summaryContract && summaryContract.type === "text" ? summaryContract.text : []).toContain(
+      "ROI status: unsupported"
+    );
+    expect(summaryContract && summaryContract.type === "text" ? summaryContract.text : []).toContain(
+      "ROI unsupported code: equity_history_unavailable"
+    );
   });
 });

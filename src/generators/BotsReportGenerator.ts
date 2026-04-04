@@ -2,8 +2,29 @@ import { BotsAnalyzer } from "../analyzers/orchestrators/BotsAnalyzer";
 import type { BotDataService } from "../services/contracts/BotDataService";
 import type { ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ReportDocument } from "../types/report.types";
+import type { ReportSectionType } from "../types/report.types";
 import { fmtPct, fmtUsd } from "./formatters";
-import { pushDataCompletenessSections } from "./dataCompleteness";
+import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+
+export const BOTS_SCHEMA_VERSION = "bots-markdown-v1";
+
+export const BOTS_SECTION_CONTRACT = {
+  summary: { id: "bots.summary", title: "Bot Summary", type: "kpi" },
+  perBot: { id: "bots.per_bot_table", title: "Per-Bot Table", type: "table" },
+  technical: { id: "bots.technical_details", title: "Technical Details", type: "table" },
+  notes: { id: "bots.risk_notes", title: "Bot Risk Notes", type: "text" },
+  dataCompleteness: { id: "bots.data_completeness", title: "Data Completeness", type: "alerts" }
+} as const satisfies Record<string, { id: string; title: string; type: ReportSectionType }>;
+
+export const BOTS_SECTION_ORDER = [
+  "summary",
+  "perBot",
+  "technical",
+  "notes",
+  "dataCompleteness"
+] as const satisfies readonly (keyof typeof BOTS_SECTION_CONTRACT)[];
+
+const section = createSectionBuilder(BOTS_SECTION_CONTRACT);
 
 export class BotsReportGenerator {
   private readonly analyzer = new BotsAnalyzer();
@@ -17,9 +38,7 @@ export class BotsReportGenerator {
     const analysis = this.analyzer.analyze(report);
 
     const sections: ReportDocument["sections"] = [
-      {
-        title: "Bot Summary",
-        type: "kpi",
+      section("summary", {
         kpis: [
           { label: "Availability", value: analysis.availability },
           { label: "Reason", value: analysis.availabilityReason ?? "N/A" },
@@ -27,10 +46,8 @@ export class BotsReportGenerator {
           { label: "Total Exposure", value: fmtUsd(analysis.totalBotExposureUsd) },
           { label: "Total Bot PnL", value: fmtUsd(analysis.totalBotPnlUsd) }
         ]
-      },
-      {
-        title: "Per-Bot Table",
-        type: "table",
+      }),
+      section("perBot", {
         table: {
           headers: ["Bot", "Status", "Allocated", "Exposure", "Realized", "Unrealized", "ROI", "Open Positions"],
           rows: analysis.bots.map((bot) => [
@@ -44,10 +61,8 @@ export class BotsReportGenerator {
             String(bot.openPositions ?? 0)
           ])
         }
-      },
-      {
-        title: "Technical Details",
-        type: "table",
+      }),
+      section("technical", {
         table: {
           headers: ["Bot ID", "Type", "Symbol", "Side", "Leverage", "Grid Profit", "Close Reason", "Close Code"],
           rows: analysis.bots.map((bot) => [
@@ -61,22 +76,23 @@ export class BotsReportGenerator {
             bot.botCloseCode ?? "-"
           ])
         }
-      },
-      {
-        title: "Bot Risk Notes",
-        type: "text",
+      }),
+      section("notes", {
         text: [
           analysis.availability === "available"
             ? "Bot metrics are available via current integration."
             : "Bot metrics are best-effort and may require separate scraping/integration."
         ]
-      }
+      }),
+      section("dataCompleteness", {
+        alerts: buildDataCompletenessAlerts(report.dataCompleteness)
+      })
     ];
-    pushDataCompletenessSections(sections, report.dataCompleteness);
 
     return {
       command: "bots",
       title: "Bots Analytics",
+      schemaVersion: BOTS_SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
       sections,
       dataCompleteness: report.dataCompleteness

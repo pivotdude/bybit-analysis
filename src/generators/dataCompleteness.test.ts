@@ -139,34 +139,40 @@ const botService: BotDataService = {
 };
 
 describe("Data completeness sections", () => {
-  it("adds warning section in pnl report", async () => {
+  it("adds fixed data completeness alerts section in pnl report", async () => {
     const generator = new PnLReportGenerator(executionService, accountService);
     const report = await generator.generate(context);
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
-    const status = report.sections.find((item) => item.title === "Data Status");
-    expect(section?.type).toBe("table");
-    expect(section?.table?.rows[0]?.[0]).toBe("pagination_limit_reached");
-    expect(status?.type).toBe("kpi");
+    expect(section?.type).toBe("alerts");
+    expect(
+      section && section.type === "alerts"
+        ? section.alerts.some((alert) => alert.message.includes("pagination_limit_reached"))
+        : false
+    ).toBe(true);
     expect(report.dataCompleteness?.state).toBe("degraded");
   });
 
-  it("adds warning section in performance report", async () => {
+  it("adds fixed data completeness alerts section in performance report", async () => {
     const generator = new PerformanceReportGenerator(accountService, executionService);
     const report = await generator.generate(context);
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
-    expect(section?.type).toBe("table");
+    expect(section?.type).toBe("alerts");
     expect(report.dataCompleteness?.state).toBe("degraded");
   });
 
-  it("adds warning section in summary report", async () => {
+  it("keeps summary data completeness alerts contract", async () => {
     const generator = new SummaryReportGenerator(accountService, executionService, botService);
     const report = await generator.generate(context);
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
     expect(section?.type).toBe("alerts");
-    expect(section?.alerts?.[0]?.message).toContain("pagination_limit_reached");
+    expect(
+      section && section.type === "alerts"
+        ? section.alerts.some((alert) => alert.message.includes("pagination_limit_reached"))
+        : false
+    ).toBe(true);
     expect(report.dataCompleteness?.state).toBe("degraded");
   });
 });

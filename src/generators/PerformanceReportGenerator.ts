@@ -2,10 +2,31 @@ import { PerformanceAnalyzer } from "../analyzers/orchestrators/PerformanceAnaly
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ReportDocument } from "../types/report.types";
+import type { ReportSectionType } from "../types/report.types";
 import { fmtIso, fmtPct, fmtUsd } from "./formatters";
 import { mergeDataCompleteness } from "../services/reliability/dataCompleteness";
-import { pushDataCompletenessSections } from "./dataCompleteness";
+import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
+
+export const PERFORMANCE_SCHEMA_VERSION = "performance-markdown-v1";
+
+export const PERFORMANCE_SECTION_CONTRACT = {
+  overview: { id: "performance.overview", title: "Performance Overview", type: "text" },
+  roi: { id: "performance.roi", title: "ROI", type: "kpi" },
+  capitalEfficiency: { id: "performance.capital_efficiency", title: "Capital Efficiency", type: "kpi" },
+  interpretation: { id: "performance.interpretation", title: "Interpretation", type: "text" },
+  dataCompleteness: { id: "performance.data_completeness", title: "Data Completeness", type: "alerts" }
+} as const satisfies Record<string, { id: string; title: string; type: ReportSectionType }>;
+
+export const PERFORMANCE_SECTION_ORDER = [
+  "overview",
+  "roi",
+  "capitalEfficiency",
+  "interpretation",
+  "dataCompleteness"
+] as const satisfies readonly (keyof typeof PERFORMANCE_SECTION_CONTRACT)[];
+
+const section = createSectionBuilder(PERFORMANCE_SECTION_CONTRACT);
 
 export class PerformanceReportGenerator {
   private readonly analyzer = new PerformanceAnalyzer();
@@ -38,30 +59,22 @@ export class PerformanceReportGenerator {
         ? fmtUsd(analysis.avgDeployedCapitalUsd)
         : "unsupported";
     const sections: ReportDocument["sections"] = [
-      {
-        title: "Performance Overview",
-        type: "text",
+      section("overview", {
         text: [`From: ${fmtIso(analysis.periodFrom)}`, `To: ${fmtIso(analysis.periodTo)}`]
-      },
-      {
-        title: "ROI",
-        type: "kpi",
+      }),
+      section("roi", {
         kpis: [
           { label: "Period Net PnL", value: fmtUsd(analysis.periodNetPnlUsd) },
           { label: "ROI", value: roi }
         ]
-      },
-      {
-        title: "Capital Efficiency",
-        type: "kpi",
+      }),
+      section("capitalEfficiency", {
         kpis: [
           { label: "Capital Efficiency", value: capitalEfficiency },
           { label: "Avg Deployed Capital", value: avgDeployedCapital }
         ]
-      },
-      {
-        title: "Interpretation",
-        type: "text",
+      }),
+      section("interpretation", {
         text: [
           `ROI status: ${analysis.roiStatus}`,
           ...(analysis.roiStatus === "unsupported"
@@ -75,15 +88,20 @@ export class PerformanceReportGenerator {
             ? `Capital efficiency status: unsupported (${analysis.capitalEfficiencyReason ?? "equity history is unavailable"})`
             : "Capital efficiency status: supported"
         ]
-      }
+      })
     ];
 
     const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness);
-    pushDataCompletenessSections(sections, dataCompleteness);
+    sections.push(
+      section("dataCompleteness", {
+        alerts: buildDataCompletenessAlerts(dataCompleteness)
+      })
+    );
 
     return {
       command: "performance",
       title: "Performance Analytics",
+      schemaVersion: PERFORMANCE_SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
       sections,
       dataCompleteness

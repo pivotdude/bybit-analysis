@@ -1,9 +1,28 @@
 import { BalanceAnalyzer } from "../analyzers/orchestrators/BalanceAnalyzer";
 import type { AccountDataService } from "../services/contracts/AccountDataService";
 import type { ReportDocument } from "../types/report.types";
+import type { ReportSectionType } from "../types/report.types";
 import type { ServiceRequestContext } from "../services/contracts/AccountDataService";
 import { fmtUsd } from "./formatters";
-import { pushDataCompletenessSections } from "./dataCompleteness";
+import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+
+export const BALANCE_SCHEMA_VERSION = "balance-markdown-v1";
+
+export const BALANCE_SECTION_CONTRACT = {
+  snapshot: { id: "balance.snapshot", title: "Balance Snapshot", type: "kpi" },
+  assets: { id: "balance.asset_balances", title: "Asset Balances", type: "table" },
+  margin: { id: "balance.margin_state", title: "Margin State", type: "kpi" },
+  dataCompleteness: { id: "balance.data_completeness", title: "Data Completeness", type: "alerts" }
+} as const satisfies Record<string, { id: string; title: string; type: ReportSectionType }>;
+
+export const BALANCE_SECTION_ORDER = [
+  "snapshot",
+  "assets",
+  "margin",
+  "dataCompleteness"
+] as const satisfies readonly (keyof typeof BALANCE_SECTION_CONTRACT)[];
+
+const section = createSectionBuilder(BALANCE_SECTION_CONTRACT);
 
 export class BalanceReportGenerator {
   private readonly analyzer = new BalanceAnalyzer();
@@ -14,19 +33,15 @@ export class BalanceReportGenerator {
     const snapshot = await this.accountService.getAccountSnapshot(context);
     const analysis = this.analyzer.analyze(snapshot);
     const sections: ReportDocument["sections"] = [
-      {
-        title: "Balance Snapshot",
-        type: "kpi",
+      section("snapshot", {
         kpis: [
           { label: "Total Equity", value: fmtUsd(analysis.snapshot.totalEquityUsd) },
           { label: "Wallet Balance", value: fmtUsd(analysis.snapshot.walletBalanceUsd) },
           { label: "Available Balance", value: fmtUsd(analysis.snapshot.availableBalanceUsd) },
           { label: "Unrealized PnL", value: fmtUsd(analysis.snapshot.unrealizedPnlUsd) }
         ]
-      },
-      {
-        title: "Asset Balances",
-        type: "table",
+      }),
+      section("assets", {
         table: {
           headers: ["Asset", "Wallet", "Available", "USD Value"],
           rows: analysis.balances.map((balance) => [
@@ -36,23 +51,23 @@ export class BalanceReportGenerator {
             fmtUsd(balance.usdValue)
           ])
         }
-      },
-      {
-        title: "Margin State",
-        type: "kpi",
+      }),
+      section("margin", {
         kpis: [
           { label: "Initial Margin", value: fmtUsd(analysis.marginState.initialMarginUsd) },
           { label: "Maintenance Margin", value: fmtUsd(analysis.marginState.maintenanceMarginUsd) },
           { label: "Margin Balance", value: fmtUsd(analysis.marginState.marginBalanceUsd) }
         ]
-      }
+      }),
+      section("dataCompleteness", {
+        alerts: buildDataCompletenessAlerts(snapshot.dataCompleteness)
+      })
     ];
-
-    pushDataCompletenessSections(sections, snapshot.dataCompleteness);
 
     return {
       command: "balance",
       title: "Balance Analytics",
+      schemaVersion: BALANCE_SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
       sections,
       dataCompleteness: snapshot.dataCompleteness

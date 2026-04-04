@@ -390,8 +390,16 @@ describe("SummaryReportGenerator schema stability", () => {
 
     expect(populatedAlertsSection?.type).toBe(SUMMARY_SECTION_CONTRACT.alerts.type);
     expect(fallbackAlertsSection?.type).toBe(SUMMARY_SECTION_CONTRACT.alerts.type);
-    expect(populatedAlertsSection?.alerts?.some((alert) => alert.message !== "No active alerts")).toBe(true);
-    expect(fallbackAlertsSection?.alerts?.[0]?.message).toBe("No active alerts");
+    expect(
+      populatedAlertsSection && populatedAlertsSection.type === "alerts"
+        ? populatedAlertsSection.alerts.some((alert) => alert.message !== "No active alerts")
+        : false
+    ).toBe(true);
+    expect(
+      fallbackAlertsSection && fallbackAlertsSection.type === "alerts"
+        ? fallbackAlertsSection.alerts[0]?.message
+        : undefined
+    ).toBe("No active alerts");
 
     expect(SUMMARY_SECTION_CONTRACT.alerts.id).not.toBe(SUMMARY_SECTION_CONTRACT.dataCompleteness.id);
     expect(SUMMARY_SECTION_CONTRACT.alerts.title).not.toBe(SUMMARY_SECTION_CONTRACT.dataCompleteness.title);

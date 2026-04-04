@@ -42,7 +42,7 @@ describe("PermissionsReportGenerator", () => {
     const keyMetaSection = report.sections.find((section) => section.title === "Key Meta");
 
     expect(keyMetaSection?.type).toBe("table");
-    expect(keyMetaSection?.table?.rows).toEqual([
+    expect(keyMetaSection && keyMetaSection.type === "table" ? keyMetaSection.table.rows : undefined).toEqual([
       ["apiKey", "<redacted>"],
       ["apiKeyStatus", "present"],
       ["note", "ops"],
