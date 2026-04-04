@@ -1,4 +1,5 @@
 import type { CommandName, ParsedCliArgs, ParsedCliOptions } from "../types/command.types";
+import { ENV_VARS } from "../configEnv";
 
 const COMMANDS: CommandName[] = [
   "summary",
@@ -26,8 +27,6 @@ const COMMAND_DESCRIPTIONS: Record<CommandName, string> = {
   config: "Effective runtime config (redacted)",
   health: "API/connectivity/readiness checks"
 };
-const ALLOW_INSECURE_SECRET_FLAGS_ENV = "BYBIT_ALLOW_INSECURE_CLI_SECRETS";
-
 function isTruthyEnvValue(value: string | undefined): boolean {
   if (!value) {
     return false;
@@ -76,7 +75,7 @@ export function parseArgs(
   const errors: string[] = [];
   let command: CommandName | undefined;
   let optionsTerminated = false;
-  const allowInsecureSecretFlags = isTruthyEnvValue(env[ALLOW_INSECURE_SECRET_FLAGS_ENV]);
+  const allowInsecureSecretFlags = isTruthyEnvValue(env[ENV_VARS.allowInsecureCliSecrets]);
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -315,6 +314,11 @@ function renderGlobalHelp(): string {
     "",
     ...renderOptionsSection(),
     "",
+    "Resolution precedence:",
+    "  General runtime fields: CLI args -> profile (if applicable) -> env -> defaults.",
+    "  Credentials: profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults.",
+    "  Time range: --from + --to -> --window -> BYBIT_WINDOW -> default 30d window.",
+    "",
     "Credential input (recommended):",
     "  1) Environment variables or .env: BYBIT_API_KEY + BYBIT_SECRET (or BYBIT_API_SECRET).",
     "  2) Credential profiles: --profile <name> with --profiles-file.",
@@ -322,22 +326,26 @@ function renderGlobalHelp(): string {
     "Legacy insecure flags (deprecated):",
     "  To temporarily allow --api-key/--api-secret, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1.",
     "",
-    "Credential profiles:",
-    "  --profile <name> picks keys from profile file before env fallback.",
-    "  --profiles-file defaults to ./.bybit-profiles.json (or BYBIT_PROFILES_FILE).",
-    "  Env alternatives: BYBIT_PROFILE, BYBIT_PROFILES_FILE",
+    "Supported environment variables:",
+    `  ${ENV_VARS.apiKey}=<value>`,
+    `  ${ENV_VARS.secret}=<value>`,
+    `  ${ENV_VARS.apiSecret}=<value>`,
+    `  ${ENV_VARS.allowInsecureCliSecrets}=<1|true|yes|on>`,
+    `  ${ENV_VARS.profile}=<name>`,
+    `  ${ENV_VARS.profilesFile}=<path>`,
+    `  ${ENV_VARS.category}=<linear|spot|bot>`,
+    `  ${ENV_VARS.futuresGridBotIds}=<id1,id2,...>`,
+    `  ${ENV_VARS.spotGridBotIds}=<id1,id2,...>`,
+    `  ${ENV_VARS.format}=<md|compact>`,
+    `  ${ENV_VARS.lang}=<en>`,
+    `  ${ENV_VARS.timeoutMs}=<number>`,
+    `  ${ENV_VARS.window}=<7d|30d|90d>`,
+    `  ${ENV_VARS.positionsMaxPages}=<number>`,
+    `  ${ENV_VARS.executionsMaxPagesPerChunk}=<number>`,
+    `  ${ENV_VARS.paginationLimitMode}=<error|partial>`,
+    `  ${ENV_VARS.configDiagnostics}=<1|true|yes|on>`,
     "",
-    "Bot IDs can also be provided via env:",
-    "  BYBIT_FGRID_BOT_IDS=<id1,id2,...>",
-    "  BYBIT_SPOT_GRID_IDS=<id1,id2,...>",
-    "",
-    "Pagination safety (optional):",
-    "  BYBIT_POSITIONS_MAX_PAGES=<number>",
-    "  BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK=<number>",
-    "  BYBIT_PAGINATION_LIMIT_MODE=<error|partial>",
-    "",
-    "Config diagnostics mode (optional):",
-    "  BYBIT_CONFIG_DIAGNOSTICS=1 enables expanded config details"
+    `${ENV_VARS.configDiagnostics}=1 enables expanded config details`
   ].join("\n");
 }
 

@@ -10,6 +10,7 @@ import type {
   RuntimeConfig
 } from "./types/config.types";
 import { redactSecretValue } from "./security/redaction";
+import { ENV_VARS } from "./configEnv";
 
 const DEFAULT_CATEGORY: MarketCategory = "linear";
 const DEFAULT_FORMAT = "md" as const;
@@ -18,8 +19,6 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_WINDOW_DAYS = 30;
 const DEFAULT_PROFILES_FILE = ".bybit-profiles.json";
 const DEFAULT_PAGINATION_LIMIT_MODE: PaginationLimitMode = "error";
-const ALLOW_INSECURE_SECRET_FLAGS_ENV = "BYBIT_ALLOW_INSECURE_CLI_SECRETS";
-const CONFIG_DIAGNOSTICS_ENV = "BYBIT_CONFIG_DIAGNOSTICS";
 const DEFAULT_CONFIG_REPORT_MODE: ConfigReportMode = "safe";
 
 function parseWindow(windowValue: string): number | null {
@@ -103,7 +102,7 @@ function parseProfileEntry(profileName: string, value: unknown): ProfileConfig {
 
 function resolveProfilesPath(options: ParsedCliOptions, env: Record<string, string | undefined>): string {
   const fromOptions = options.profilesFile;
-  const fromEnv = env.BYBIT_PROFILES_FILE;
+  const fromEnv = env[ENV_VARS.profilesFile];
   const path = fromOptions ?? fromEnv ?? DEFAULT_PROFILES_FILE;
   return resolvePath(path);
 }
@@ -112,7 +111,7 @@ function resolveProfile(
   options: ParsedCliOptions,
   env: Record<string, string | undefined>
 ): { name: string; value: ProfileConfig } | null {
-  const profileName = options.profile ?? env.BYBIT_PROFILE;
+  const profileName = options.profile ?? env[ENV_VARS.profile];
   if (!profileName) {
     return null;
   }
@@ -197,7 +196,7 @@ function resolveConfigReportMode(
   options: ParsedCliOptions,
   env: Record<string, string | undefined>
 ): ConfigReportMode {
-  if (options.configDiagnostics || isTruthyEnvValue(env[CONFIG_DIAGNOSTICS_ENV])) {
+  if (options.configDiagnostics || isTruthyEnvValue(env[ENV_VARS.configDiagnostics])) {
     return "diagnostic";
   }
   return DEFAULT_CONFIG_REPORT_MODE;
@@ -225,10 +224,11 @@ function resolveTimeRange(options: ParsedCliOptions, env: Record<string, string 
     return { value: { from: fromDate.toISOString(), to }, source: "cli" };
   }
 
-  if (env.WINDOW) {
-    const days = parseWindow(env.WINDOW);
+  const envWindow = env[ENV_VARS.window];
+  if (envWindow) {
+    const days = parseWindow(envWindow);
     if (days === null) {
-      throw new Error(`Invalid WINDOW value: ${env.WINDOW}`);
+      throw new Error(`Invalid ${ENV_VARS.window} value: ${envWindow}`);
     }
     const to = now.toISOString();
     const fromDate = new Date(now);
@@ -244,36 +244,40 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
   const resolvedProfile = resolveProfile(options, env);
   const profile = resolvedProfile?.value;
   const profilesFile = resolveProfilesPath(options, env);
-  const allowInsecureSecretFlags = isTruthyEnvValue(env[ALLOW_INSECURE_SECRET_FLAGS_ENV]);
+  const allowInsecureSecretFlags = isTruthyEnvValue(env[ENV_VARS.allowInsecureCliSecrets]);
   const legacyCliApiKey = allowInsecureSecretFlags ? options.apiKey : undefined;
   const legacyCliApiSecret = allowInsecureSecretFlags ? options.apiSecret : undefined;
 
-  const apiKey = profile?.apiKey ?? env.BYBIT_API_KEY ?? legacyCliApiKey ?? "";
-  const apiSecret = profile?.apiSecret ?? env.BYBIT_SECRET ?? env.BYBIT_API_SECRET ?? legacyCliApiSecret ?? "";
-  const category = (options.category ?? profile?.category ?? env.DEFAULT_CATEGORY ?? DEFAULT_CATEGORY) as MarketCategory;
+  const apiKey = profile?.apiKey ?? env[ENV_VARS.apiKey] ?? legacyCliApiKey ?? "";
+  const apiSecret = profile?.apiSecret ?? env[ENV_VARS.secret] ?? env[ENV_VARS.apiSecret] ?? legacyCliApiSecret ?? "";
+  const category = (options.category ?? profile?.category ?? env[ENV_VARS.category] ?? DEFAULT_CATEGORY) as MarketCategory;
   const futuresGridBotIds =
     options.futuresGridBotIds ??
     profile?.futuresGridBotIds ??
-    parseCsvIds(env.BYBIT_FGRID_BOT_IDS);
+    parseCsvIds(env[ENV_VARS.futuresGridBotIds]);
   const spotGridBotIds =
     options.spotGridBotIds ??
     profile?.spotGridBotIds ??
-    parseCsvIds(env.BYBIT_SPOT_GRID_IDS);
-  const format = (options.format ?? (env.DEFAULT_FORMAT as "md" | "compact") ?? DEFAULT_FORMAT);
-  const lang = options.lang ?? env.DEFAULT_LANG ?? DEFAULT_LANG;
-  const timeoutMs = options.timeoutMs ?? Number(env.DEFAULT_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
+    parseCsvIds(env[ENV_VARS.spotGridBotIds]);
+  const format = (options.format ?? (env[ENV_VARS.format] as "md" | "compact") ?? DEFAULT_FORMAT);
+  const lang = options.lang ?? env[ENV_VARS.lang] ?? DEFAULT_LANG;
+  const timeoutMs =
+    options.timeoutMs ??
+    parseOptionalPositiveInt(env[ENV_VARS.timeoutMs], ENV_VARS.timeoutMs) ??
+    DEFAULT_TIMEOUT_MS;
   const timeRange = resolveTimeRange(options, env, now);
   const positionsMaxPages =
-    options.positionsMaxPages ?? parseOptionalPositiveInt(env.BYBIT_POSITIONS_MAX_PAGES, "BYBIT_POSITIONS_MAX_PAGES");
+    options.positionsMaxPages ??
+    parseOptionalPositiveInt(env[ENV_VARS.positionsMaxPages], ENV_VARS.positionsMaxPages);
   const executionsMaxPagesPerChunk =
     options.executionsMaxPagesPerChunk ??
     parseOptionalPositiveInt(
-      env.BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK,
-      "BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK"
+      env[ENV_VARS.executionsMaxPagesPerChunk],
+      ENV_VARS.executionsMaxPagesPerChunk
     );
   const paginationLimitMode = resolvePaginationLimitMode(
-    options.paginationLimitMode ?? env.BYBIT_PAGINATION_LIMIT_MODE,
-    options.paginationLimitMode ? "--pagination-limit-mode" : "BYBIT_PAGINATION_LIMIT_MODE"
+    options.paginationLimitMode ?? env[ENV_VARS.paginationLimitMode],
+    options.paginationLimitMode ? "--pagination-limit-mode" : ENV_VARS.paginationLimitMode
   );
   const configReportMode = resolveConfigReportMode(options, env);
 
@@ -309,48 +313,48 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     },
     configReportMode,
     sources: {
-      profile: options.profile ? "cli" : env.BYBIT_PROFILE ? "env" : "default",
-      profilesFile: options.profilesFile ? "cli" : env.BYBIT_PROFILES_FILE ? "env" : "default",
-      apiKey: profile?.apiKey ? "profile" : env.BYBIT_API_KEY ? "env" : legacyCliApiKey ? "cli" : "default",
+      profile: options.profile ? "cli" : env[ENV_VARS.profile] ? "env" : "default",
+      profilesFile: options.profilesFile ? "cli" : env[ENV_VARS.profilesFile] ? "env" : "default",
+      apiKey: profile?.apiKey ? "profile" : env[ENV_VARS.apiKey] ? "env" : legacyCliApiKey ? "cli" : "default",
       apiSecret: profile?.apiSecret
         ? "profile"
-        : env.BYBIT_SECRET || env.BYBIT_API_SECRET
+        : env[ENV_VARS.secret] || env[ENV_VARS.apiSecret]
           ? "env"
           : legacyCliApiSecret
             ? "cli"
             : "default",
-      category: options.category ? "cli" : profile?.category ? "profile" : env.DEFAULT_CATEGORY ? "env" : "default",
+      category: options.category ? "cli" : profile?.category ? "profile" : env[ENV_VARS.category] ? "env" : "default",
       futuresGridBotIds: options.futuresGridBotIds
         ? "cli"
         : profile?.futuresGridBotIds
           ? "profile"
-          : env.BYBIT_FGRID_BOT_IDS
+          : env[ENV_VARS.futuresGridBotIds]
             ? "env"
             : "default",
       spotGridBotIds: options.spotGridBotIds
         ? "cli"
         : profile?.spotGridBotIds
           ? "profile"
-          : env.BYBIT_SPOT_GRID_IDS
+          : env[ENV_VARS.spotGridBotIds]
             ? "env"
             : "default",
-      format: options.format ? "cli" : env.DEFAULT_FORMAT ? "env" : "default",
-      lang: options.lang ? "cli" : env.DEFAULT_LANG ? "env" : "default",
-      timeoutMs: options.timeoutMs ? "cli" : env.DEFAULT_TIMEOUT_MS ? "env" : "default",
+      format: options.format ? "cli" : env[ENV_VARS.format] ? "env" : "default",
+      lang: options.lang ? "cli" : env[ENV_VARS.lang] ? "env" : "default",
+      timeoutMs: options.timeoutMs ? "cli" : env[ENV_VARS.timeoutMs] ? "env" : "default",
       timeRange: timeRange.source,
       positionsMaxPages: options.positionsMaxPages
         ? "cli"
-        : env.BYBIT_POSITIONS_MAX_PAGES
+        : env[ENV_VARS.positionsMaxPages]
           ? "env"
           : "default",
       executionsMaxPagesPerChunk: options.executionsMaxPagesPerChunk
         ? "cli"
-        : env.BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK
+        : env[ENV_VARS.executionsMaxPagesPerChunk]
           ? "env"
           : "default",
       paginationLimitMode: options.paginationLimitMode
         ? "cli"
-        : env.BYBIT_PAGINATION_LIMIT_MODE
+        : env[ENV_VARS.paginationLimitMode]
           ? "env"
           : "default"
     }
