@@ -22,6 +22,7 @@ export class ConfigReportGenerator {
               ["profilesFile", view.profilesFile ?? "<none>"],
               ["configReportMode", view.configReportMode],
               ["category", view.category],
+              ["sourceMode", view.sourceMode],
               ["futuresGridBotIds", view.futuresGridBotIds],
               ["spotGridBotIds", view.spotGridBotIds],
               ["format", view.format],

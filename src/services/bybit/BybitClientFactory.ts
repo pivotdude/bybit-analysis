@@ -341,10 +341,6 @@ export class BybitReadonlyClient {
   }
 
   async getPositions(category: MarketCategory, cursor?: string, timeoutMs?: number): Promise<unknown> {
-    if (category === "bot") {
-      throw new Error("getPositions does not support category=bot");
-    }
-
     return this.requestPrivate("GET", "/v5/position/list", {
       query: {
         category,
@@ -357,10 +353,6 @@ export class BybitReadonlyClient {
   }
 
   async getClosedPnl(category: MarketCategory, from: string, to: string, cursor?: string, timeoutMs?: number): Promise<unknown> {
-    if (category === "bot") {
-      throw new Error("getClosedPnl does not support category=bot");
-    }
-
     return this.requestPrivate("GET", "/v5/position/closed-pnl", {
       query: {
         category,
@@ -381,10 +373,6 @@ export class BybitReadonlyClient {
     timeoutMs?: number,
     symbol?: string
   ): Promise<unknown> {
-    if (category === "bot") {
-      throw new Error("getExecutionList does not support category=bot");
-    }
-
     return this.requestPrivate("GET", "/v5/execution/list", {
       query: {
         category,

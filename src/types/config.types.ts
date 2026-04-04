@@ -1,4 +1,4 @@
-import type { MarketCategory } from "./domain.types";
+import type { IntegrationMode, MarketCategory } from "./domain.types";
 import type { OutputFormat, TimeRange } from "./command.types";
 
 export type ConfigSource = "cli" | "profile" | "env" | "default";
@@ -17,6 +17,7 @@ export interface ResolvedConfigSources {
   apiKey: ConfigSource;
   apiSecret: ConfigSource;
   category: ConfigSource;
+  sourceMode: ConfigSource;
   futuresGridBotIds: ConfigSource;
   spotGridBotIds: ConfigSource;
   format: ConfigSource;
@@ -33,6 +34,7 @@ export interface RuntimeConfig {
   apiKey: string;
   apiSecret: string;
   category: MarketCategory;
+  sourceMode: IntegrationMode;
   futuresGridBotIds: string[];
   spotGridBotIds: string[];
   format: OutputFormat;
@@ -47,6 +49,7 @@ export interface RedactedConfigView {
   profile?: string;
   profilesFile?: string;
   category: MarketCategory;
+  sourceMode: IntegrationMode;
   futuresGridBotIds: string;
   spotGridBotIds: string;
   format: OutputFormat;

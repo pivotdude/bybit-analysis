@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import type { ParsedCliOptions, TimeRange } from "./types/command.types";
-import type { MarketCategory } from "./types/domain.types";
+import type { IntegrationMode, MarketCategory } from "./types/domain.types";
 import type {
   ConfigReportMode,
   PaginationLimitMode,
@@ -13,6 +13,7 @@ import { redactSecretValue } from "./security/redaction";
 import { ENV_VARS } from "./configEnv";
 
 const DEFAULT_CATEGORY: MarketCategory = "linear";
+const DEFAULT_SOURCE_MODE: IntegrationMode = "market";
 const DEFAULT_FORMAT = "md" as const;
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_WINDOW_DAYS = 30;
@@ -77,6 +78,7 @@ interface ProfileConfig {
   apiKey?: string;
   apiSecret?: string;
   category?: MarketCategory;
+  sourceMode?: IntegrationMode;
   futuresGridBotIds?: string[];
   spotGridBotIds?: string[];
 }
@@ -89,11 +91,14 @@ function parseProfileEntry(profileName: string, value: unknown): ProfileConfig {
   const raw = value as Record<string, unknown>;
   const categoryValue = asNonEmptyString(raw.category);
   const category = categoryValue as MarketCategory | undefined;
+  const sourceModeValue = asNonEmptyString(raw.sourceMode ?? raw.BYBIT_SOURCE_MODE);
+  const sourceMode = sourceModeValue as IntegrationMode | undefined;
 
   return {
     apiKey: asNonEmptyString(raw.apiKey ?? raw.BYBIT_API_KEY),
     apiSecret: asNonEmptyString(raw.apiSecret ?? raw.secret ?? raw.BYBIT_SECRET ?? raw.BYBIT_API_SECRET),
     category,
+    sourceMode,
     futuresGridBotIds: parseIdList(raw.futuresGridBotIds ?? raw.BYBIT_FGRID_BOT_IDS),
     spotGridBotIds: parseIdList(raw.spotGridBotIds ?? raw.BYBIT_SPOT_GRID_IDS)
   };
@@ -250,6 +255,10 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
   const apiKey = profile?.apiKey ?? env[ENV_VARS.apiKey] ?? legacyCliApiKey ?? "";
   const apiSecret = profile?.apiSecret ?? env[ENV_VARS.secret] ?? env[ENV_VARS.apiSecret] ?? legacyCliApiSecret ?? "";
   const category = (options.category ?? profile?.category ?? env[ENV_VARS.category] ?? DEFAULT_CATEGORY) as MarketCategory;
+  const sourceMode = (options.sourceMode ??
+    profile?.sourceMode ??
+    env[ENV_VARS.sourceMode] ??
+    DEFAULT_SOURCE_MODE) as IntegrationMode;
   const futuresGridBotIds =
     options.futuresGridBotIds ??
     profile?.futuresGridBotIds ??
@@ -279,8 +288,11 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
   );
   const configReportMode = resolveConfigReportMode(options, env);
 
-  if (category !== "linear" && category !== "spot" && category !== "bot") {
-    throw new Error(`Invalid category: ${category}. Expected linear|spot|bot`);
+  if (category !== "linear" && category !== "spot") {
+    throw new Error(`Invalid category: ${category}. Expected linear|spot`);
+  }
+  if (sourceMode !== "market" && sourceMode !== "bot") {
+    throw new Error(`Invalid source mode: ${sourceMode}. Expected market|bot`);
   }
   if (format !== "md" && format !== "compact") {
     throw new Error(`Invalid format: ${format}. Expected md|compact`);
@@ -298,6 +310,7 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     apiKey,
     apiSecret,
     category,
+    sourceMode,
     futuresGridBotIds,
     spotGridBotIds,
     format,
@@ -321,6 +334,13 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
             ? "cli"
             : "default",
       category: options.category ? "cli" : profile?.category ? "profile" : env[ENV_VARS.category] ? "env" : "default",
+      sourceMode: options.sourceMode
+        ? "cli"
+        : profile?.sourceMode
+          ? "profile"
+          : env[ENV_VARS.sourceMode]
+            ? "env"
+            : "default",
       futuresGridBotIds: options.futuresGridBotIds
         ? "cli"
         : profile?.futuresGridBotIds
@@ -387,6 +407,7 @@ export function toRedactedConfigView(
     profile: config.profile,
     profilesFile: config.profilesFile,
     category: config.category,
+    sourceMode: config.sourceMode,
     futuresGridBotIds: diagnostic
       ? config.futuresGridBotIds.join(",") || "<none>"
       : summarizeConfiguredIds(config.futuresGridBotIds),

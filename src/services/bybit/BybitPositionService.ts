@@ -92,7 +92,7 @@ export class BybitPositionService implements PositionDataService {
       };
     }
 
-    if (context.category === "bot") {
+    if (context.sourceMode === "bot") {
       const report = await this.botService.getBotReport(context);
       return {
         source: "bybit",

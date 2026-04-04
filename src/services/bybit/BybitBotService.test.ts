@@ -36,7 +36,8 @@ function createFuturesGridDetail(symbol: string): { detail: Record<string, strin
 }
 
 const context: ServiceRequestContext = {
-  category: "bot",
+  category: "linear",
+  sourceMode: "bot",
   futuresGridBotIds: ["f-ok", "f-fail"],
   spotGridBotIds: [],
   from: "2026-01-01T00:00:00.000Z",

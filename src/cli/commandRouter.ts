@@ -55,11 +55,11 @@ export async function executeCommand(parsed: ParsedCliArgs): Promise<string> {
 
   if (parsed.command !== "config" && parsed.command !== "health") {
     if (
-      deps.config.category === "bot" &&
+      deps.config.sourceMode === "bot" &&
       deps.config.futuresGridBotIds.length === 0 &&
       deps.config.spotGridBotIds.length === 0
     ) {
-      throw new UsageError("For --category bot provide --fgrid-bot-ids and/or --spot-grid-ids");
+      throw new UsageError("For --source bot provide --fgrid-bot-ids and/or --spot-grid-ids");
     }
 
     try {

@@ -7,6 +7,7 @@ import type { ReportSection } from "../types/report.types";
 
 const linearContext: ServiceRequestContext = {
   category: "linear",
+  sourceMode: "market",
   futuresGridBotIds: [],
   spotGridBotIds: [],
   from: "2026-01-01T00:00:00.000Z",
@@ -16,7 +17,7 @@ const linearContext: ServiceRequestContext = {
 
 const botContext: ServiceRequestContext = {
   ...linearContext,
-  category: "bot",
+  sourceMode: "bot",
   futuresGridBotIds: ["fgrid-1"]
 };
 
@@ -227,7 +228,7 @@ describe("SummaryReportGenerator", () => {
     ).toBe(true);
   });
 
-  it("fails summary generation when bot report fetch fails for bot category", async () => {
+  it("fails summary generation when bot report fetch fails for bot source mode", async () => {
     const generator = new SummaryReportGenerator(accountService, executionService, failingBotService);
 
     await expect(generator.generate(botContext)).rejects.toThrow("bot endpoint unavailable");

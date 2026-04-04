@@ -1,7 +1,8 @@
-import type { AccountSnapshot, MarketCategory } from "../../types/domain.types";
+import type { AccountSnapshot, IntegrationMode, MarketCategory } from "../../types/domain.types";
 
 export interface ServiceRequestContext {
   category: MarketCategory;
+  sourceMode: IntegrationMode;
   futuresGridBotIds: string[];
   spotGridBotIds: string[];
   from: string;
