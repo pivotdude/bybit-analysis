@@ -8,7 +8,8 @@ const BYBIT_ENV_KEYS = [
   "BYBIT_PROFILE",
   "BYBIT_PROFILES_FILE",
   "BYBIT_FGRID_BOT_IDS",
-  "BYBIT_SPOT_GRID_IDS"
+  "BYBIT_SPOT_GRID_IDS",
+  "BYBIT_CONFIG_DIAGNOSTICS"
 ] as const;
 
 function createCliEnv(): Record<string, string> {
@@ -58,7 +59,7 @@ function countTableDataRows(markdown: string): number {
 }
 
 describe("CLI smoke/integration", () => {
-  it("renders config report successfully and redacts credentials", () => {
+  it("renders config report successfully and keeps safe redaction defaults", () => {
     const apiKey = "integration-test-api-key";
     const apiSecret = "integration-test-api-secret";
 
@@ -80,9 +81,32 @@ describe("CLI smoke/integration", () => {
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("# Runtime Configuration");
     expect(result.stdout).toContain("## Effective Configuration");
-    expect(result.stdout).toContain("<redacted>");
+    expect(result.stdout).toContain("<configured>");
     expect(result.stdout).not.toContain(apiKey);
     expect(result.stdout).not.toContain(apiSecret);
+  });
+
+  it("suppresses bot identifiers by default and reveals them only in diagnostic mode", () => {
+    const botId = "bot-sensitive-id-123";
+    const baseArgs = [
+      "config",
+      "--fgrid-bot-ids",
+      botId,
+      "--from",
+      "2026-01-01T00:00:00.000Z",
+      "--to",
+      "2026-01-02T00:00:00.000Z"
+    ];
+    const safe = runCli(baseArgs);
+    const diagnostic = runCli([...baseArgs, "--config-diagnostics"]);
+
+    expect(safe.exitCode).toBe(0);
+    expect(safe.stdout).toContain("configured (1 id)");
+    expect(safe.stdout).not.toContain(botId);
+
+    expect(diagnostic.exitCode).toBe(0);
+    expect(diagnostic.stdout).toContain(botId);
+    expect(diagnostic.stdout).toContain("| configReportMode | diagnostic |");
   });
 
   it("supports compact output mode in a successful end-to-end run", () => {
@@ -119,5 +143,6 @@ describe("CLI smoke/integration", () => {
     expect(compact.stdout).not.toContain("_truncated");
     expect(countTableDataRows(compact.stdout)).toBe(countTableDataRows(markdown.stdout));
     expect(compact.stdout).toContain("Secrets are masked by default and never printed in plaintext.");
+    expect(compact.stdout).toContain("Safe mode suppresses credential-adjacent and operational identifiers.");
   });
 });
