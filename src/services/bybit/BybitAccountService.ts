@@ -12,6 +12,7 @@ import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeAccountSnapshot } from "../normalizers/accountSnapshot.normalizer";
 import type { AccountSnapshot, AssetBalance, BotReport } from "../../types/domain.types";
 import { redactIpWhitelist, redactSecretValue } from "../../security/redaction";
+import { mergeDataCompleteness } from "../reliability/dataCompleteness";
 
 const WALLET_TTL_MS = 15_000;
 const SERVER_TIME_TTL_MS = 10_000;
@@ -76,7 +77,7 @@ export class BybitAccountService implements AccountDataService {
         unrealizedPnlUsd,
         positions: positionsResult.positions,
         balances,
-        dataCompleteness: positionsResult.dataCompleteness
+        dataCompleteness: mergeDataCompleteness(positionsResult.dataCompleteness, botReport.dataCompleteness)
       };
     }
 

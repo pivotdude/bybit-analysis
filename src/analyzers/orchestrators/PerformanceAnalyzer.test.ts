@@ -14,8 +14,10 @@ const baseAccount: AccountSnapshot = {
   positions: [],
   balances: [],
   dataCompleteness: {
+    state: "complete",
     partial: false,
-    warnings: []
+    warnings: [],
+    issues: []
   }
 };
 
@@ -35,8 +37,10 @@ const basePnl: PnLReport = {
   bestSymbols: [],
   worstSymbols: [],
   dataCompleteness: {
+    state: "complete",
     partial: false,
-    warnings: []
+    warnings: [],
+    issues: []
   }
 };
 

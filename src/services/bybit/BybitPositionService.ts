@@ -12,6 +12,14 @@ import {
 } from "./pagination";
 import type { PaginationLimitMode } from "./pagination";
 import type { PositionDataResult } from "../contracts/PositionDataService";
+import {
+  BYBIT_PARTIAL_FAILURE_POLICY,
+  DEFAULT_PAGE_FETCH_ATTEMPTS,
+  buildPageFetchIssue,
+  buildPaginationIssue,
+  runWithRetries
+} from "./partialFailurePolicy";
+import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
 
 const POSITIONS_TTL_MS = 15_000;
 
@@ -78,7 +86,7 @@ export class BybitPositionService implements PositionDataService {
     if (context.category === "spot") {
       return {
         positions: [],
-        dataCompleteness: { partial: false, warnings: [] }
+        dataCompleteness: completeDataCompleteness()
       };
     }
 
@@ -86,7 +94,7 @@ export class BybitPositionService implements PositionDataService {
       const report = await this.botService.getBotReport(context);
       return {
         positions: toBotPositions(context, report.bots),
-        dataCompleteness: { partial: false, warnings: [] }
+        dataCompleteness: report.dataCompleteness
       };
     }
 
@@ -99,14 +107,39 @@ export class BybitPositionService implements PositionDataService {
     const allRows: Array<Record<string, unknown>> = [];
     let cursor: string | undefined;
     let pagesFetched = 0;
-    let partial = false;
-    const warnings: string[] = [];
+    const issues: PositionDataResult["dataCompleteness"]["issues"] = [];
 
     while (true) {
-      const result = (await this.client.getPositions(context.category, cursor, context.timeoutMs)) as {
+      const page = pagesFetched + 1;
+      let result: {
         list?: Array<Record<string, unknown>>;
         nextPageCursor?: string;
       };
+      try {
+        result = (await runWithRetries(
+          () => this.client.getPositions(context.category, cursor, context.timeoutMs),
+          DEFAULT_PAGE_FETCH_ATTEMPTS
+        )) as {
+          list?: Array<Record<string, unknown>>;
+          nextPageCursor?: string;
+        };
+      } catch (error) {
+        const issue = buildPageFetchIssue({
+          scope: "positions",
+          criticality: BYBIT_PARTIAL_FAILURE_POLICY.positions.criticality,
+          page,
+          cursor,
+          retries: DEFAULT_PAGE_FETCH_ATTEMPTS,
+          error
+        });
+
+        if (pagesFetched === 0 || BYBIT_PARTIAL_FAILURE_POLICY.positions.partialOnFailure !== "after_first_page") {
+          throw new Error(issue.message, { cause: error });
+        }
+
+        issues.push(issue);
+        break;
+      }
       pagesFetched += 1;
 
       allRows.push(...(result.list ?? []));
@@ -128,18 +161,20 @@ export class BybitPositionService implements PositionDataService {
           throw error;
         }
 
-        partial = true;
-        warnings.push(buildPaginationLimitMessage(error.context));
+        issues.push(
+          buildPaginationIssue({
+            scope: "positions",
+            criticality: BYBIT_PARTIAL_FAILURE_POLICY.positions.criticality,
+            message: buildPaginationLimitMessage(error.context)
+          })
+        );
         break;
       }
     }
 
     const result: PositionDataResult = {
       positions: normalizePositions({ list: allRows }, context.category),
-      dataCompleteness: {
-        partial,
-        warnings
-      }
+      dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
     };
 
     this.cache.set(key, result, POSITIONS_TTL_MS);

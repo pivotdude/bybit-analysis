@@ -2,6 +2,7 @@ import { RiskAnalyzer } from "../analyzers/orchestrators/RiskAnalyzer";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ReportDocument } from "../types/report.types";
 import { fmtPct, fmtUsd } from "./formatters";
+import { pushDataCompletenessSections } from "./dataCompleteness";
 
 export class RiskReportGenerator {
   private readonly analyzer = new RiskAnalyzer();
@@ -50,19 +51,14 @@ export class RiskReportGenerator {
       }
     ];
 
-    if (account.dataCompleteness.partial) {
-      sections.push({
-        title: "Data Completeness",
-        type: "alerts",
-        alerts: account.dataCompleteness.warnings.map((message) => ({ severity: "warning", message }))
-      });
-    }
+    pushDataCompletenessSections(sections, account.dataCompleteness);
 
     return {
       command: "risk",
       title: "Risk Analytics",
       generatedAt: new Date().toISOString(),
-      sections
+      sections,
+      dataCompleteness: account.dataCompleteness
     };
   }
 }

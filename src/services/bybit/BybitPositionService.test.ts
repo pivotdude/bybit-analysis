@@ -52,7 +52,13 @@ const botService = {
     source: "bybit" as const,
     generatedAt: new Date().toISOString(),
     availability: "available" as const,
-    bots: []
+    bots: [],
+    dataCompleteness: {
+      state: "complete" as const,
+      partial: false,
+      warnings: [],
+      issues: []
+    }
   })
 };
 
@@ -97,5 +103,50 @@ describe("BybitPositionService pagination", () => {
     expect(result.dataCompleteness.partial).toBe(true);
     expect(result.dataCompleteness.warnings).toHaveLength(1);
     expect(result.dataCompleteness.warnings[0]).toContain("positions");
+  });
+
+  it("fails fast when first positions page cannot be fetched", async () => {
+    const client = {
+      getPositions: async () => {
+        throw new Error("temporary transport issue");
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+
+    await expect(service.getOpenPositions(context)).rejects.toThrow("Failed to fetch page 1");
+  });
+
+  it("degrades when subsequent positions page fails", async () => {
+    const client = {
+      getPositions: async (_category: string, cursor?: string) => {
+        if (!cursor) {
+          return {
+            list: [
+              {
+                symbol: "BTCUSDT",
+                size: "1",
+                side: "Buy",
+                markPrice: "100",
+                avgPrice: "90",
+                positionValue: "100",
+                leverage: "2",
+                unrealisedPnl: "5"
+              }
+            ],
+            nextPageCursor: "next-cursor"
+          };
+        }
+
+        throw new Error("timeout on second page");
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const result = await service.getOpenPositions(context);
+
+    expect(result.positions).toHaveLength(1);
+    expect(result.dataCompleteness.partial).toBe(true);
+    expect(result.dataCompleteness.issues[0]?.code).toBe("page_fetch_failed");
   });
 });
