@@ -61,9 +61,10 @@ describe("BybitPositionService pagination", () => {
     const { client, getCalls } = createClient(12);
     const service = new BybitPositionService(client, botService, new MemoryCacheStore());
 
-    const positions = await service.getOpenPositions(context);
+    const result = await service.getOpenPositions(context);
 
-    expect(positions).toHaveLength(12);
+    expect(result.positions).toHaveLength(12);
+    expect(result.dataCompleteness.partial).toBe(false);
     expect(getCalls()).toBe(12);
   });
 
@@ -81,5 +82,20 @@ describe("BybitPositionService pagination", () => {
       expect(paginationError.context.pageLimit).toBe(2);
       expect(paginationError.context.pagesFetched).toBe(2);
     }
+  });
+
+  it("returns partial result when safety limit is reached in partial mode", async () => {
+    const { client } = createClient(3);
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore(), {
+      maxPages: 2,
+      limitMode: "partial"
+    });
+
+    const result = await service.getOpenPositions(context);
+
+    expect(result.positions).toHaveLength(2);
+    expect(result.dataCompleteness.partial).toBe(true);
+    expect(result.dataCompleteness.warnings).toHaveLength(1);
+    expect(result.dataCompleteness.warnings[0]).toContain("positions");
   });
 });

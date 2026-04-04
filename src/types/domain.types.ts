@@ -21,6 +21,7 @@ export interface AccountSnapshot {
   equityHistory?: EquitySnapshot[];
   positions: Position[];
   balances: AssetBalance[];
+  dataCompleteness: DataCompleteness;
 }
 
 export interface EquitySnapshot {

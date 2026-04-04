@@ -10,8 +10,8 @@ export class PositionsReportGenerator {
   constructor(private readonly positionsService: PositionDataService) {}
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
-    const positions = await this.positionsService.getOpenPositions(context);
-    const analysis = this.analyzer.analyze(positions);
+    const positionsResult = await this.positionsService.getOpenPositions(context);
+    const analysis = this.analyzer.analyze(positionsResult.positions);
 
     const sections: ReportDocument["sections"] = [
       {
@@ -62,6 +62,14 @@ export class PositionsReportGenerator {
         title: "Alerts",
         type: "alerts",
         alerts: [{ severity: "warning", message: analysis.priceSourceAlert }]
+      });
+    }
+
+    if (positionsResult.dataCompleteness.partial) {
+      sections.push({
+        title: "Data Completeness",
+        type: "alerts",
+        alerts: positionsResult.dataCompleteness.warnings.map((message) => ({ severity: "warning", message }))
       });
     }
 

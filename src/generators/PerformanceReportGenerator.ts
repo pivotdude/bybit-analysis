@@ -45,11 +45,18 @@ export class PerformanceReportGenerator {
       }
     ];
 
-    if (pnl.dataCompleteness.partial) {
+    const completenessWarnings = Array.from(
+      new Set([
+        ...(account.dataCompleteness.partial ? account.dataCompleteness.warnings : []),
+        ...(pnl.dataCompleteness.partial ? pnl.dataCompleteness.warnings : [])
+      ])
+    );
+
+    if (completenessWarnings.length > 0) {
       sections.push({
         title: "Data Completeness",
         type: "alerts",
-        alerts: pnl.dataCompleteness.warnings.map((message) => ({ severity: "warning", message }))
+        alerts: completenessWarnings.map((message) => ({ severity: "warning", message }))
       });
     }
 

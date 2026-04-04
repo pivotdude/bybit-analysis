@@ -3,6 +3,7 @@ import type { AccountDataService, ServiceRequestContext } from "../services/cont
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
 import type { ReportDocument, ReportSection } from "../types/report.types";
+import type { DataCompleteness } from "../types/domain.types";
 import { fmtPct, fmtUsd } from "./formatters";
 
 export class SummaryReportGenerator {
@@ -95,7 +96,7 @@ export class SummaryReportGenerator {
       }
     ];
 
-    this.pushDataCompletenessSection(sections, pnl);
+    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
 
     sections.push({
       title: "Alerts",
@@ -166,7 +167,7 @@ export class SummaryReportGenerator {
       }
     ];
 
-    this.pushDataCompletenessSection(sections, pnl);
+    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
 
     return {
       command: "summary",
@@ -278,7 +279,7 @@ export class SummaryReportGenerator {
       });
     }
 
-    this.pushDataCompletenessSection(sections, pnl);
+    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
 
     return {
       command: "summary",
@@ -290,16 +291,17 @@ export class SummaryReportGenerator {
 
   private pushDataCompletenessSection(
     sections: ReportSection[],
-    pnl: Awaited<ReturnType<ExecutionDataService["getPnlReport"]>>
+    ...completeness: DataCompleteness[]
   ): void {
-    if (!pnl.dataCompleteness.partial) {
+    const warnings = Array.from(new Set(completeness.flatMap((item) => (item.partial ? item.warnings : []))));
+    if (warnings.length === 0) {
       return;
     }
 
     sections.push({
       title: "Data Completeness",
       type: "alerts",
-      alerts: pnl.dataCompleteness.warnings.map((message) => ({ severity: "warning", message }))
+      alerts: warnings.map((message) => ({ severity: "warning", message }))
     });
   }
 }

@@ -26,7 +26,11 @@ const accountService: AccountDataService = {
     availableBalanceUsd: 10_000,
     unrealizedPnlUsd: 0,
     positions: [],
-    balances: [{ asset: "USDT", walletBalance: 10_000, availableBalance: 10_000, usdValue: 10_000 }]
+    balances: [{ asset: "USDT", walletBalance: 10_000, availableBalance: 10_000, usdValue: 10_000 }],
+    dataCompleteness: {
+      partial: true,
+      warnings: ["Pagination safety limit reached for positions"]
+    }
   }),
   checkHealth: async () => ({
     connectivity: "ok",

@@ -53,7 +53,7 @@ export class BybitAccountService implements AccountDataService {
   async getAccountSnapshot(context: ServiceRequestContext): Promise<AccountSnapshot> {
     if (context.category === "bot") {
       const botReport = await this.botService.getBotReport(context);
-      const positions = await this.positionsService.getOpenPositions(context);
+      const positionsResult = await this.positionsService.getOpenPositions(context);
       const balances = aggregateBotBalances(botReport);
 
       const walletBalanceUsd = botReport.totalAllocatedUsd ?? 0;
@@ -73,8 +73,9 @@ export class BybitAccountService implements AccountDataService {
         walletBalanceUsd,
         availableBalanceUsd,
         unrealizedPnlUsd,
-        positions,
-        balances
+        positions: positionsResult.positions,
+        balances,
+        dataCompleteness: positionsResult.dataCompleteness
       };
     }
 
@@ -92,8 +93,13 @@ export class BybitAccountService implements AccountDataService {
       this.cache.set(key, walletPayload, WALLET_TTL_MS);
     }
 
-    const positions = await this.positionsService.getOpenPositions(context);
-    return normalizeAccountSnapshot(walletPayload, context.category, positions);
+    const positionsResult = await this.positionsService.getOpenPositions(context);
+    return normalizeAccountSnapshot(
+      walletPayload,
+      context.category,
+      positionsResult.positions,
+      positionsResult.dataCompleteness
+    );
   }
 
   async checkHealth(context: ServiceRequestContext): Promise<HealthCheckResult> {
