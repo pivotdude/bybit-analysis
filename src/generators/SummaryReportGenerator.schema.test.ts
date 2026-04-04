@@ -156,7 +156,9 @@ const accountService: AccountDataService = {
 };
 
 const executionService: ExecutionDataService = {
-  getPnlReport: async (context) => {
+  getPnlReport: async (request) => {
+    const { context } = request;
+
     if (context.category === "linear") {
       return {
         source: "bybit",
