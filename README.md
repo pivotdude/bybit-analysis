@@ -55,6 +55,9 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 - Section typing is pinned by explicit section contract mapping (`id + title + type`), not inferred from payload data.
 - Missing category-specific data is represented as empty rows / zero values / info alerts, not by omitting sections.
 - `summary.alerts` is always `alerts`; if a tabular/alternative representation is needed, it must use a different section ID and title.
+- Bot enrichment failure policy:
+  - `--category linear|spot`: bot summary is optional enrichment. Failures do not abort report generation, but are surfaced explicitly in `summary.alerts` and `summary.data_completeness` with the original error reason.
+  - `--category bot`: bot summary is required input. Bot fetch failures are fail-fast and abort summary generation.
 
 Report-level metadata:
 
