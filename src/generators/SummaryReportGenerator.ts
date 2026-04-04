@@ -9,6 +9,7 @@ import {
   degradedDataCompleteness,
   mergeDataCompleteness
 } from "../services/reliability/dataCompleteness";
+import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
 
 export const SUMMARY_SCHEMA_VERSION = "summary-markdown-v1";
 
@@ -87,9 +88,13 @@ export class SummaryReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const account = await this.accountService.getAccountSnapshot(context);
+    const startingEquity = resolveStartingEquity(account, context.from);
     const pnl = await this.executionService.getPnlReport({
       context,
+      equityStartUsd: startingEquity.equityStartUsd,
       equityEndUsd: account.totalEquityUsd,
+      roiMissingStartReason: startingEquity.missingStartReason,
+      roiMissingStartReasonCode: startingEquity.missingStartReasonCode,
       accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
     });
     const bot = await this.loadBotReport(context);
@@ -117,6 +122,10 @@ export class SummaryReportGenerator {
       summary.performance.capitalEfficiencyStatus === "supported" &&
       typeof summary.performance.capitalEfficiencyPct === "number"
         ? fmtPct(summary.performance.capitalEfficiencyPct)
+        : "unsupported";
+    const roi =
+      summary.performance.roiStatus === "supported" && typeof summary.performance.roiPct === "number"
+        ? fmtPct(summary.performance.roiPct)
         : "unsupported";
 
     const positionsRows = summary.positions.largestPositions.map((position) => [
@@ -195,6 +204,13 @@ export class SummaryReportGenerator {
           `Category: ${context.category}`,
           `Source mode: ${context.sourceMode}`,
           `Period: ${pnl.periodFrom} -> ${pnl.periodTo}`,
+          `ROI status: ${summary.performance.roiStatus}`,
+          ...(summary.performance.roiStatus === "unsupported"
+            ? [
+                `ROI unsupported code: ${summary.performance.roiUnsupportedReasonCode ?? "unknown"}`,
+                `ROI unsupported reason: ${summary.performance.roiUnsupportedReason ?? "starting equity is unavailable"}`
+              ]
+            : []),
           "All summary section IDs, order, and section types are stable across categories."
         ]
       }),
@@ -202,7 +218,7 @@ export class SummaryReportGenerator {
         kpis: [
           { label: "Total Equity", value: fmtUsd(summary.balance.snapshot.totalEquityUsd) },
           { label: "Net PnL", value: fmtUsd(summary.pnl.netPnlUsd) },
-          { label: "ROI", value: fmtPct(summary.performance.roiPct) },
+          { label: "ROI", value: roi },
           { label: "Gross Exposure", value: fmtUsd(summary.exposure.grossExposureUsd) },
           { label: "Risk Alerts", value: String(summary.risk.alerts.length) },
           { label: "Tracked Bots", value: String(botReport?.bots.length ?? 0) }

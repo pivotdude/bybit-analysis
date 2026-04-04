@@ -151,6 +151,7 @@ describe("BybitExecutionService pagination", () => {
     expect(report.roiStatus).toBe("unsupported");
     expect(report.roiPct).toBeUndefined();
     expect(report.roiUnsupportedReason).toContain("starting equity is unavailable");
+    expect(report.roiUnsupportedReasonCode).toBe("starting_equity_unavailable");
   });
 
   it("reads all spot execution pages when no safety limit is configured", async () => {

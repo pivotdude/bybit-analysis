@@ -9,6 +9,7 @@ export interface PnLAnalysis {
   netPnlUsd: number;
   roiStatus: PnLReport["roiStatus"];
   roiUnsupportedReason?: PnLReport["roiUnsupportedReason"];
+  roiUnsupportedReasonCode?: PnLReport["roiUnsupportedReasonCode"];
   roiStartEquityUsd?: PnLReport["roiStartEquityUsd"];
   roiEndEquityUsd?: PnLReport["roiEndEquityUsd"];
   roiPct?: number;
@@ -28,6 +29,7 @@ export class PnLAnalyzer {
       netPnlUsd: report.netPnlUsd,
       roiStatus: report.roiStatus,
       roiUnsupportedReason: report.roiUnsupportedReason,
+      roiUnsupportedReasonCode: report.roiUnsupportedReasonCode,
       roiStartEquityUsd: report.roiStartEquityUsd,
       roiEndEquityUsd: report.roiEndEquityUsd,
       roiPct: report.roiPct,

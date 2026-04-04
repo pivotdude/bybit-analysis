@@ -91,7 +91,12 @@ describe("PnLReportGenerator", () => {
             fundingFeesUsd: 0
           },
           netPnlUsd: 100,
-          ...normalizeRoi({ equityStartUsd: request.equityStartUsd, equityEndUsd: request.equityEndUsd }),
+          ...normalizeRoi({
+            equityStartUsd: request.equityStartUsd,
+            equityEndUsd: request.equityEndUsd,
+            missingStartReason: request.roiMissingStartReason,
+            missingStartReasonCode: request.roiMissingStartReasonCode
+          }),
           bySymbol: [],
           bestSymbols: [],
           worstSymbols: [],
@@ -137,7 +142,12 @@ describe("PnLReportGenerator", () => {
             fundingFeesUsd: 0
           },
           netPnlUsd: 100,
-          ...normalizeRoi({ equityStartUsd: request.equityStartUsd, equityEndUsd: request.equityEndUsd }),
+          ...normalizeRoi({
+            equityStartUsd: request.equityStartUsd,
+            equityEndUsd: request.equityEndUsd,
+            missingStartReason: request.roiMissingStartReason,
+            missingStartReasonCode: request.roiMissingStartReasonCode
+          }),
           bySymbol: [],
           bestSymbols: [],
           worstSymbols: [],
@@ -161,6 +171,7 @@ describe("PnLReportGenerator", () => {
     expect(passedEndEquity).toBe(1_100);
     expect(summary?.kpis?.find((kpi) => kpi.label === "ROI")?.value).toBe("unsupported");
     expect(roiStatus?.text?.[0]).toBe("Status: unsupported");
-    expect(roiStatus?.text?.[1]).toContain("equity history is unavailable");
+    expect(roiStatus?.text?.[1]).toBe("Code: equity_history_unavailable");
+    expect(roiStatus?.text?.[2]).toContain("equity history is unavailable");
   });
 });

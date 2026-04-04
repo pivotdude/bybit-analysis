@@ -62,6 +62,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
       "Category: linear",
       "Source mode: market",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "ROI status: supported",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
     "title": "Summary Contract",
@@ -80,7 +81,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
       },
       {
         "label": "ROI",
-        "value": "4.59%",
+        "value": "4.39%",
       },
       {
         "label": "Gross Exposure",
@@ -342,6 +343,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
       "Category: spot",
       "Source mode: market",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "ROI status: supported",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
     "title": "Summary Contract",
@@ -360,7 +362,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
       },
       {
         "label": "ROI",
-        "value": "0.82%",
+        "value": "0.81%",
       },
       {
         "label": "Gross Exposure",
@@ -594,6 +596,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
       "Category: linear",
       "Source mode: bot",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "ROI status: supported",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
     "title": "Summary Contract",
@@ -612,7 +615,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
       },
       {
         "label": "ROI",
-        "value": "3.80%",
+        "value": "4.39%",
       },
       {
         "label": "Gross Exposure",

@@ -65,6 +65,7 @@ describe("normalizeSpotPnlReport", () => {
     expect(report.realizedPnlUsd).toBeCloseTo(50);
     expect(report.netPnlUsd).toBeCloseTo(50);
     expect(report.roiStatus).toBe("unsupported");
+    expect(report.roiUnsupportedReasonCode).toBe("starting_equity_unavailable");
     expect(report.roiUnsupportedReason).toContain("starting equity is unavailable");
     expect(report.dataCompleteness.partial).toBe(false);
     expect(report.bySymbol[0]?.realizedPnlUsd).toBeCloseTo(50);

@@ -91,7 +91,10 @@ describe("PerformanceReportGenerator", () => {
     expect(section?.kpis?.[0]?.value).toBe("unsupported");
     expect(section?.kpis?.[1]?.value).toBe("unsupported");
     expect(pnlRequest?.accountSnapshot?.unrealizedPnlUsd).toBe(17);
+    expect(pnlRequest?.equityStartUsd).toBeUndefined();
     expect(pnlRequest?.equityEndUsd).toBe(1_000);
+    expect(pnlRequest?.roiMissingStartReason).toBe("equity history is unavailable");
+    expect(pnlRequest?.roiMissingStartReasonCode).toBe("equity_history_unavailable");
     expect(pnlRequest?.context).toEqual(context);
   });
 });
