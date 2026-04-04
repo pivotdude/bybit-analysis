@@ -45,7 +45,11 @@ export class SummaryReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const account = await this.accountService.getAccountSnapshot(context);
-    const pnl = await this.executionService.getPnlReport(context, undefined, account.totalEquityUsd);
+    const pnl = await this.executionService.getPnlReport({
+      context,
+      equityEndUsd: account.totalEquityUsd,
+      accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
+    });
     const bot = await this.loadBotReport(context);
     const botReport = bot.report;
     const summary = this.analyzer.analyze(account, pnl, botReport);

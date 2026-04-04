@@ -88,7 +88,7 @@ describe("BybitExecutionService pagination", () => {
     } as unknown as BybitReadonlyClient;
 
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
-    const report = await service.getPnlReport(spotContext);
+    const report = await service.getPnlReport({ context: spotContext });
 
     expect(calls).toBe(25);
     expect(report.dataCompleteness.partial).toBe(false);
@@ -140,7 +140,7 @@ describe("BybitExecutionService pagination", () => {
     } as unknown as BybitReadonlyClient;
 
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
-    const report = await service.getPnlReport(spotContext);
+    const report = await service.getPnlReport({ context: spotContext });
 
     expect(windowCalls).toBe(1);
     expect(openingCalls).toBeGreaterThan(0);
@@ -172,7 +172,7 @@ describe("BybitExecutionService pagination", () => {
     } as unknown as BybitReadonlyClient;
 
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
-    const report = await service.getPnlReport(spotContext);
+    const report = await service.getPnlReport({ context: spotContext });
 
     expect(report.realizedPnlUsd).toBeCloseTo(0);
     expect(report.dataCompleteness.partial).toBe(true);
@@ -210,12 +210,47 @@ describe("BybitExecutionService pagination", () => {
       limitMode: "partial"
     });
 
-    const report = await service.getPnlReport(linearContext);
+    const report = await service.getPnlReport({ context: linearContext });
 
     expect(calls).toBe(2);
     expect(report.dataCompleteness.partial).toBe(true);
     expect(report.dataCompleteness.warnings).toHaveLength(1);
     expect(report.dataCompleteness.warnings[0]).toContain("closed-pnl");
+  });
+
+  it("reuses unrealized pnl from account snapshot and skips wallet fetch", async () => {
+    let walletCalls = 0;
+
+    const client = {
+      getClosedPnl: async () => ({
+        list: [
+          {
+            symbol: "BTCUSDT",
+            closedPnl: "10",
+            openFee: "1",
+            closeFee: "1"
+          }
+        ],
+        nextPageCursor: undefined
+      }),
+      getWalletBalance: async () => {
+        walletCalls += 1;
+        return {
+          list: [{ totalPerpUPL: "999" }]
+        };
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    const report = await service.getPnlReport({
+      context: linearContext,
+      accountSnapshot: {
+        unrealizedPnlUsd: 42
+      }
+    });
+
+    expect(walletCalls).toBe(0);
+    expect(report.unrealizedPnlUsd).toBe(42);
   });
 
   it("throws when closed-pnl safety limit is reached in error mode", async () => {
@@ -247,7 +282,7 @@ describe("BybitExecutionService pagination", () => {
     });
 
     try {
-      await service.getPnlReport(linearContext);
+      await service.getPnlReport({ context: linearContext });
       throw new Error("expected pagination limit error");
     } catch (error) {
       expect(error).toBeInstanceOf(PaginationLimitReachedError);
@@ -269,7 +304,7 @@ describe("BybitExecutionService pagination", () => {
     } as unknown as BybitReadonlyClient;
 
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
-    await expect(service.getPnlReport(linearContext)).rejects.toThrow("Failed to fetch page 1");
+    await expect(service.getPnlReport({ context: linearContext })).rejects.toThrow("Failed to fetch page 1");
   });
 
   it("degrades when subsequent closed-pnl page fails", async () => {
@@ -296,7 +331,7 @@ describe("BybitExecutionService pagination", () => {
     } as unknown as BybitReadonlyClient;
 
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
-    const report = await service.getPnlReport(linearContext);
+    const report = await service.getPnlReport({ context: linearContext });
 
     expect(report.bySymbol[0]?.symbol).toBe("BTCUSDT");
     expect(report.dataCompleteness.partial).toBe(true);
