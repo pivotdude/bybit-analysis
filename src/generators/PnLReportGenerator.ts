@@ -60,11 +60,12 @@ export class PnLReportGenerator {
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const account = await this.accountService.getAccountSnapshot(context);
     const startingEquity = resolveStartingEquity(account, context.from);
-    const pnl = await this.executionService.getPnlReport(
+    const pnl = await this.executionService.getPnlReport({
       context,
-      startingEquity.equityStartUsd,
-      account.totalEquityUsd
-    );
+      equityStartUsd: startingEquity.equityStartUsd,
+      equityEndUsd: account.totalEquityUsd,
+      accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
+    });
     const analysis = this.analyzer.analyze(pnl);
 
     const roi = analysis.roiStatus === "supported" && typeof analysis.roiPct === "number" ? fmtPct(analysis.roiPct) : "unsupported";

@@ -74,9 +74,9 @@ describe("PnLReportGenerator", () => {
     let passedEndEquity: number | undefined;
 
     const executionService: ExecutionDataService = {
-      getPnlReport: async (_context, equityStartUsd, equityEndUsd) => {
-        passedStartEquity = equityStartUsd;
-        passedEndEquity = equityEndUsd;
+      getPnlReport: async (request) => {
+        passedStartEquity = request.equityStartUsd;
+        passedEndEquity = request.equityEndUsd;
 
         return {
           source: "bybit",
@@ -90,7 +90,7 @@ describe("PnLReportGenerator", () => {
             fundingFeesUsd: 0
           },
           netPnlUsd: 100,
-          ...normalizeRoi({ equityStartUsd, equityEndUsd }),
+          ...normalizeRoi({ equityStartUsd: request.equityStartUsd, equityEndUsd: request.equityEndUsd }),
           bySymbol: [],
           bestSymbols: [],
           worstSymbols: [],
@@ -120,9 +120,9 @@ describe("PnLReportGenerator", () => {
     let passedEndEquity: number | undefined;
 
     const executionService: ExecutionDataService = {
-      getPnlReport: async (_context, equityStartUsd, equityEndUsd) => {
-        passedStartEquity = equityStartUsd;
-        passedEndEquity = equityEndUsd;
+      getPnlReport: async (request) => {
+        passedStartEquity = request.equityStartUsd;
+        passedEndEquity = request.equityEndUsd;
 
         return {
           source: "bybit",
@@ -136,7 +136,7 @@ describe("PnLReportGenerator", () => {
             fundingFeesUsd: 0
           },
           netPnlUsd: 100,
-          ...normalizeRoi({ equityStartUsd, equityEndUsd }),
+          ...normalizeRoi({ equityStartUsd: request.equityStartUsd, equityEndUsd: request.equityEndUsd }),
           bySymbol: [],
           bestSymbols: [],
           worstSymbols: [],

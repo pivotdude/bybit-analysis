@@ -48,6 +48,15 @@ function runCli(
   };
 }
 
+function countTableDataRows(markdown: string): number {
+  const separatorRowRegex = /^\|\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/;
+  return markdown
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && !separatorRowRegex.test(line))
+    .length;
+}
+
 describe("CLI smoke/integration", () => {
   it("renders config report successfully and redacts credentials", () => {
     const apiKey = "integration-test-api-key";
@@ -90,5 +99,25 @@ describe("CLI smoke/integration", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("# Runtime Configuration");
+  });
+
+  it("keeps compact output lossless for table records vs markdown", () => {
+    const baseArgs = [
+      "config",
+      "--from",
+      "2026-01-01T00:00:00.000Z",
+      "--to",
+      "2026-01-02T00:00:00.000Z"
+    ];
+    const markdown = runCli(baseArgs);
+    const compact = runCli([...baseArgs, "--format", "compact"]);
+
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stderr).toBe("");
+    expect(compact.exitCode).toBe(0);
+    expect(compact.stderr).toBe("");
+    expect(compact.stdout).not.toContain("_truncated");
+    expect(countTableDataRows(compact.stdout)).toBe(countTableDataRows(markdown.stdout));
+    expect(compact.stdout).toContain("Secrets are masked by default and never printed in plaintext.");
   });
 });

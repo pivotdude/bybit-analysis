@@ -226,6 +226,7 @@ export function renderHelp(): string {
     "  --fgrid-bot-ids <id1,id2,...>",
     "  --spot-grid-ids <id1,id2,...>",
     "  --format <md|compact>",
+    "    compact is lossless and only changes markdown presentation density",
     "  --from <ISO8601>",
     "  --to <ISO8601>",
     "  --window <7d|30d|90d>",

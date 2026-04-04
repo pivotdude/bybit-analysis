@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { SummaryReportGenerator, SUMMARY_SCHEMA_VERSION } from "./SummaryReportGenerator";
+import { SummaryReportGenerator, SUMMARY_SCHEMA_VERSION, SUMMARY_SECTION_CONTRACT } from "./SummaryReportGenerator";
 import { MarkdownRenderer } from "../renderers/MarkdownRenderer";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
@@ -156,7 +156,9 @@ const accountService: AccountDataService = {
 };
 
 const executionService: ExecutionDataService = {
-  getPnlReport: async (context) => {
+  getPnlReport: async (request) => {
+    const { context } = request;
+
     if (context.category === "linear") {
       return {
         source: "bybit",
@@ -366,6 +368,28 @@ describe("SummaryReportGenerator schema stability", () => {
   it("produces stable snapshots for bot category sections", async () => {
     const report = await generateByCategory("bot");
     expect(report.sections).toMatchSnapshot();
+  });
+
+  it("keeps Alerts section type stable for both populated and fallback payloads", async () => {
+    const [withActiveAlerts, withFallbackAlert] = await Promise.all([
+      generateByCategory("linear"),
+      generateByCategory("bot")
+    ]);
+
+    const populatedAlertsSection = withActiveAlerts.sections.find(
+      (section) => section.id === SUMMARY_SECTION_CONTRACT.alerts.id
+    );
+    const fallbackAlertsSection = withFallbackAlert.sections.find(
+      (section) => section.id === SUMMARY_SECTION_CONTRACT.alerts.id
+    );
+
+    expect(populatedAlertsSection?.type).toBe(SUMMARY_SECTION_CONTRACT.alerts.type);
+    expect(fallbackAlertsSection?.type).toBe(SUMMARY_SECTION_CONTRACT.alerts.type);
+    expect(populatedAlertsSection?.alerts?.some((alert) => alert.message !== "No active alerts")).toBe(true);
+    expect(fallbackAlertsSection?.alerts?.[0]?.message).toBe("No active alerts");
+
+    expect(SUMMARY_SECTION_CONTRACT.alerts.id).not.toBe(SUMMARY_SECTION_CONTRACT.dataCompleteness.id);
+    expect(SUMMARY_SECTION_CONTRACT.alerts.title).not.toBe(SUMMARY_SECTION_CONTRACT.dataCompleteness.title);
   });
 
   it("renders schema version and section IDs in markdown", async () => {

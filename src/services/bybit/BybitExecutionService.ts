@@ -1,4 +1,4 @@
-import type { ExecutionDataService } from "../contracts/ExecutionDataService";
+import type { ExecutionDataService, GetPnlReportRequest } from "../contracts/ExecutionDataService";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
 import type { BotDataService } from "../contracts/BotDataService";
 import type { CacheStore } from "../cache/CacheStore";
@@ -289,7 +289,14 @@ export class BybitExecutionService implements ExecutionDataService {
     };
   }
 
-  async getPnlReport(context: ServiceRequestContext, equityStartUsd?: number, equityEndUsd?: number): Promise<PnLReport> {
+  async getPnlReport(request: GetPnlReportRequest): Promise<PnLReport> {
+    const {
+      context,
+      equityStartUsd,
+      equityEndUsd,
+      accountSnapshot
+    } = request;
+
     if (context.category === "bot") {
       const report = await this.botService.getBotReport(context);
       return toBotPnlReport(context, report, equityStartUsd, equityEndUsd);
@@ -436,11 +443,13 @@ export class BybitExecutionService implements ExecutionDataService {
       }
     }
 
-    const wallet = (await this.client.getWalletBalance(context.category, context.timeoutMs)) as {
-      list?: Array<Record<string, unknown>>;
-    };
-
-    const unrealizedPnlUsd = Number(wallet.list?.[0]?.totalPerpUPL ?? 0);
+    const unrealizedPnlUsdFromAccount = accountSnapshot?.unrealizedPnlUsd;
+    const unrealizedPnlUsd =
+      typeof unrealizedPnlUsdFromAccount === "number"
+        ? unrealizedPnlUsdFromAccount
+        : Number(((await this.client.getWalletBalance(context.category, context.timeoutMs)) as {
+            list?: Array<Record<string, unknown>>;
+          }).list?.[0]?.totalPerpUPL ?? 0);
 
     const report = normalizePnlReport(
       { list: events },

@@ -52,7 +52,9 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 
 - Section IDs are fixed and rendered in headings as `## [section.id] Title`.
 - Section order and section type are fixed.
+- Section typing is pinned by explicit section contract mapping (`id + title + type`), not inferred from payload data.
 - Missing category-specific data is represented as empty rows / zero values / info alerts, not by omitting sections.
+- `summary.alerts` is always `alerts`; if a tabular/alternative representation is needed, it must use a different section ID and title.
 
 Report-level metadata:
 
@@ -111,6 +113,11 @@ Example (`pnl` section):
 - `--executions-max-pages-per-chunk <number>`
 - `--pagination-limit-mode <error|partial>`
 - `--help, -h`
+
+Output formats:
+
+- `md` - standard Markdown layout.
+- `compact` - lossless Markdown layout with tighter spacing (presentation-only; no row/text truncation).
 
 ## Credentials (Secure Default)
 

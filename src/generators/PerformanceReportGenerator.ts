@@ -16,7 +16,11 @@ export class PerformanceReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const account = await this.accountService.getAccountSnapshot(context);
-    const pnl = await this.executionService.getPnlReport(context, undefined, account.totalEquityUsd);
+    const pnl = await this.executionService.getPnlReport({
+      context,
+      equityEndUsd: account.totalEquityUsd,
+      accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
+    });
     const analysis = this.analyzer.analyze(account, pnl);
     const capitalEfficiency =
       analysis.capitalEfficiencyStatus === "supported" && typeof analysis.capitalEfficiencyPct === "number"

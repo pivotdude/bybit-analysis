@@ -12,37 +12,41 @@ const context: ServiceRequestContext = {
   timeoutMs: 5_000
 };
 
-const executionService: ExecutionDataService = {
-  getPnlReport: async () => ({
-    source: "bybit",
-    generatedAt: new Date().toISOString(),
-    periodFrom: context.from,
-    periodTo: context.to,
-    realizedPnlUsd: 100,
-    unrealizedPnlUsd: 0,
-    fees: {
-      tradingFeesUsd: 0,
-      fundingFeesUsd: 0
-    },
-    netPnlUsd: 100,
-    roiStatus: "unsupported",
-    roiUnsupportedReason: "starting equity is unavailable for the requested period window",
-    roiStartEquityUsd: undefined,
-    roiEndEquityUsd: 1_000,
-    bySymbol: [],
-    bestSymbols: [],
-    worstSymbols: [],
-    dataCompleteness: {
-      state: "complete",
-      partial: false,
-      warnings: [],
-      issues: []
-    }
-  })
-};
-
 describe("PerformanceReportGenerator", () => {
   it("marks capital efficiency as unsupported when equity history is missing", async () => {
+    let pnlRequest: Parameters<ExecutionDataService["getPnlReport"]>[0] | undefined;
+    const executionService: ExecutionDataService = {
+      getPnlReport: async (request) => {
+        pnlRequest = request;
+        return {
+          source: "bybit",
+          generatedAt: new Date().toISOString(),
+          periodFrom: context.from,
+          periodTo: context.to,
+          realizedPnlUsd: 100,
+          unrealizedPnlUsd: 0,
+          fees: {
+            tradingFeesUsd: 0,
+            fundingFeesUsd: 0
+          },
+          netPnlUsd: 100,
+          roiStatus: "unsupported",
+          roiUnsupportedReason: "starting equity is unavailable for the requested period window",
+          roiStartEquityUsd: undefined,
+          roiEndEquityUsd: 1_000,
+          bySymbol: [],
+          bestSymbols: [],
+          worstSymbols: [],
+          dataCompleteness: {
+            state: "complete",
+            partial: false,
+            warnings: [],
+            issues: []
+          }
+        };
+      }
+    };
+
     const accountService: AccountDataService = {
       getAccountSnapshot: async () => ({
         source: "bybit",
@@ -52,7 +56,7 @@ describe("PerformanceReportGenerator", () => {
         totalEquityUsd: 1_000,
         walletBalanceUsd: 1_000,
         availableBalanceUsd: 1_000,
-        unrealizedPnlUsd: 0,
+        unrealizedPnlUsd: 17,
         positions: [],
         balances: [],
         dataCompleteness: {
@@ -85,5 +89,8 @@ describe("PerformanceReportGenerator", () => {
 
     expect(section?.kpis?.[0]?.value).toBe("unsupported");
     expect(section?.kpis?.[1]?.value).toBe("unsupported");
+    expect(pnlRequest?.accountSnapshot?.unrealizedPnlUsd).toBe(17);
+    expect(pnlRequest?.equityEndUsd).toBe(1_000);
+    expect(pnlRequest?.context).toEqual(context);
   });
 });
