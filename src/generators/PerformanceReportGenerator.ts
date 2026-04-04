@@ -3,6 +3,8 @@ import type { ExecutionDataService } from "../services/contracts/ExecutionDataSe
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ReportDocument } from "../types/report.types";
 import { fmtIso, fmtPct, fmtUsd } from "./formatters";
+import { mergeDataCompleteness } from "../services/reliability/dataCompleteness";
+import { pushDataCompletenessSections } from "./dataCompleteness";
 
 export class PerformanceReportGenerator {
   private readonly analyzer = new PerformanceAnalyzer();
@@ -58,26 +60,15 @@ export class PerformanceReportGenerator {
       }
     ];
 
-    const completenessWarnings = Array.from(
-      new Set([
-        ...(account.dataCompleteness.partial ? account.dataCompleteness.warnings : []),
-        ...(pnl.dataCompleteness.partial ? pnl.dataCompleteness.warnings : [])
-      ])
-    );
-
-    if (completenessWarnings.length > 0) {
-      sections.push({
-        title: "Data Completeness",
-        type: "alerts",
-        alerts: completenessWarnings.map((message) => ({ severity: "warning", message }))
-      });
-    }
+    const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness);
+    pushDataCompletenessSections(sections, dataCompleteness);
 
     return {
       command: "performance",
       title: "Performance Analytics",
       generatedAt: new Date().toISOString(),
-      sections
+      sections,
+      dataCompleteness
     };
   }
 }

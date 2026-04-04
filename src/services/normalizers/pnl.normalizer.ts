@@ -1,4 +1,5 @@
 import type { PnLReport, SymbolPnL } from "../../types/domain.types";
+import { completeDataCompleteness } from "../reliability/dataCompleteness";
 
 function toNumber(input: unknown): number {
   const value = Number(input);
@@ -63,9 +64,6 @@ export function normalizePnlReport(input: unknown, periodFrom: string, periodTo:
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
     worstSymbols: [...bySymbol].reverse().slice(0, 5),
-    dataCompleteness: {
-      partial: false,
-      warnings: []
-    }
+    dataCompleteness: completeDataCompleteness()
   };
 }

@@ -76,9 +76,36 @@ export interface SymbolPnL {
   tradesCount?: number;
 }
 
+export type DataCompletenessState = "complete" | "degraded";
+export type DataCriticality = "critical" | "optional";
+export type DataCompletenessIssueSeverity = "warning" | "critical";
+export type DataCompletenessIssueCode =
+  | "optional_item_failed"
+  | "page_fetch_failed"
+  | "pagination_limit_reached"
+  | "spot_cost_basis_incomplete"
+  | "invalid_request_window";
+export type DataCompletenessScope =
+  | "unknown"
+  | "bots"
+  | "positions"
+  | "closed_pnl"
+  | "execution_window"
+  | "opening_inventory";
+
+export interface DataCompletenessIssue {
+  code: DataCompletenessIssueCode;
+  scope: DataCompletenessScope;
+  severity: DataCompletenessIssueSeverity;
+  criticality: DataCriticality;
+  message: string;
+}
+
 export interface DataCompleteness {
+  state: DataCompletenessState;
   partial: boolean;
   warnings: string[];
+  issues: DataCompletenessIssue[];
 }
 
 export interface PnLReport {
@@ -205,4 +232,5 @@ export interface BotReport {
   totalAllocatedUsd?: number;
   totalBotExposureUsd?: number;
   totalBotPnlUsd?: number;
+  dataCompleteness: DataCompleteness;
 }

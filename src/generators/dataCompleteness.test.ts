@@ -28,8 +28,18 @@ const accountService: AccountDataService = {
     positions: [],
     balances: [{ asset: "USDT", walletBalance: 10_000, availableBalance: 10_000, usdValue: 10_000 }],
     dataCompleteness: {
+      state: "degraded",
       partial: true,
-      warnings: ["Pagination safety limit reached for positions"]
+      warnings: ["Pagination safety limit reached for positions"],
+      issues: [
+        {
+          code: "pagination_limit_reached",
+          scope: "positions",
+          severity: "warning",
+          criticality: "critical",
+          message: "Pagination safety limit reached for positions"
+        }
+      ]
     }
   }),
   checkHealth: async () => ({
@@ -90,8 +100,18 @@ const partialPnlReport = {
     }
   ],
   dataCompleteness: {
+    state: "degraded" as const,
     partial: true,
-    warnings: ["Pagination safety limit reached for execution-list"]
+    warnings: ["Pagination safety limit reached for execution-list"],
+    issues: [
+      {
+        code: "pagination_limit_reached" as const,
+        scope: "execution_window" as const,
+        severity: "warning" as const,
+        criticality: "critical" as const,
+        message: "Pagination safety limit reached for execution-list"
+      }
+    ]
   }
 };
 
@@ -104,7 +124,13 @@ const botService: BotDataService = {
     source: "bybit",
     generatedAt: new Date().toISOString(),
     availability: "available",
-    bots: []
+    bots: [],
+    dataCompleteness: {
+      state: "complete",
+      partial: false,
+      warnings: [],
+      issues: []
+    }
   })
 };
 
@@ -114,8 +140,11 @@ describe("Data completeness sections", () => {
     const report = await generator.generate(context);
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
-    expect(section?.type).toBe("alerts");
-    expect(section?.alerts?.[0]?.severity).toBe("warning");
+    const status = report.sections.find((item) => item.title === "Data Status");
+    expect(section?.type).toBe("table");
+    expect(section?.table?.rows[0]?.[0]).toBe("pagination_limit_reached");
+    expect(status?.type).toBe("kpi");
+    expect(report.dataCompleteness?.state).toBe("degraded");
   });
 
   it("adds warning section in performance report", async () => {
@@ -123,8 +152,8 @@ describe("Data completeness sections", () => {
     const report = await generator.generate(context);
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
-    expect(section?.type).toBe("alerts");
-    expect(section?.alerts?.[0]?.severity).toBe("warning");
+    expect(section?.type).toBe("table");
+    expect(report.dataCompleteness?.state).toBe("degraded");
   });
 
   it("adds warning section in summary report", async () => {
@@ -132,7 +161,7 @@ describe("Data completeness sections", () => {
     const report = await generator.generate(context);
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
-    expect(section?.type).toBe("alerts");
-    expect(section?.alerts?.[0]?.severity).toBe("warning");
+    expect(section?.type).toBe("table");
+    expect(report.dataCompleteness?.state).toBe("degraded");
   });
 });

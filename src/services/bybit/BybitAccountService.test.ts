@@ -102,8 +102,10 @@ describe("BybitAccountService#getAccountSnapshot", () => {
       getOpenPositions: async () => ({
         positions: [],
         dataCompleteness: {
+          state: "complete",
           partial: false,
-          warnings: []
+          warnings: [],
+          issues: []
         }
       })
     };

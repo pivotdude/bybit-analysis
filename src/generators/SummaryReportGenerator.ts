@@ -3,8 +3,13 @@ import type { AccountDataService, ServiceRequestContext } from "../services/cont
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
 import type { ReportDocument, ReportSection } from "../types/report.types";
-import type { DataCompleteness } from "../types/domain.types";
 import { fmtPct, fmtUsd } from "./formatters";
+import { pushDataCompletenessSections } from "./dataCompleteness";
+import {
+  completeDataCompleteness,
+  degradedDataCompleteness,
+  mergeDataCompleteness
+} from "../services/reliability/dataCompleteness";
 
 export class SummaryReportGenerator {
   private readonly analyzer = new SummaryAnalyzer();
@@ -29,10 +34,21 @@ export class SummaryReportGenerator {
     }
 
     let botReport: Awaited<ReturnType<BotDataService["getBotReport"]>> | undefined;
+    let botDataCompleteness = completeDataCompleteness();
     try {
       botReport = await this.botService.getBotReport(context);
-    } catch {
+      botDataCompleteness = botReport.dataCompleteness;
+    } catch (error) {
       botReport = undefined;
+      botDataCompleteness = degradedDataCompleteness([
+        {
+          code: "optional_item_failed",
+          scope: "bots",
+          severity: "warning",
+          criticality: "optional",
+          message: `Bot summary enrichment failed: ${error instanceof Error ? error.message : String(error)}`
+        }
+      ]);
     }
 
     const summary = this.analyzer.analyze(account, pnl, botReport);
@@ -101,7 +117,12 @@ export class SummaryReportGenerator {
       }
     ];
 
-    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
+    const dataCompleteness = mergeDataCompleteness(
+      account.dataCompleteness,
+      pnl.dataCompleteness,
+      botDataCompleteness
+    );
+    pushDataCompletenessSections(sections, dataCompleteness);
 
     sections.push({
       title: "Alerts",
@@ -123,7 +144,8 @@ export class SummaryReportGenerator {
       command: "summary",
       title: "Account Summary",
       generatedAt: summary.generatedAt,
-      sections
+      sections,
+      dataCompleteness
     };
   }
 
@@ -172,13 +194,15 @@ export class SummaryReportGenerator {
       }
     ];
 
-    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
+    const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness, botReport.dataCompleteness);
+    pushDataCompletenessSections(sections, dataCompleteness);
 
     return {
       command: "summary",
       title: "Bot Portfolio Summary",
       generatedAt: new Date().toISOString(),
-      sections
+      sections,
+      dataCompleteness
     };
   }
 
@@ -284,29 +308,15 @@ export class SummaryReportGenerator {
       });
     }
 
-    this.pushDataCompletenessSection(sections, account.dataCompleteness, pnl.dataCompleteness);
+    const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness);
+    pushDataCompletenessSections(sections, dataCompleteness);
 
     return {
       command: "summary",
       title: "Account Summary",
       generatedAt: new Date().toISOString(),
-      sections
+      sections,
+      dataCompleteness
     };
-  }
-
-  private pushDataCompletenessSection(
-    sections: ReportSection[],
-    ...completeness: DataCompleteness[]
-  ): void {
-    const warnings = Array.from(new Set(completeness.flatMap((item) => (item.partial ? item.warnings : []))));
-    if (warnings.length === 0) {
-      return;
-    }
-
-    sections.push({
-      title: "Data Completeness",
-      type: "alerts",
-      alerts: warnings.map((message) => ({ severity: "warning", message }))
-    });
   }
 }

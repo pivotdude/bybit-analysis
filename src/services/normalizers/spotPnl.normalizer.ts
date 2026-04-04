@@ -1,4 +1,5 @@
 import type { PnLReport, SymbolPnL } from "../../types/domain.types";
+import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
 
 interface SymbolParts {
   baseAsset: string;
@@ -239,7 +240,13 @@ export function normalizeSpotPnlReport(
     ([symbol, unmatchedQty]) =>
       `Unable to reconstruct full spot cost basis for ${symbol}: ${unmatchedQty.toFixed(8)} quantity sold in the period was unmatched by opening inventory. Realized PnL excludes unmatched quantity.`
   );
-  const partial = warnings.length > 0;
+  const issues = warnings.map((message) => ({
+    code: "spot_cost_basis_incomplete" as const,
+    scope: "opening_inventory" as const,
+    severity: "warning" as const,
+    criticality: "optional" as const,
+    message
+  }));
 
   return {
     source: "bybit",
@@ -257,9 +264,6 @@ export function normalizeSpotPnlReport(
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
     worstSymbols: [...bySymbol].reverse().slice(0, 5),
-    dataCompleteness: {
-      partial,
-      warnings
-    }
+    dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
   };
 }

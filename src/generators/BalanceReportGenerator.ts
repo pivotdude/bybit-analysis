@@ -3,6 +3,7 @@ import type { AccountDataService } from "../services/contracts/AccountDataServic
 import type { ReportDocument } from "../types/report.types";
 import type { ServiceRequestContext } from "../services/contracts/AccountDataService";
 import { fmtUsd } from "./formatters";
+import { pushDataCompletenessSections } from "./dataCompleteness";
 
 export class BalanceReportGenerator {
   private readonly analyzer = new BalanceAnalyzer();
@@ -47,19 +48,14 @@ export class BalanceReportGenerator {
       }
     ];
 
-    if (snapshot.dataCompleteness.partial) {
-      sections.push({
-        title: "Data Completeness",
-        type: "alerts",
-        alerts: snapshot.dataCompleteness.warnings.map((message) => ({ severity: "warning", message }))
-      });
-    }
+    pushDataCompletenessSections(sections, snapshot.dataCompleteness);
 
     return {
       command: "balance",
       title: "Balance Analytics",
       generatedAt: new Date().toISOString(),
-      sections
+      sections,
+      dataCompleteness: snapshot.dataCompleteness
     };
   }
 }

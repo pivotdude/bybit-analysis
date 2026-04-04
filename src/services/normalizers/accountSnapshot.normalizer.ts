@@ -6,6 +6,7 @@ import type {
   MarketCategory,
   Position
 } from "../../types/domain.types";
+import { completeDataCompleteness } from "../reliability/dataCompleteness";
 
 function toNumber(input: unknown): number {
   const value = Number(input);
@@ -76,7 +77,7 @@ export function normalizeAccountSnapshot(
   input: unknown,
   category: MarketCategory,
   positions: Position[],
-  dataCompleteness: DataCompleteness = { partial: false, warnings: [] }
+  dataCompleteness: DataCompleteness = completeDataCompleteness()
 ): AccountSnapshot {
   const wallet = input as { list?: Array<Record<string, unknown>>; equityHistory?: unknown } | undefined;
   const row = wallet?.list?.[0] ?? {};
