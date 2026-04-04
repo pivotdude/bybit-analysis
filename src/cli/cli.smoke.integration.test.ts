@@ -26,11 +26,17 @@ function createCliEnv(): Record<string, string> {
   return env;
 }
 
-function runCli(args: string[]): { exitCode: number; stdout: string; stderr: string } {
+function runCli(
+  args: string[],
+  envOverrides: Record<string, string> = {}
+): { exitCode: number; stdout: string; stderr: string } {
   const processResult = Bun.spawnSync({
     cmd: ["bun", "run", "src/index.ts", ...args],
     cwd: process.cwd(),
-    env: createCliEnv(),
+    env: {
+      ...createCliEnv(),
+      ...envOverrides
+    },
     stdout: "pipe",
     stderr: "pipe"
   });
@@ -57,7 +63,9 @@ describe("CLI smoke/integration", () => {
       "2026-01-01T00:00:00.000Z",
       "--to",
       "2026-01-02T00:00:00.000Z"
-    ]);
+    ], {
+      BYBIT_ALLOW_INSECURE_CLI_SECRETS: "1"
+    });
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");

@@ -46,8 +46,10 @@ const accountService: AccountDataService = {
     ],
     balances: [{ asset: "USDT", walletBalance: 21_000, availableBalance: 19_000, usdValue: 21_000 }],
     dataCompleteness: {
+      state: "complete",
       partial: false,
-      warnings: []
+      warnings: [],
+      issues: []
     }
   }),
   checkHealth: async () => ({
@@ -109,8 +111,10 @@ const executionService: ExecutionDataService = {
       }
     ],
     dataCompleteness: {
+      state: "complete",
       partial: false,
-      warnings: []
+      warnings: [],
+      issues: []
     }
   })
 };
@@ -120,7 +124,13 @@ const availableBotService: BotDataService = {
     source: "bybit",
     generatedAt: new Date().toISOString(),
     availability: "available",
-    bots: []
+    bots: [],
+    dataCompleteness: {
+      state: "complete",
+      partial: false,
+      warnings: [],
+      issues: []
+    }
   })
 };
 
@@ -178,8 +188,9 @@ describe("SummaryReportGenerator", () => {
     expect(report.title).toBe("Account Summary");
     expect(Number.isNaN(Date.parse(report.generatedAt))).toBe(false);
     expect(report.sections.length).toBeGreaterThan(0);
-    expect(report.sections.some((section) => section.title === "Executive Summary")).toBe(true);
+    expect(report.sections.some((section) => section.title === "Overview")).toBe(true);
     expect(report.sections.some((section) => section.title === "Risk")).toBe(true);
+    expect(report.schemaVersion).toBe("summary-markdown-v1");
 
     for (const section of report.sections) {
       assertSectionSchema(section);
@@ -192,6 +203,7 @@ describe("SummaryReportGenerator", () => {
     const report = await generator.generate(linearContext);
 
     expect(report.command).toBe("summary");
-    expect(report.sections.some((section) => section.title === "Executive Summary")).toBe(true);
+    expect(report.sections.some((section) => section.title === "Overview")).toBe(true);
+    expect(report.dataCompleteness?.state).toBe("degraded");
   });
 });

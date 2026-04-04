@@ -11,10 +11,13 @@ export class MarkdownRenderer implements ReportRenderer {
     lines.push(`# ${report.title}`);
     lines.push("");
     lines.push(`Generated at: ${new Date(report.generatedAt).toISOString()}`);
+    if (report.schemaVersion) {
+      lines.push(`Schema: ${report.schemaVersion}`);
+    }
 
     for (const section of report.sections) {
       lines.push("");
-      lines.push(`## ${section.title}`);
+      lines.push(section.id ? `## [${section.id}] ${section.title}` : `## ${section.title}`);
 
       switch (section.type) {
         case "kpi":

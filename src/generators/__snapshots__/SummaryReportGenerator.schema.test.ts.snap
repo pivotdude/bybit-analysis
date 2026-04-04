@@ -1,0 +1,837 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`SummaryReportGenerator schema stability keeps section IDs and types identical across categories 1`] = `
+[
+  {
+    "id": "summary.contract",
+    "type": "text",
+  },
+  {
+    "id": "summary.overview",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.activity",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.allocation",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.exposure",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.risk",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.open_positions",
+    "type": "table",
+  },
+  {
+    "id": "summary.top_holdings",
+    "type": "table",
+  },
+  {
+    "id": "summary.symbol_pnl",
+    "type": "table",
+  },
+  {
+    "id": "summary.bots",
+    "type": "table",
+  },
+  {
+    "id": "summary.alerts",
+    "type": "alerts",
+  },
+  {
+    "id": "summary.data_completeness",
+    "type": "alerts",
+  },
+]
+`;
+
+exports[`SummaryReportGenerator schema stability produces stable snapshots for linear category sections 1`] = `
+[
+  {
+    "id": "summary.contract",
+    "text": [
+      "Schema version: summary-markdown-v1",
+      "Category: linear",
+      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "All summary section IDs, order, and section types are stable across categories.",
+    ],
+    "title": "Summary Contract",
+    "type": "text",
+  },
+  {
+    "id": "summary.overview",
+    "kpis": [
+      {
+        "label": "Total Equity",
+        "value": "$10,000.00",
+      },
+      {
+        "label": "Net PnL",
+        "value": "$439.00",
+      },
+      {
+        "label": "ROI",
+        "value": "4.59%",
+      },
+      {
+        "label": "Gross Exposure",
+        "value": "$7,950.00",
+      },
+      {
+        "label": "Risk Alerts",
+        "value": "1",
+      },
+      {
+        "label": "Tracked Bots",
+        "value": "0",
+      },
+    ],
+    "title": "Overview",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.activity",
+    "kpis": [
+      {
+        "label": "Traded Symbols",
+        "value": "2",
+      },
+      {
+        "label": "Total Trades",
+        "value": "13",
+      },
+      {
+        "label": "Winning Symbols",
+        "value": "2",
+      },
+      {
+        "label": "Losing Symbols",
+        "value": "0",
+      },
+      {
+        "label": "Symbol Win Rate",
+        "value": "100.00%",
+      },
+    ],
+    "title": "Activity",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.allocation",
+    "kpis": [
+      {
+        "label": "Stablecoin Value",
+        "value": "$6,000.00",
+      },
+      {
+        "label": "Non-Stable Value",
+        "value": "$4,000.00",
+      },
+      {
+        "label": "Stablecoin Share",
+        "value": "60.00%",
+      },
+      {
+        "label": "Non-Stable Share",
+        "value": "40.00%",
+      },
+      {
+        "label": "Largest Holding",
+        "value": "USDT (60.00%)",
+      },
+    ],
+    "title": "Allocation",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.exposure",
+    "kpis": [
+      {
+        "label": "Long",
+        "value": "$5,400.00",
+      },
+      {
+        "label": "Short",
+        "value": "$2,550.00",
+      },
+      {
+        "label": "Net",
+        "value": "$2,850.00",
+      },
+      {
+        "label": "Concentration Band",
+        "value": "high",
+      },
+    ],
+    "title": "Exposure",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.risk",
+    "kpis": [
+      {
+        "label": "Weighted Avg Leverage",
+        "value": "2.68x",
+      },
+      {
+        "label": "Max Leverage",
+        "value": "3.00x",
+      },
+      {
+        "label": "Notional / Equity",
+        "value": "79.50%",
+      },
+      {
+        "label": "Unrealized Loss / Equity",
+        "value": "0.00%",
+      },
+      {
+        "label": "Capital Efficiency",
+        "value": "unsupported",
+      },
+    ],
+    "title": "Risk",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.open_positions",
+    "table": {
+      "headers": [
+        "Symbol",
+        "Side",
+        "Notional",
+        "UPnL",
+        "Leverage",
+        "Price Source",
+      ],
+      "rows": [
+        [
+          "BTCUSDT",
+          "long",
+          "$5,400.00",
+          "$120.00",
+          "3.00x",
+          "mark",
+        ],
+        [
+          "ETHUSDT",
+          "short",
+          "-$2,550.00",
+          "$60.00",
+          "2.00x",
+          "mark",
+        ],
+      ],
+    },
+    "title": "Open Positions",
+    "type": "table",
+  },
+  {
+    "id": "summary.top_holdings",
+    "table": {
+      "headers": [
+        "Asset",
+        "USD Value",
+        "Share of Equity",
+      ],
+      "rows": [
+        [
+          "USDT",
+          "$6,000.00",
+          "60.00%",
+        ],
+        [
+          "BTC",
+          "$3,600.00",
+          "36.00%",
+        ],
+        [
+          "ETH",
+          "$400.00",
+          "4.00%",
+        ],
+      ],
+    },
+    "title": "Top Holdings",
+    "type": "table",
+  },
+  {
+    "id": "summary.symbol_pnl",
+    "table": {
+      "headers": [
+        "Symbol",
+        "Realized",
+        "Net",
+        "Trades",
+      ],
+      "rows": [
+        [
+          "BTCUSDT",
+          "$300.00",
+          "$420.00",
+          "8",
+        ],
+        [
+          "ETHUSDT",
+          "-$20.00",
+          "$40.00",
+          "5",
+        ],
+      ],
+    },
+    "title": "Symbol PnL",
+    "type": "table",
+  },
+  {
+    "id": "summary.bots",
+    "table": {
+      "headers": [
+        "Bot",
+        "Status",
+        "Allocated",
+        "Exposure",
+        "Realized",
+        "Unrealized",
+        "ROI",
+      ],
+      "rows": [],
+    },
+    "title": "Bots",
+    "type": "table",
+  },
+  {
+    "alerts": [
+      {
+        "message": "Largest position exceeds 35% of equity",
+        "severity": "warning",
+      },
+    ],
+    "id": "summary.alerts",
+    "title": "Alerts",
+    "type": "alerts",
+  },
+  {
+    "alerts": [
+      {
+        "message": "No data completeness warnings.",
+        "severity": "info",
+      },
+    ],
+    "id": "summary.data_completeness",
+    "title": "Data Completeness",
+    "type": "alerts",
+  },
+]
+`;
+
+exports[`SummaryReportGenerator schema stability produces stable snapshots for spot category sections 1`] = `
+[
+  {
+    "id": "summary.contract",
+    "text": [
+      "Schema version: summary-markdown-v1",
+      "Category: spot",
+      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "All summary section IDs, order, and section types are stable across categories.",
+    ],
+    "title": "Summary Contract",
+    "type": "text",
+  },
+  {
+    "id": "summary.overview",
+    "kpis": [
+      {
+        "label": "Total Equity",
+        "value": "$8,000.00",
+      },
+      {
+        "label": "Net PnL",
+        "value": "$65.00",
+      },
+      {
+        "label": "ROI",
+        "value": "0.82%",
+      },
+      {
+        "label": "Gross Exposure",
+        "value": "$0.00",
+      },
+      {
+        "label": "Risk Alerts",
+        "value": "0",
+      },
+      {
+        "label": "Tracked Bots",
+        "value": "0",
+      },
+    ],
+    "title": "Overview",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.activity",
+    "kpis": [
+      {
+        "label": "Traded Symbols",
+        "value": "1",
+      },
+      {
+        "label": "Total Trades",
+        "value": "6",
+      },
+      {
+        "label": "Winning Symbols",
+        "value": "1",
+      },
+      {
+        "label": "Losing Symbols",
+        "value": "0",
+      },
+      {
+        "label": "Symbol Win Rate",
+        "value": "100.00%",
+      },
+    ],
+    "title": "Activity",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.allocation",
+    "kpis": [
+      {
+        "label": "Stablecoin Value",
+        "value": "$5,000.00",
+      },
+      {
+        "label": "Non-Stable Value",
+        "value": "$3,000.00",
+      },
+      {
+        "label": "Stablecoin Share",
+        "value": "62.50%",
+      },
+      {
+        "label": "Non-Stable Share",
+        "value": "37.50%",
+      },
+      {
+        "label": "Largest Holding",
+        "value": "USDT (62.50%)",
+      },
+    ],
+    "title": "Allocation",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.exposure",
+    "kpis": [
+      {
+        "label": "Long",
+        "value": "$0.00",
+      },
+      {
+        "label": "Short",
+        "value": "$0.00",
+      },
+      {
+        "label": "Net",
+        "value": "$0.00",
+      },
+      {
+        "label": "Concentration Band",
+        "value": "low",
+      },
+    ],
+    "title": "Exposure",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.risk",
+    "kpis": [
+      {
+        "label": "Weighted Avg Leverage",
+        "value": "0.00x",
+      },
+      {
+        "label": "Max Leverage",
+        "value": "0.00x",
+      },
+      {
+        "label": "Notional / Equity",
+        "value": "0.00%",
+      },
+      {
+        "label": "Unrealized Loss / Equity",
+        "value": "0.00%",
+      },
+      {
+        "label": "Capital Efficiency",
+        "value": "unsupported",
+      },
+    ],
+    "title": "Risk",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.open_positions",
+    "table": {
+      "headers": [
+        "Symbol",
+        "Side",
+        "Notional",
+        "UPnL",
+        "Leverage",
+        "Price Source",
+      ],
+      "rows": [],
+    },
+    "title": "Open Positions",
+    "type": "table",
+  },
+  {
+    "id": "summary.top_holdings",
+    "table": {
+      "headers": [
+        "Asset",
+        "USD Value",
+        "Share of Equity",
+      ],
+      "rows": [
+        [
+          "USDT",
+          "$5,000.00",
+          "62.50%",
+        ],
+        [
+          "SOL",
+          "$3,000.00",
+          "37.50%",
+        ],
+      ],
+    },
+    "title": "Top Holdings",
+    "type": "table",
+  },
+  {
+    "id": "summary.symbol_pnl",
+    "table": {
+      "headers": [
+        "Symbol",
+        "Realized",
+        "Net",
+        "Trades",
+      ],
+      "rows": [
+        [
+          "SOLUSDT",
+          "$70.00",
+          "$65.00",
+          "6",
+        ],
+      ],
+    },
+    "title": "Symbol PnL",
+    "type": "table",
+  },
+  {
+    "id": "summary.bots",
+    "table": {
+      "headers": [
+        "Bot",
+        "Status",
+        "Allocated",
+        "Exposure",
+        "Realized",
+        "Unrealized",
+        "ROI",
+      ],
+      "rows": [],
+    },
+    "title": "Bots",
+    "type": "table",
+  },
+  {
+    "alerts": [
+      {
+        "message": "Spot category usually has no derivatives positions, so exposure/risk metrics can be zero.",
+        "severity": "info",
+      },
+    ],
+    "id": "summary.alerts",
+    "title": "Alerts",
+    "type": "alerts",
+  },
+  {
+    "alerts": [
+      {
+        "message": "No data completeness warnings.",
+        "severity": "info",
+      },
+    ],
+    "id": "summary.data_completeness",
+    "title": "Data Completeness",
+    "type": "alerts",
+  },
+]
+`;
+
+exports[`SummaryReportGenerator schema stability produces stable snapshots for bot category sections 1`] = `
+[
+  {
+    "id": "summary.contract",
+    "text": [
+      "Schema version: summary-markdown-v1",
+      "Category: bot",
+      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "All summary section IDs, order, and section types are stable across categories.",
+    ],
+    "title": "Summary Contract",
+    "type": "text",
+  },
+  {
+    "id": "summary.overview",
+    "kpis": [
+      {
+        "label": "Total Equity",
+        "value": "$12,000.00",
+      },
+      {
+        "label": "Net PnL",
+        "value": "$115.00",
+      },
+      {
+        "label": "ROI",
+        "value": "0.97%",
+      },
+      {
+        "label": "Gross Exposure",
+        "value": "$0.00",
+      },
+      {
+        "label": "Risk Alerts",
+        "value": "0",
+      },
+      {
+        "label": "Tracked Bots",
+        "value": "1",
+      },
+    ],
+    "title": "Overview",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.activity",
+    "kpis": [
+      {
+        "label": "Traded Symbols",
+        "value": "0",
+      },
+      {
+        "label": "Total Trades",
+        "value": "0",
+      },
+      {
+        "label": "Winning Symbols",
+        "value": "0",
+      },
+      {
+        "label": "Losing Symbols",
+        "value": "0",
+      },
+      {
+        "label": "Symbol Win Rate",
+        "value": "0.00%",
+      },
+    ],
+    "title": "Activity",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.allocation",
+    "kpis": [
+      {
+        "label": "Stablecoin Value",
+        "value": "$12,000.00",
+      },
+      {
+        "label": "Non-Stable Value",
+        "value": "$0.00",
+      },
+      {
+        "label": "Stablecoin Share",
+        "value": "100.00%",
+      },
+      {
+        "label": "Non-Stable Share",
+        "value": "0.00%",
+      },
+      {
+        "label": "Largest Holding",
+        "value": "USDT (100.00%)",
+      },
+    ],
+    "title": "Allocation",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.exposure",
+    "kpis": [
+      {
+        "label": "Long",
+        "value": "$0.00",
+      },
+      {
+        "label": "Short",
+        "value": "$0.00",
+      },
+      {
+        "label": "Net",
+        "value": "$0.00",
+      },
+      {
+        "label": "Concentration Band",
+        "value": "low",
+      },
+    ],
+    "title": "Exposure",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.risk",
+    "kpis": [
+      {
+        "label": "Weighted Avg Leverage",
+        "value": "0.00x",
+      },
+      {
+        "label": "Max Leverage",
+        "value": "0.00x",
+      },
+      {
+        "label": "Notional / Equity",
+        "value": "0.00%",
+      },
+      {
+        "label": "Unrealized Loss / Equity",
+        "value": "0.00%",
+      },
+      {
+        "label": "Capital Efficiency",
+        "value": "unsupported",
+      },
+    ],
+    "title": "Risk",
+    "type": "kpi",
+  },
+  {
+    "id": "summary.open_positions",
+    "table": {
+      "headers": [
+        "Symbol",
+        "Side",
+        "Notional",
+        "UPnL",
+        "Leverage",
+        "Price Source",
+      ],
+      "rows": [],
+    },
+    "title": "Open Positions",
+    "type": "table",
+  },
+  {
+    "id": "summary.top_holdings",
+    "table": {
+      "headers": [
+        "Asset",
+        "USD Value",
+        "Share of Equity",
+      ],
+      "rows": [
+        [
+          "USDT",
+          "$12,000.00",
+          "100.00%",
+        ],
+      ],
+    },
+    "title": "Top Holdings",
+    "type": "table",
+  },
+  {
+    "id": "summary.symbol_pnl",
+    "table": {
+      "headers": [
+        "Symbol",
+        "Realized",
+        "Net",
+        "Trades",
+      ],
+      "rows": [],
+    },
+    "title": "Symbol PnL",
+    "type": "table",
+  },
+  {
+    "id": "summary.bots",
+    "table": {
+      "headers": [
+        "Bot",
+        "Status",
+        "Allocated",
+        "Exposure",
+        "Realized",
+        "Unrealized",
+        "ROI",
+      ],
+      "rows": [
+        [
+          "BTC Grid",
+          "running",
+          "$1,500.00",
+          "$1,850.00",
+          "$75.00",
+          "$20.00",
+          "6.33%",
+        ],
+      ],
+    },
+    "title": "Bots",
+    "type": "table",
+  },
+  {
+    "alerts": [
+      {
+        "message": "No active alerts",
+        "severity": "info",
+      },
+    ],
+    "id": "summary.alerts",
+    "title": "Alerts",
+    "type": "alerts",
+  },
+  {
+    "alerts": [
+      {
+        "message": "optional_item_failed (unknown): Bot equity source lagged by one polling interval",
+        "severity": "warning",
+      },
+      {
+        "message": "pagination_limit_reached (execution_window): Execution history truncated at configured safety limit",
+        "severity": "warning",
+      },
+    ],
+    "id": "summary.data_completeness",
+    "title": "Data Completeness",
+    "type": "alerts",
+  },
+]
+`;

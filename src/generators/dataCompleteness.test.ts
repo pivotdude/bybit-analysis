@@ -161,7 +161,8 @@ describe("Data completeness sections", () => {
     const report = await generator.generate(context);
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
-    expect(section?.type).toBe("table");
+    expect(section?.type).toBe("alerts");
+    expect(section?.alerts?.[0]?.message).toContain("pagination_limit_reached");
     expect(report.dataCompleteness?.state).toBe("degraded");
   });
 });
