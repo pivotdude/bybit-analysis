@@ -67,3 +67,56 @@ describe("BybitAccountService#getApiKeyPermissionInfo", () => {
     expect(serialized).not.toContain("203.0.113.11");
   });
 });
+
+describe("BybitAccountService#getAccountSnapshot", () => {
+  it("propagates equity history through normalizer into the domain snapshot", async () => {
+    const client = {
+      getWalletBalance: async () => ({
+        list: [
+          {
+            accountType: "UNIFIED",
+            totalEquity: "1500",
+            totalWalletBalance: "1400",
+            totalAvailableBalance: "1200",
+            totalPerpUPL: "100"
+          }
+        ],
+        equityHistory: [
+          {
+            timestamp: "2026-01-02T00:00:00.000Z",
+            totalEquityUsd: "1450",
+            grossExposureUsd: "2400",
+            netExposureUsd: "1000"
+          },
+          {
+            timestamp: "2026-01-01T00:00:00.000Z",
+            totalEquityUsd: "1400",
+            grossExposureUsd: "2000",
+            netExposureUsd: "900"
+          }
+        ]
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const positionsService: PositionDataService = {
+      getOpenPositions: async () => ({
+        positions: [],
+        dataCompleteness: {
+          partial: false,
+          warnings: []
+        }
+      })
+    };
+
+    const botService = {} as BotDataService;
+    const service = new BybitAccountService(client, positionsService, botService, createMemoryCache());
+    const snapshot = await service.getAccountSnapshot(requestContext);
+
+    expect(snapshot.equityHistory?.map((item) => item.timestamp)).toEqual([
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-02T00:00:00.000Z"
+    ]);
+    expect(snapshot.equityHistory?.[0]?.grossExposureUsd).toBe(2000);
+    expect(snapshot.equityHistory?.[1]?.grossExposureUsd).toBe(2400);
+  });
+});
