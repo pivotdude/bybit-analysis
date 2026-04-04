@@ -16,6 +16,7 @@ export interface MarkdownAlert {
 }
 
 export interface ReportSection {
+  id?: string;
   title: string;
   type: ReportSectionType;
   text?: string[];
@@ -28,5 +29,6 @@ export interface ReportDocument {
   command: string;
   title: string;
   generatedAt: string;
+  schemaVersion?: string;
   sections: ReportSection[];
 }

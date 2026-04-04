@@ -28,6 +28,33 @@ bun run src/index.ts <command> [options]
 - `config` - Effective runtime config (redacted)
 - `health` - API/connectivity/readiness checks
 
+## Summary Markdown Contract (`summary-markdown-v1`)
+
+`summary` now uses a schema-stable section contract across all categories (`linear`, `spot`, `bot`).
+
+- Section IDs are fixed and rendered in headings as `## [section.id] Title`.
+- Section order and section type are fixed.
+- Missing category-specific data is represented as empty rows / zero values / info alerts, not by omitting sections.
+
+Report-level metadata:
+
+- `Schema: summary-markdown-v1` line is present in output.
+
+Fixed section order:
+
+1. `summary.contract` (`text`)
+2. `summary.overview` (`kpi`)
+3. `summary.activity` (`kpi`)
+4. `summary.allocation` (`kpi`)
+5. `summary.exposure` (`kpi`)
+6. `summary.risk` (`kpi`)
+7. `summary.open_positions` (`table`)
+8. `summary.top_holdings` (`table`)
+9. `summary.symbol_pnl` (`table`)
+10. `summary.bots` (`table`)
+11. `summary.alerts` (`alerts`)
+12. `summary.data_completeness` (`alerts`)
+
 ## Spot PnL Inventory Method
 
 - Cost basis method: `weighted_average`.
