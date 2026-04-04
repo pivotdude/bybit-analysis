@@ -1,53 +1,11 @@
 import { PnLAnalyzer } from "../analyzers/orchestrators/PnLAnalyzer";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
-import type { AccountSnapshot } from "../types/domain.types";
 import type { ReportDocument } from "../types/report.types";
 import { fmtIso, fmtPct, fmtUsd } from "./formatters";
 import { mergeDataCompleteness } from "../services/reliability/dataCompleteness";
 import { pushDataCompletenessSections } from "./dataCompleteness";
-
-interface StartingEquityResolution {
-  equityStartUsd?: number;
-  reason?: string;
-}
-
-function resolveStartingEquity(account: AccountSnapshot, periodFrom: string): StartingEquityResolution {
-  const history = account.equityHistory;
-  if (!history || history.length === 0) {
-    return { reason: "equity history is unavailable" };
-  }
-
-  const periodFromMs = new Date(periodFrom).getTime();
-  if (!Number.isFinite(periodFromMs)) {
-    return { reason: "invalid period start boundary" };
-  }
-
-  let matchingSample: AccountSnapshot["equityHistory"][number] | undefined;
-  for (const sample of history) {
-    const sampleTsMs = new Date(sample.timestamp).getTime();
-    if (!Number.isFinite(sampleTsMs)) {
-      continue;
-    }
-
-    if (sampleTsMs <= periodFromMs) {
-      matchingSample = sample;
-      continue;
-    }
-
-    break;
-  }
-
-  if (!matchingSample) {
-    return { reason: "no equity sample found at or before period start" };
-  }
-
-  if (!Number.isFinite(matchingSample.totalEquityUsd)) {
-    return { reason: "starting equity sample is invalid" };
-  }
-
-  return { equityStartUsd: matchingSample.totalEquityUsd };
-}
+import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
 
 export class PnLReportGenerator {
   private readonly analyzer = new PnLAnalyzer();
@@ -64,6 +22,8 @@ export class PnLReportGenerator {
       context,
       equityStartUsd: startingEquity.equityStartUsd,
       equityEndUsd: account.totalEquityUsd,
+      roiMissingStartReason: startingEquity.missingStartReason,
+      roiMissingStartReasonCode: startingEquity.missingStartReasonCode,
       accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
     });
     const analysis = this.analyzer.analyze(pnl);
@@ -80,7 +40,8 @@ export class PnLReportGenerator {
           ]
         : [
             "Status: unsupported",
-            `Reason: ${startingEquity.reason ?? analysis.roiUnsupportedReason ?? "starting equity is unavailable"}`
+            `Code: ${analysis.roiUnsupportedReasonCode ?? startingEquity.missingStartReasonCode ?? "unknown"}`,
+            `Reason: ${analysis.roiUnsupportedReason ?? startingEquity.missingStartReason ?? "starting equity is unavailable"}`
           ];
     const winnerRows = analysis.bestSymbols.map((item) => ["Winner", item.symbol, fmtUsd(item.netPnlUsd)]);
     const winnerSymbols = new Set(analysis.bestSymbols.map((item) => item.symbol));

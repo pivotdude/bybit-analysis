@@ -1,17 +1,19 @@
-import type { PnLReport } from "../../types/domain.types";
+import type { RoiContract, RoiUnsupportedReasonCode } from "../../types/domain.types";
 
-interface NormalizeRoiInput {
+export interface NormalizeRoiInput {
   equityStartUsd?: number;
   equityEndUsd?: number;
   missingStartReason?: string;
+  missingStartReasonCode?: RoiUnsupportedReasonCode;
 }
 
-type NormalizedRoi = Pick<
-  PnLReport,
-  "roiStatus" | "roiUnsupportedReason" | "roiStartEquityUsd" | "roiEndEquityUsd" | "roiPct"
+export type NormalizedRoi = Pick<
+  RoiContract,
+  "roiStatus" | "roiUnsupportedReason" | "roiUnsupportedReasonCode" | "roiStartEquityUsd" | "roiEndEquityUsd" | "roiPct"
 >;
 
 const DEFAULT_MISSING_START_REASON = "starting equity is unavailable for the requested period window";
+const DEFAULT_MISSING_START_REASON_CODE: RoiUnsupportedReasonCode = "starting_equity_unavailable";
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -20,7 +22,8 @@ function isFiniteNumber(value: unknown): value is number {
 export function normalizeRoi({
   equityStartUsd,
   equityEndUsd,
-  missingStartReason = DEFAULT_MISSING_START_REASON
+  missingStartReason = DEFAULT_MISSING_START_REASON,
+  missingStartReasonCode = DEFAULT_MISSING_START_REASON_CODE
 }: NormalizeRoiInput): NormalizedRoi {
   const roiStartEquityUsd = isFiniteNumber(equityStartUsd) ? equityStartUsd : undefined;
   const roiEndEquityUsd = isFiniteNumber(equityEndUsd) ? equityEndUsd : undefined;
@@ -29,6 +32,7 @@ export function normalizeRoi({
     return {
       roiStatus: "unsupported",
       roiUnsupportedReason: missingStartReason,
+      roiUnsupportedReasonCode: missingStartReasonCode,
       roiStartEquityUsd,
       roiEndEquityUsd
     };
@@ -38,6 +42,7 @@ export function normalizeRoi({
     return {
       roiStatus: "unsupported",
       roiUnsupportedReason: "starting equity must be greater than zero",
+      roiUnsupportedReasonCode: "starting_equity_non_positive",
       roiStartEquityUsd,
       roiEndEquityUsd
     };
@@ -47,6 +52,7 @@ export function normalizeRoi({
     return {
       roiStatus: "unsupported",
       roiUnsupportedReason: "ending equity is unavailable for the requested period window",
+      roiUnsupportedReasonCode: "ending_equity_unavailable",
       roiStartEquityUsd,
       roiEndEquityUsd
     };
@@ -55,6 +61,7 @@ export function normalizeRoi({
   return {
     roiStatus: "supported",
     roiUnsupportedReason: undefined,
+    roiUnsupportedReasonCode: undefined,
     roiStartEquityUsd,
     roiEndEquityUsd,
     roiPct: ((equityEndUsd - equityStartUsd) / equityStartUsd) * 100

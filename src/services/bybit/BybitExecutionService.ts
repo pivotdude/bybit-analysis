@@ -7,7 +7,12 @@ import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePnlReport } from "./normalizers/pnl.normalizer";
 import { normalizeSpotPnlReport } from "./normalizers/spotPnl.normalizer";
 import { normalizeRoi } from "../normalizers/roi.normalizer";
-import type { DataCompleteness, PnLReport, SymbolPnL } from "../../types/domain.types";
+import type {
+  DataCompleteness,
+  PnLReport,
+  RoiUnsupportedReasonCode,
+  SymbolPnL
+} from "../../types/domain.types";
 import {
   buildPaginationLimitMessage,
   PaginationLimitReachedError
@@ -123,7 +128,9 @@ function toBotPnlReport(
   context: ServiceRequestContext,
   report: Awaited<ReturnType<BotDataService["getBotReport"]>>,
   equityStartUsd?: number,
-  equityEndUsd?: number
+  equityEndUsd?: number,
+  roiMissingStartReason?: string,
+  roiMissingStartReasonCode?: RoiUnsupportedReasonCode
 ): PnLReport {
   const bySymbol: SymbolPnL[] = report.bots
     .map((bot) => {
@@ -142,7 +149,12 @@ function toBotPnlReport(
   const realizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.realizedPnlUsd, 0);
   const unrealizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.unrealizedPnlUsd, 0);
   const netPnlUsd = realizedPnlUsd + unrealizedPnlUsd;
-  const roi = normalizeRoi({ equityStartUsd, equityEndUsd });
+  const roi = normalizeRoi({
+    equityStartUsd,
+    equityEndUsd,
+    missingStartReason: roiMissingStartReason,
+    missingStartReasonCode: roiMissingStartReasonCode
+  });
 
   return {
     source: "bybit",
@@ -294,12 +306,21 @@ export class BybitExecutionService implements ExecutionDataService {
       context,
       equityStartUsd,
       equityEndUsd,
+      roiMissingStartReason,
+      roiMissingStartReasonCode,
       accountSnapshot
     } = request;
 
     if (context.sourceMode === "bot") {
       const report = await this.botService.getBotReport(context, { requirement: "required" });
-      return toBotPnlReport(context, report, equityStartUsd, equityEndUsd);
+      return toBotPnlReport(
+        context,
+        report,
+        equityStartUsd,
+        equityEndUsd,
+        roiMissingStartReason,
+        roiMissingStartReasonCode
+      );
     }
 
     if (context.category === "spot") {
@@ -349,7 +370,9 @@ export class BybitExecutionService implements ExecutionDataService {
         {
           openingExecutions: { list: openingExecutions },
           inventoryCostMethod: "weighted_average"
-        }
+        },
+        roiMissingStartReason,
+        roiMissingStartReasonCode
       );
 
       const spotNormalizerIssues = report.dataCompleteness.warnings.map((message) => buildSpotCostBasisIssue(message));
@@ -457,7 +480,9 @@ export class BybitExecutionService implements ExecutionDataService {
       context.to,
       Number.isFinite(unrealizedPnlUsd) ? unrealizedPnlUsd : 0,
       equityStartUsd,
-      equityEndUsd
+      equityEndUsd,
+      roiMissingStartReason,
+      roiMissingStartReasonCode
     );
     report.dataCompleteness = issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness();
     return report;

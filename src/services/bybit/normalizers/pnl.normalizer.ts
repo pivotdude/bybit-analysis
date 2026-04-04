@@ -1,4 +1,4 @@
-import type { PnLReport, SymbolPnL } from "../../../types/domain.types";
+import type { PnLReport, RoiUnsupportedReasonCode, SymbolPnL } from "../../../types/domain.types";
 import { completeDataCompleteness } from "../../reliability/dataCompleteness";
 import { normalizeRoi } from "../../normalizers/roi.normalizer";
 
@@ -7,7 +7,16 @@ function toNumber(input: unknown): number {
   return Number.isFinite(value) ? value : 0;
 }
 
-export function normalizePnlReport(input: unknown, periodFrom: string, periodTo: string, unrealizedPnlUsd: number, equityStartUsd?: number, equityEndUsd?: number): PnLReport {
+export function normalizePnlReport(
+  input: unknown,
+  periodFrom: string,
+  periodTo: string,
+  unrealizedPnlUsd: number,
+  equityStartUsd?: number,
+  equityEndUsd?: number,
+  roiMissingStartReason?: string,
+  roiMissingStartReasonCode?: RoiUnsupportedReasonCode
+): PnLReport {
   const payload = input as { list?: Array<Record<string, unknown>> } | undefined;
   const rows = payload?.list ?? [];
 
@@ -43,7 +52,12 @@ export function normalizePnlReport(input: unknown, periodFrom: string, periodTo:
   const bySymbol = Array.from(bySymbolMap.values()).sort((left, right) => right.netPnlUsd - left.netPnlUsd);
   const totalFeesUsd = tradingFeesUsd;
   const netPnlUsd = realizedPnlUsd + unrealizedPnlUsd - totalFeesUsd;
-  const roi = normalizeRoi({ equityStartUsd, equityEndUsd });
+  const roi = normalizeRoi({
+    equityStartUsd,
+    equityEndUsd,
+    missingStartReason: roiMissingStartReason,
+    missingStartReasonCode: roiMissingStartReasonCode
+  });
 
   return {
     source: "bybit",

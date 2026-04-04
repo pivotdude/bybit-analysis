@@ -71,6 +71,23 @@ export interface FeeBreakdown {
 }
 
 export type RoiSupportStatus = "supported" | "unsupported";
+export type RoiUnsupportedReasonCode =
+  | "starting_equity_unavailable"
+  | "starting_equity_non_positive"
+  | "ending_equity_unavailable"
+  | "equity_history_unavailable"
+  | "invalid_period_start_boundary"
+  | "no_equity_sample_at_or_before_period_start"
+  | "starting_equity_sample_invalid";
+
+export interface RoiContract {
+  roiStatus: RoiSupportStatus;
+  roiUnsupportedReason?: string;
+  roiUnsupportedReasonCode?: RoiUnsupportedReasonCode;
+  roiStartEquityUsd?: number;
+  roiEndEquityUsd?: number;
+  roiPct?: number;
+}
 
 export interface SymbolPnL {
   symbol: string;
@@ -112,7 +129,7 @@ export interface DataCompleteness {
   issues: DataCompletenessIssue[];
 }
 
-export interface PnLReport {
+export interface PnLReport extends RoiContract {
   source: DataSource;
   generatedAt: string;
   periodFrom: string;
@@ -121,11 +138,6 @@ export interface PnLReport {
   unrealizedPnlUsd: number;
   fees: FeeBreakdown;
   netPnlUsd: number;
-  roiStatus: RoiSupportStatus;
-  roiUnsupportedReason?: string;
-  roiStartEquityUsd?: number;
-  roiEndEquityUsd?: number;
-  roiPct?: number;
   bySymbol: SymbolPnL[];
   bestSymbols: SymbolPnL[];
   worstSymbols: SymbolPnL[];

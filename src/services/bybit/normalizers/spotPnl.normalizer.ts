@@ -1,4 +1,4 @@
-import type { PnLReport, SymbolPnL } from "../../../types/domain.types";
+import type { PnLReport, RoiUnsupportedReasonCode, SymbolPnL } from "../../../types/domain.types";
 import { completeDataCompleteness, degradedDataCompleteness } from "../../reliability/dataCompleteness";
 import { normalizeRoi } from "../../normalizers/roi.normalizer";
 
@@ -132,7 +132,9 @@ export function normalizeSpotPnlReport(
   periodTo: string,
   equityStartUsd?: number,
   equityEndUsd?: number,
-  options: SpotPnlNormalizationOptions = {}
+  options: SpotPnlNormalizationOptions = {},
+  roiMissingStartReason?: string,
+  roiMissingStartReasonCode?: RoiUnsupportedReasonCode
 ): PnLReport {
   const inventoryCostMethod = options.inventoryCostMethod ?? DEFAULT_INVENTORY_COST_METHOD;
   const rows = normalizeExecutionRows(input);
@@ -233,7 +235,12 @@ export function normalizeSpotPnlReport(
     .sort((left, right) => right.netPnlUsd - left.netPnlUsd);
 
   const netPnlUsd = realizedPnlUsd - tradingFeesUsd;
-  const roi = normalizeRoi({ equityStartUsd, equityEndUsd });
+  const roi = normalizeRoi({
+    equityStartUsd,
+    equityEndUsd,
+    missingStartReason: roiMissingStartReason,
+    missingStartReasonCode: roiMissingStartReasonCode
+  });
   const warnings = Array.from(uncoveredSellQtyBySymbol.entries()).map(
     ([symbol, unmatchedQty]) =>
       `Unable to reconstruct full spot cost basis for ${symbol}: ${unmatchedQty.toFixed(8)} quantity sold in the period was unmatched by opening inventory. Realized PnL excludes unmatched quantity.`
