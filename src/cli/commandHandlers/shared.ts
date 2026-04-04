@@ -4,6 +4,7 @@ import type { AccountDataService } from "../../services/contracts/AccountDataSer
 import type { PositionDataService } from "../../services/contracts/PositionDataService";
 import type { ExecutionDataService } from "../../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../../services/contracts/BotDataService";
+import type { ExchangeProviderCapabilities } from "../../services/contracts/ExchangeServiceProvider";
 import type { ReportRenderer } from "../../renderers/ReportRenderer";
 
 export interface HandlerDeps {
@@ -12,15 +13,16 @@ export interface HandlerDeps {
   accountService: AccountDataService;
   positionService: PositionDataService;
   executionService: ExecutionDataService;
-  botService: BotDataService;
+  botService?: BotDataService;
+  capabilities: ExchangeProviderCapabilities;
+  validateRequestContext?: (context: ServiceRequestContext) => void;
 }
 
 export function toServiceContext(config: RuntimeConfig): ServiceRequestContext {
   return {
     category: config.category,
     sourceMode: config.sourceMode,
-    futuresGridBotIds: config.futuresGridBotIds,
-    spotGridBotIds: config.spotGridBotIds,
+    providerContext: config.providerContext,
     from: config.timeRange.from,
     to: config.timeRange.to,
     timeoutMs: config.timeoutMs

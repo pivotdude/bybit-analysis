@@ -15,7 +15,7 @@ import { pnlHandler } from "./commandHandlers/pnl.handler";
 import { positionsHandler } from "./commandHandlers/positions.handler";
 import { riskHandler } from "./commandHandlers/risk.handler";
 import { summaryHandler } from "./commandHandlers/summary.handler";
-import type { HandlerDeps } from "./commandHandlers/shared";
+import { toServiceContext, type HandlerDeps } from "./commandHandlers/shared";
 
 export class UsageError extends Error {}
 
@@ -30,7 +30,9 @@ function buildDeps(
     accountService,
     positionService,
     executionService,
-    botService
+    botService,
+    capabilities,
+    validateRequestContext
   } = createServiceBundle(config, cache);
 
   return {
@@ -39,7 +41,9 @@ function buildDeps(
     accountService,
     positionService,
     executionService,
-    botService
+    botService,
+    capabilities,
+    validateRequestContext
   };
 }
 
@@ -67,12 +71,30 @@ export async function executeCommand(
   }
 
   if (parsed.command !== "config" && parsed.command !== "health") {
-    if (
-      deps.config.sourceMode === "bot" &&
-      deps.config.futuresGridBotIds.length === 0 &&
-      deps.config.spotGridBotIds.length === 0
-    ) {
-      throw new UsageError("For --source bot provide --fgrid-bot-ids and/or --spot-grid-ids");
+    const serviceContext = toServiceContext(deps.config);
+
+    if (!deps.capabilities.supportedMarketCategories.includes(deps.config.category)) {
+      throw new UsageError(
+        `Selected exchange provider does not support category ${deps.config.category}. Supported categories: ${deps.capabilities.supportedMarketCategories.join(", ")}`
+      );
+    }
+
+    if (!deps.capabilities.supportedSourceModes.includes(deps.config.sourceMode)) {
+      throw new UsageError(
+        `Selected exchange provider does not support source mode ${deps.config.sourceMode}. Supported modes: ${deps.capabilities.supportedSourceModes.join(", ")}`
+      );
+    }
+
+    if (deps.config.sourceMode === "bot" && !deps.capabilities.botData) {
+      throw new UsageError("Selected exchange provider does not support bot analytics");
+    }
+
+    if (deps.validateRequestContext) {
+      try {
+        deps.validateRequestContext(serviceContext);
+      } catch (error) {
+        throw new UsageError(error instanceof Error ? error.message : String(error));
+      }
     }
 
     try {

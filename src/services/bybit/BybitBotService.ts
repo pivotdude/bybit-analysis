@@ -11,6 +11,7 @@ import { normalizeFuturesGridBotSummary, normalizeSpotGridBotSummary } from "./n
 import type { BotReport, BotSummary } from "../../types/domain.types";
 import { buildOptionalItemIssue } from "./partialFailurePolicy";
 import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
+import { getBybitBotStrategyIds } from "./bybitProviderContext";
 
 const BOT_DETAIL_TTL_MS = 15_000;
 const BOT_REPORT_TTL_MS = 10_000;
@@ -47,7 +48,11 @@ async function mapWithConcurrency<TInput, TOutput>(
     while (nextIndex < items.length) {
       const currentIndex = nextIndex;
       nextIndex += 1;
-      results[currentIndex] = await worker(items[currentIndex], currentIndex);
+      const item = items[currentIndex];
+      if (item === undefined) {
+        continue;
+      }
+      results[currentIndex] = await worker(item, currentIndex);
     }
   }
 
@@ -60,7 +65,8 @@ function sum(values: Array<number | undefined>): number {
 }
 
 function hasBotIds(context: ServiceRequestContext): boolean {
-  return context.futuresGridBotIds.length > 0 || context.spotGridBotIds.length > 0;
+  const ids = getBybitBotStrategyIds(context.providerContext);
+  return ids.futuresGridBotIds.length > 0 || ids.spotGridBotIds.length > 0;
 }
 
 function availabilityReason(context: ServiceRequestContext): string | undefined {
@@ -104,7 +110,8 @@ export class BybitBotService implements BotDataService {
 
   async getBotReport(context: ServiceRequestContext, options?: BotReportRequestOptions): Promise<BotReport> {
     const requirement = resolveRequirement(context, options);
-    const reportKey = cacheKeys.botReport(context.futuresGridBotIds, context.spotGridBotIds);
+    const ids = getBybitBotStrategyIds(context.providerContext);
+    const reportKey = cacheKeys.botReport(ids.futuresGridBotIds, ids.spotGridBotIds);
     const cachedReport = this.cache.get<BotReport>(reportKey);
     if (cachedReport) {
       enforceRequiredMode(context, cachedReport, requirement);
@@ -123,8 +130,8 @@ export class BybitBotService implements BotDataService {
     }
 
     const tasks: BotFetchTask[] = [
-      ...context.futuresGridBotIds.map((botId) => ({ botId, kind: "futures_grid" as const })),
-      ...context.spotGridBotIds.map((botId) => ({ botId, kind: "spot_grid" as const }))
+      ...ids.futuresGridBotIds.map((botId) => ({ botId, kind: "futures_grid" as const })),
+      ...ids.spotGridBotIds.map((botId) => ({ botId, kind: "spot_grid" as const }))
     ];
     const outcomes = await mapWithConcurrency(tasks, BOT_DETAIL_CONCURRENCY, async (task): Promise<BotFetchOutcome> => {
       try {

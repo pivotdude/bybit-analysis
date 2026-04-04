@@ -7,6 +7,9 @@ Read-only analytics CLI for Bybit accounts. Outputs structured Markdown optimize
 - Shared domain entities use extensible exchange identifiers (no hardcoded `exchange: "bybit"` contract in core types).
 - Exchange-specific DTO mapping/normalization lives under `src/services/bybit/normalizers`.
 - Composition root is provider-based via `src/services/composition/createServiceBundle.ts`.
+- Provider contract is capability-based (`supportedMarketCategories`, `supportedSourceModes`, `botData`) and exposed in `ServiceBundle`.
+- Shared request/config contracts keep provider payloads in generic `providerContext`; Bybit bot strategy IDs live under `providerContext.bybit.botStrategyIds`.
+- `botService` is optional in `ServiceBundle` and only required by providers that expose bot capability.
 - Current implementation status: only the `bybit` provider is implemented and registered.
 - This is not full multi-exchange support yet; it is a structural split so new providers can be added without rewriting shared domain models.
 
@@ -250,6 +253,11 @@ You can run built-in reports against grid bots by setting:
 - `--category linear|spot` (optional; default `linear`)
 - `--fgrid-bot-ids <id1,id2,...>` for Futures Grid bots
 - `--spot-grid-ids <id1,id2,...>` for Spot Grid bots
+
+Those bot identifiers are resolved in the Bybit adapter layer and mapped into provider request context:
+
+- `providerContext.bybit.botStrategyIds.futuresGridBotIds`
+- `providerContext.bybit.botStrategyIds.spotGridBotIds`
 
 Or set bot IDs once via env:
 

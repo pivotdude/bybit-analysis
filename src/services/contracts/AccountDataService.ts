@@ -3,8 +3,7 @@ import type { AccountSnapshot, IntegrationMode, MarketCategory } from "../../typ
 export interface ServiceRequestContext {
   category: MarketCategory;
   sourceMode: IntegrationMode;
-  futuresGridBotIds: string[];
-  spotGridBotIds: string[];
+  providerContext?: Record<string, unknown>;
   from: string;
   to: string;
   timeoutMs: number;

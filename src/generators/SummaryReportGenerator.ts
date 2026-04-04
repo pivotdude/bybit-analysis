@@ -2,7 +2,7 @@ import { SummaryAnalyzer } from "../analyzers/orchestrators/SummaryAnalyzer";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
-import type { ReportDocument, ReportSection, ReportSectionType } from "../types/report.types";
+import type { MarkdownAlert, ReportDocument, ReportSection, ReportSectionType } from "../types/report.types";
 import type { BotReport, DataCompleteness } from "../types/domain.types";
 import { fmtPct, fmtUsd } from "./formatters";
 import {
@@ -83,7 +83,7 @@ export class SummaryReportGenerator {
   constructor(
     private readonly accountService: AccountDataService,
     private readonly executionService: ExecutionDataService,
-    private readonly botService: BotDataService
+    private readonly botService?: BotDataService
   ) {}
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
@@ -160,7 +160,7 @@ export class SummaryReportGenerator {
       typeof botItem.roiPct === "number" ? fmtPct(botItem.roiPct) : "N/A"
     ]);
 
-    const alerts = summary.risk.alerts.map((alert) => ({
+    const alerts: MarkdownAlert[] = summary.risk.alerts.map((alert) => ({
       severity: alert.severity,
       message: alert.message
     }));
@@ -189,7 +189,7 @@ export class SummaryReportGenerator {
     }
 
     const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness, bot.dataCompleteness);
-    const dataCompletenessAlerts =
+    const dataCompletenessAlerts: MarkdownAlert[] =
       dataCompleteness.issues.length > 0
         ? dataCompleteness.issues.map((issue) => ({
             severity: issue.severity,
@@ -305,6 +305,26 @@ export class SummaryReportGenerator {
   }
 
   private async loadBotReport(context: ServiceRequestContext): Promise<BotLoadResult> {
+    if (!this.botService) {
+      if (context.sourceMode === "bot") {
+        throw new Error("Selected exchange provider does not support bot analytics");
+      }
+
+      return {
+        report: undefined,
+        failureReason: "Selected exchange provider does not support bot analytics",
+        dataCompleteness: degradedDataCompleteness([
+          {
+            code: "optional_item_failed",
+            scope: "bots",
+            severity: "warning",
+            criticality: "optional",
+            message: "Bot summary enrichment skipped: provider does not expose bot capability."
+          }
+        ])
+      };
+    }
+
     if (context.sourceMode === "bot") {
       const report = await this.botService.getBotReport(context, { requirement: "required" });
       return {

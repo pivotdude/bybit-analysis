@@ -4,6 +4,7 @@ import { createBybitClient } from "./BybitClientFactory";
 import { BybitExecutionService } from "./BybitExecutionService";
 import { BybitPositionService } from "./BybitPositionService";
 import type { ExchangeServiceProviderFactory } from "../contracts/ExchangeServiceProvider";
+import { validateBybitRequestContext } from "./bybitProviderContext";
 
 export const bybitServiceProviderFactory: ExchangeServiceProviderFactory = {
   id: "bybit",
@@ -24,7 +25,13 @@ export const bybitServiceProviderFactory: ExchangeServiceProviderFactory = {
       accountService,
       positionService,
       executionService,
-      botService
+      botService,
+      capabilities: {
+        supportedMarketCategories: ["linear", "spot"],
+        supportedSourceModes: ["market", "bot"],
+        botData: true
+      },
+      validateRequestContext: validateBybitRequestContext
     };
   }
 };

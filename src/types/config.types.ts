@@ -25,8 +25,7 @@ export interface ResolvedConfigSources {
   apiSecret: ConfigSource;
   category: ConfigSource;
   sourceMode: ConfigSource;
-  futuresGridBotIds: ConfigSource;
-  spotGridBotIds: ConfigSource;
+  providerContext: ConfigSource;
   format: ConfigSource;
   timeoutMs: ConfigSource;
   timeRange: ConfigSource;
@@ -42,8 +41,7 @@ export interface RuntimeConfig {
   apiSecret: string;
   category: MarketCategory;
   sourceMode: IntegrationMode;
-  futuresGridBotIds: string[];
-  spotGridBotIds: string[];
+  providerContext: Record<string, unknown>;
   format: OutputFormat;
   timeoutMs: number;
   timeRange: TimeRange;
@@ -58,8 +56,7 @@ export interface RedactedConfigView {
   profilesFile?: string;
   category: MarketCategory;
   sourceMode: IntegrationMode;
-  futuresGridBotIds: string;
-  spotGridBotIds: string;
+  providerContext: string;
   format: OutputFormat;
   timeoutMs: number;
   timeRange: TimeRange;

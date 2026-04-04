@@ -4,6 +4,7 @@ import type { ServiceRequestContext } from "../contracts/AccountDataService";
 import { RequiredBotDataUnavailableError } from "../contracts/BotDataService";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { BybitBotService } from "./BybitBotService";
+import { buildBybitProviderContext } from "./bybitProviderContext";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,8 +40,7 @@ function createFuturesGridDetail(symbol: string): { detail: Record<string, strin
 const context: ServiceRequestContext = {
   category: "linear",
   sourceMode: "bot",
-  futuresGridBotIds: ["f-ok", "f-fail"],
-  spotGridBotIds: [],
+  providerContext: buildBybitProviderContext({ futuresGridBotIds: ["f-ok", "f-fail"], spotGridBotIds: [] }),
   from: "2026-01-01T00:00:00.000Z",
   to: "2026-01-31T00:00:00.000Z",
   timeoutMs: 5_000
@@ -156,8 +156,7 @@ describe("BybitBotService partial failures", () => {
     const service = new BybitBotService(client, new MemoryCacheStore());
     const reportPromise = service.getBotReport({
       ...context,
-      futuresGridBotIds,
-      spotGridBotIds: []
+      providerContext: buildBybitProviderContext({ futuresGridBotIds, spotGridBotIds: [] })
     });
 
     await waitFor(() => started.length === 3);

@@ -12,6 +12,7 @@ import type {
 } from "./types/config.types";
 import { redactSecretValue } from "./security/redaction";
 import { ENV_VARS } from "./configEnv";
+import { buildBybitProviderContext, describeBybitProviderContext } from "./services/bybit/bybitProviderContext";
 
 const DEFAULT_CATEGORY: MarketCategory = "linear";
 const DEFAULT_SOURCE_MODE: IntegrationMode = "market";
@@ -269,10 +270,8 @@ function resolveUsedEnvVars(
   if (sources.sourceMode === "env") {
     usedVars.add(ENV_VARS.sourceMode);
   }
-  if (sources.futuresGridBotIds === "env") {
+  if (sources.providerContext === "env") {
     usedVars.add(ENV_VARS.futuresGridBotIds);
-  }
-  if (sources.spotGridBotIds === "env") {
     usedVars.add(ENV_VARS.spotGridBotIds);
   }
   if (sources.format === "env") {
@@ -337,6 +336,10 @@ export function resolveRuntimeConfig(
     options.spotGridBotIds ??
     profile?.spotGridBotIds ??
     parseCsvIds(env[ENV_VARS.spotGridBotIds]);
+  const providerContext = buildBybitProviderContext({
+    futuresGridBotIds,
+    spotGridBotIds
+  });
   const format = (options.format ?? (env[ENV_VARS.format] as "md" | "compact") ?? DEFAULT_FORMAT);
   const timeoutMs =
     options.timeoutMs ??
@@ -393,18 +396,12 @@ export function resolveRuntimeConfig(
         : env[ENV_VARS.sourceMode]
           ? "env"
           : "default",
-    futuresGridBotIds: options.futuresGridBotIds
+    providerContext:
+      options.futuresGridBotIds || options.spotGridBotIds
       ? "cli"
-      : profile?.futuresGridBotIds
+      : profile?.futuresGridBotIds || profile?.spotGridBotIds
         ? "profile"
-        : env[ENV_VARS.futuresGridBotIds]
-          ? "env"
-          : "default",
-    spotGridBotIds: options.spotGridBotIds
-      ? "cli"
-      : profile?.spotGridBotIds
-        ? "profile"
-        : env[ENV_VARS.spotGridBotIds]
+        : env[ENV_VARS.futuresGridBotIds] || env[ENV_VARS.spotGridBotIds]
           ? "env"
           : "default",
     format: options.format ? "cli" : env[ENV_VARS.format] ? "env" : "default",
@@ -434,8 +431,7 @@ export function resolveRuntimeConfig(
     apiSecret,
     category,
     sourceMode,
-    futuresGridBotIds,
-    spotGridBotIds,
+    providerContext,
     format,
     timeoutMs,
     timeRange: timeRange.value,
@@ -456,14 +452,6 @@ export function validateCredentials(config: RuntimeConfig): void {
   }
 }
 
-function summarizeConfiguredIds(ids: string[]): string {
-  if (ids.length === 0) {
-    return "<none>";
-  }
-  const suffix = ids.length === 1 ? "id" : "ids";
-  return `configured (${ids.length} ${suffix})`;
-}
-
 function summarizeCredentialPresence(value: string): string {
   return redactSecretValue(value).presence === "present" ? "<configured>" : "<missing>";
 }
@@ -481,12 +469,7 @@ export function toRedactedConfigView(
     profilesFile: config.profilesFile,
     category: config.category,
     sourceMode: config.sourceMode,
-    futuresGridBotIds: diagnostic
-      ? config.futuresGridBotIds.join(",") || "<none>"
-      : summarizeConfiguredIds(config.futuresGridBotIds),
-    spotGridBotIds: diagnostic
-      ? config.spotGridBotIds.join(",") || "<none>"
-      : summarizeConfiguredIds(config.spotGridBotIds),
+    providerContext: describeBybitProviderContext(config.providerContext, diagnostic),
     format: config.format,
     timeoutMs: config.timeoutMs,
     timeRange: config.timeRange,
