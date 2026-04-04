@@ -14,6 +14,24 @@ bun install
 bun run src/index.ts <command> [options]
 ```
 
+## Testing
+
+```bash
+# unit + integration suite
+bun run test
+
+# watch mode during development
+bun run test:watch
+
+# optional local coverage report
+bun run test:coverage
+
+# standard local gate (types + tests)
+bun run verify
+```
+
+Current suite covers production-critical paths: spot PnL normalization, pagination safety handling, secret redaction, CLI stdout/stderr contract, summary report schema contract, and CLI smoke/integration flow.
+
 ## Commands
 
 - `summary` - Full account analytics snapshot
