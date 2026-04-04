@@ -1,4 +1,8 @@
-import type { BotDataService } from "../contracts/BotDataService";
+import {
+  RequiredBotDataUnavailableError,
+  type BotDataService,
+  type BotReportRequestOptions
+} from "../contracts/BotDataService";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
@@ -66,16 +70,44 @@ function availabilityReason(context: ServiceRequestContext): string | undefined 
   return "Provide --fgrid-bot-ids and/or --spot-grid-ids (or env BYBIT_FGRID_BOT_IDS/BYBIT_SPOT_GRID_IDS)";
 }
 
+function resolveRequirement(context: ServiceRequestContext, options?: BotReportRequestOptions): "required" | "optional" {
+  if (options?.requirement) {
+    return options.requirement;
+  }
+  return context.sourceMode === "bot" ? "required" : "optional";
+}
+
+function getRequiredFailureReason(context: ServiceRequestContext, report: BotReport): string {
+  if (report.bots.length > 0) {
+    return "";
+  }
+
+  return report.availabilityReason ?? availabilityReason(context) ?? "No bot detail payloads were loaded.";
+}
+
+function enforceRequiredMode(context: ServiceRequestContext, report: BotReport, requirement: "required" | "optional"): void {
+  if (requirement !== "required" || report.bots.length > 0) {
+    return;
+  }
+
+  const reason = getRequiredFailureReason(context, report);
+  throw new RequiredBotDataUnavailableError(
+    `required-input-failed: mandatory bot data is unavailable. ${reason}`
+  );
+}
+
 export class BybitBotService implements BotDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
     private readonly cache: CacheStore
   ) {}
 
-  async getBotReport(context: ServiceRequestContext): Promise<BotReport> {
+  async getBotReport(context: ServiceRequestContext, options?: BotReportRequestOptions): Promise<BotReport> {
+    const requirement = resolveRequirement(context, options);
     const reportKey = cacheKeys.botReport(context.futuresGridBotIds, context.spotGridBotIds);
     const cachedReport = this.cache.get<BotReport>(reportKey);
     if (cachedReport) {
+      enforceRequiredMode(context, cachedReport, requirement);
       return cachedReport;
     }
 
@@ -147,6 +179,7 @@ export class BybitBotService implements BotDataService {
     };
 
     this.cache.set(reportKey, report, BOT_REPORT_TTL_MS);
+    enforceRequiredMode(context, report, requirement);
     return report;
   }
 

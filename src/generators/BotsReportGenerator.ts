@@ -11,7 +11,9 @@ export class BotsReportGenerator {
   constructor(private readonly botService: BotDataService) {}
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
-    const report = await this.botService.getBotReport(context);
+    const report = await this.botService.getBotReport(context, {
+      requirement: context.sourceMode === "bot" ? "required" : "optional"
+    });
     const analysis = this.analyzer.analyze(report);
 
     const sections: ReportDocument["sections"] = [

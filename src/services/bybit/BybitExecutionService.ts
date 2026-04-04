@@ -298,7 +298,7 @@ export class BybitExecutionService implements ExecutionDataService {
     } = request;
 
     if (context.sourceMode === "bot") {
-      const report = await this.botService.getBotReport(context);
+      const report = await this.botService.getBotReport(context, { requirement: "required" });
       return toBotPnlReport(context, report, equityStartUsd, equityEndUsd);
     }
 
