@@ -28,6 +28,29 @@ const botService = {
   })
 };
 
+function spotTrade(args: {
+  side: "Buy" | "Sell";
+  qty: number;
+  price: number;
+  timeMs: number;
+  symbol?: string;
+}): Record<string, unknown> {
+  const qty = args.qty;
+  const price = args.price;
+
+  return {
+    symbol: args.symbol ?? "BTCUSDT",
+    side: args.side,
+    execQty: String(qty),
+    execValue: String(qty * price),
+    execPrice: String(price),
+    execFee: "0",
+    feeCurrency: "USDT",
+    execType: "Trade",
+    execTime: String(args.timeMs)
+  };
+}
+
 describe("BybitExecutionService pagination", () => {
   it("reads all spot execution pages when no safety limit is configured", async () => {
     let calls = 0;
@@ -64,6 +87,90 @@ describe("BybitExecutionService pagination", () => {
     expect(calls).toBe(25);
     expect(report.dataCompleteness.partial).toBe(false);
     expect(report.bySymbol[0]?.tradesCount).toBe(25);
+  });
+
+  it("uses pre-window spot executions to build opening inventory cost basis", async () => {
+    const periodFromMs = new Date(spotContext.from).getTime();
+    const periodToMs = new Date(spotContext.to).getTime();
+    const openingBuyTimeMs = periodFromMs - 60_000;
+    let openingCalls = 0;
+    let windowCalls = 0;
+
+    const client = {
+      getExecutionList: async (
+        _category: string,
+        from: string,
+        to: string,
+        _cursor?: string,
+        _timeoutMs?: number,
+        symbol?: string
+      ) => {
+        const fromMs = new Date(from).getTime();
+        const toMs = new Date(to).getTime();
+
+        if (fromMs >= periodFromMs && toMs <= periodToMs) {
+          windowCalls += 1;
+          return {
+            list: [spotTrade({ side: "Sell", qty: 1, price: 150, timeMs: periodFromMs + 60_000 })],
+            nextPageCursor: undefined
+          };
+        }
+
+        if (symbol === "BTCUSDT") {
+          openingCalls += 1;
+          if (fromMs <= openingBuyTimeMs && openingBuyTimeMs <= toMs) {
+            return {
+              list: [spotTrade({ side: "Buy", qty: 1, price: 100, timeMs: openingBuyTimeMs })],
+              nextPageCursor: undefined
+            };
+          }
+        }
+
+        return {
+          list: [],
+          nextPageCursor: undefined
+        };
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    const report = await service.getPnlReport(spotContext);
+
+    expect(windowCalls).toBe(1);
+    expect(openingCalls).toBeGreaterThan(0);
+    expect(report.realizedPnlUsd).toBeCloseTo(50);
+    expect(report.bySymbol[0]?.realizedPnlUsd).toBeCloseTo(50);
+    expect(report.dataCompleteness.partial).toBe(false);
+  });
+
+  it("marks spot report partial when opening inventory basis cannot be reconstructed", async () => {
+    const periodFromMs = new Date(spotContext.from).getTime();
+    const periodToMs = new Date(spotContext.to).getTime();
+
+    const client = {
+      getExecutionList: async (_category: string, from: string, to: string) => {
+        const fromMs = new Date(from).getTime();
+        const toMs = new Date(to).getTime();
+        if (fromMs >= periodFromMs && toMs <= periodToMs) {
+          return {
+            list: [spotTrade({ side: "Sell", qty: 1, price: 150, timeMs: periodFromMs + 1 })],
+            nextPageCursor: undefined
+          };
+        }
+
+        return {
+          list: [],
+          nextPageCursor: undefined
+        };
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    const report = await service.getPnlReport(spotContext);
+
+    expect(report.realizedPnlUsd).toBeCloseTo(0);
+    expect(report.dataCompleteness.partial).toBe(true);
+    expect(report.dataCompleteness.warnings.some((warning) => warning.includes("cost basis"))).toBe(true);
   });
 
   it("marks report partial when closed-pnl safety limit is reached in partial mode", async () => {

@@ -22,7 +22,15 @@ interface InventoryState {
   costUsd: number;
 }
 
+export type SpotInventoryCostMethod = "weighted_average";
+
+export interface SpotPnlNormalizationOptions {
+  openingExecutions?: unknown;
+  inventoryCostMethod?: SpotInventoryCostMethod;
+}
+
 const STABLE_QUOTES = new Set(["USD", "USDT", "USDC", "USDE", "FDUSD", "DAI", "TUSD", "USDD"]);
+const DEFAULT_INVENTORY_COST_METHOD: SpotInventoryCostMethod = "weighted_average";
 
 function toNumber(input: unknown): number {
   const value = Number(input);
@@ -90,30 +98,79 @@ function createDefaultSymbolPnL(symbol: string): SymbolPnL {
   };
 }
 
+function isTradeRow(row: SpotExecutionRow): boolean {
+  return String(row.execType ?? "Trade") === "Trade";
+}
+
+function normalizeExecutionRows(input: unknown): SpotExecutionRow[] {
+  const payload = input as { list?: Array<Record<string, unknown>> } | undefined;
+  return (payload?.list ?? []) as SpotExecutionRow[];
+}
+
+function applyBuy(state: InventoryState, qty: number, execValue: number): void {
+  state.quantity += qty;
+  state.costUsd += execValue;
+}
+
+function applySell(state: InventoryState, qty: number): { coveredQty: number; coveredCostUsd: number } {
+  const heldQty = state.quantity;
+  const coveredQty = Math.min(heldQty, qty);
+  const avgCost = heldQty > 0 ? state.costUsd / heldQty : 0;
+  const coveredCostUsd = coveredQty * avgCost;
+
+  state.quantity = Math.max(0, heldQty - qty);
+  state.costUsd = Math.max(0, state.costUsd - coveredCostUsd);
+
+  return { coveredQty, coveredCostUsd };
+}
+
 export function normalizeSpotPnlReport(
   input: unknown,
   periodFrom: string,
   periodTo: string,
   equityStartUsd?: number,
-  equityEndUsd?: number
+  equityEndUsd?: number,
+  options: SpotPnlNormalizationOptions = {}
 ): PnLReport {
-  const payload = input as { list?: Array<Record<string, unknown>> } | undefined;
-  const rows = (payload?.list ?? []) as SpotExecutionRow[];
+  const inventoryCostMethod = options.inventoryCostMethod ?? DEFAULT_INVENTORY_COST_METHOD;
+  const rows = normalizeExecutionRows(input);
+  const openingRows = normalizeExecutionRows(options.openingExecutions);
 
-  const sortedRows = [...rows].sort((left, right) => toTimestamp(left.execTime) - toTimestamp(right.execTime));
+  const sortedOpeningRows = [...openingRows]
+    .filter((row) => isTradeRow(row))
+    .sort((left, right) => toTimestamp(left.execTime) - toTimestamp(right.execTime));
+  const sortedRows = [...rows]
+    .filter((row) => isTradeRow(row))
+    .sort((left, right) => toTimestamp(left.execTime) - toTimestamp(right.execTime));
+
   const inventoryBySymbol = new Map<string, InventoryState>();
   const bySymbolMap = new Map<string, SymbolPnL>();
   const feesBySymbol = new Map<string, number>();
+  const uncoveredSellQtyBySymbol = new Map<string, number>();
 
   let realizedPnlUsd = 0;
   let tradingFeesUsd = 0;
 
-  for (const row of sortedRows) {
-    const execType = String(row.execType ?? "Trade");
-    if (execType !== "Trade") {
+  for (const row of sortedOpeningRows) {
+    const symbol = String(row.symbol ?? "UNKNOWN").toUpperCase();
+    const side = String(row.side ?? "").toLowerCase();
+    const qty = toNumber(row.execQty);
+    const execValue = toNumber(row.execValue);
+
+    if (qty <= 0 || execValue <= 0 || (side !== "buy" && side !== "sell")) {
       continue;
     }
 
+    const state = inventoryBySymbol.get(symbol) ?? { quantity: 0, costUsd: 0 };
+    if (side === "buy") {
+      applyBuy(state, qty, execValue);
+    } else {
+      applySell(state, qty);
+    }
+    inventoryBySymbol.set(symbol, state);
+  }
+
+  for (const row of sortedRows) {
     const symbol = String(row.symbol ?? "UNKNOWN").toUpperCase();
     const side = String(row.side ?? "").toLowerCase();
     const qty = toNumber(row.execQty);
@@ -138,24 +195,25 @@ export function normalizeSpotPnlReport(
     const state = inventoryBySymbol.get(symbol) ?? { quantity: 0, costUsd: 0 };
 
     if (side === "buy") {
-      state.quantity += qty;
-      state.costUsd += execValue;
+      applyBuy(state, qty, execValue);
     } else {
-      const heldQty = state.quantity;
-      const avgCost = heldQty > 0 ? state.costUsd / heldQty : price;
-      const coveredQty = Math.min(heldQty, qty);
-      const uncoveredQty = Math.max(0, qty - heldQty);
-      const coveredCost = coveredQty * avgCost;
-      // If the sold amount exceeds tracked inventory for this window,
-      // anchor uncovered cost at execution price to avoid artificial gains.
-      const uncoveredCost = uncoveredQty * price;
-      const grossPnl = execValue - (coveredCost + uncoveredCost);
+      if (inventoryCostMethod !== "weighted_average") {
+        throw new Error(`Unsupported spot inventory cost method: ${String(inventoryCostMethod)}`);
+      }
+
+      // Realized PnL is computed only for quantity with known weighted-average cost basis.
+      const { coveredQty, coveredCostUsd } = applySell(state, qty);
+      const uncoveredQty = Math.max(0, qty - coveredQty);
+      const unitProceedsUsd = qty > 0 ? execValue / qty : 0;
+      const coveredProceedsUsd = coveredQty * unitProceedsUsd;
+      const grossPnl = coveredProceedsUsd - coveredCostUsd;
 
       realizedPnlUsd += grossPnl;
       symbolPnl.realizedPnlUsd += grossPnl;
 
-      state.quantity = Math.max(0, heldQty - qty);
-      state.costUsd = Math.max(0, state.costUsd - coveredCost);
+      if (uncoveredQty > 0) {
+        uncoveredSellQtyBySymbol.set(symbol, (uncoveredSellQtyBySymbol.get(symbol) ?? 0) + uncoveredQty);
+      }
     }
 
     inventoryBySymbol.set(symbol, state);
@@ -177,6 +235,11 @@ export function normalizeSpotPnlReport(
     equityStartUsd && equityStartUsd > 0 && typeof equityEndUsd === "number"
       ? ((equityEndUsd - equityStartUsd) / equityStartUsd) * 100
       : undefined;
+  const warnings = Array.from(uncoveredSellQtyBySymbol.entries()).map(
+    ([symbol, unmatchedQty]) =>
+      `Unable to reconstruct full spot cost basis for ${symbol}: ${unmatchedQty.toFixed(8)} quantity sold in the period was unmatched by opening inventory. Realized PnL excludes unmatched quantity.`
+  );
+  const partial = warnings.length > 0;
 
   return {
     source: "bybit",
@@ -195,8 +258,8 @@ export function normalizeSpotPnlReport(
     bestSymbols: bySymbol.slice(0, 5),
     worstSymbols: [...bySymbol].reverse().slice(0, 5),
     dataCompleteness: {
-      partial: false,
-      warnings: []
+      partial,
+      warnings
     }
   };
 }
