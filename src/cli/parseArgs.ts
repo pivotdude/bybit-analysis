@@ -156,6 +156,9 @@ export function parseArgs(
         case "--category":
           options.category = consumeValue() as ParsedCliOptions["category"];
           break;
+        case "--source":
+          options.sourceMode = consumeValue() as ParsedCliOptions["sourceMode"];
+          break;
         case "--fgrid-bot-ids": {
           const value = consumeValue();
           if (value !== undefined) {
@@ -272,7 +275,8 @@ function renderOptionsSection(): string[] {
     "  --api-secret <value>  [deprecated, insecure; disabled by default]",
     "  --profile <name>",
     "  --profiles-file <path>",
-    "  --category <linear|spot|bot>",
+    "  --category <linear|spot>",
+    "  --source <market|bot>",
     "  --fgrid-bot-ids <id1,id2,...>",
     "  --spot-grid-ids <id1,id2,...>",
     "  --format <md|compact>",
@@ -329,7 +333,8 @@ function renderGlobalHelp(): string {
     `  ${ENV_VARS.allowInsecureCliSecrets}=<1|true|yes|on>`,
     `  ${ENV_VARS.profile}=<name>`,
     `  ${ENV_VARS.profilesFile}=<path>`,
-    `  ${ENV_VARS.category}=<linear|spot|bot>`,
+    `  ${ENV_VARS.category}=<linear|spot>`,
+    `  ${ENV_VARS.sourceMode}=<market|bot>`,
     `  ${ENV_VARS.futuresGridBotIds}=<id1,id2,...>`,
     `  ${ENV_VARS.spotGridBotIds}=<id1,id2,...>`,
     `  ${ENV_VARS.format}=<md|compact>`,

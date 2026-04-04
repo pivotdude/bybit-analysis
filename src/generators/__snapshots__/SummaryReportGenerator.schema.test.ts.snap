@@ -1,6 +1,6 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`SummaryReportGenerator schema stability keeps section IDs and types identical across categories 1`] = `
+exports[`SummaryReportGenerator schema stability keeps section IDs and types identical across market/source modes 1`] = `
 [
   {
     "id": "summary.contract",
@@ -60,6 +60,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
     "text": [
       "Schema version: summary-markdown-v1",
       "Category: linear",
+      "Source mode: market",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
@@ -339,6 +340,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
     "text": [
       "Schema version: summary-markdown-v1",
       "Category: spot",
+      "Source mode: market",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
@@ -583,13 +585,14 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
 ]
 `;
 
-exports[`SummaryReportGenerator schema stability produces stable snapshots for bot category sections 1`] = `
+exports[`SummaryReportGenerator schema stability produces stable snapshots for bot source mode sections 1`] = `
 [
   {
     "id": "summary.contract",
     "text": [
       "Schema version: summary-markdown-v1",
-      "Category: bot",
+      "Category: linear",
+      "Source mode: bot",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
@@ -605,11 +608,11 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
       },
       {
         "label": "Net PnL",
-        "value": "$115.00",
+        "value": "$439.00",
       },
       {
         "label": "ROI",
-        "value": "0.97%",
+        "value": "3.80%",
       },
       {
         "label": "Gross Exposure",
@@ -632,15 +635,15 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
     "kpis": [
       {
         "label": "Traded Symbols",
-        "value": "0",
+        "value": "2",
       },
       {
         "label": "Total Trades",
-        "value": "0",
+        "value": "13",
       },
       {
         "label": "Winning Symbols",
-        "value": "0",
+        "value": "2",
       },
       {
         "label": "Losing Symbols",
@@ -648,7 +651,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
       },
       {
         "label": "Symbol Win Rate",
-        "value": "0.00%",
+        "value": "100.00%",
       },
     ],
     "title": "Activity",
@@ -775,7 +778,20 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
         "Net",
         "Trades",
       ],
-      "rows": [],
+      "rows": [
+        [
+          "BTCUSDT",
+          "$300.00",
+          "$420.00",
+          "8",
+        ],
+        [
+          "ETHUSDT",
+          "-$20.00",
+          "$40.00",
+          "5",
+        ],
+      ],
     },
     "title": "Symbol PnL",
     "type": "table",
@@ -822,10 +838,6 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
     "alerts": [
       {
         "message": "optional_item_failed (unknown): Bot equity source lagged by one polling interval",
-        "severity": "warning",
-      },
-      {
-        "message": "pagination_limit_reached (execution_window): Execution history truncated at configured safety limit",
         "severity": "warning",
       },
     ],

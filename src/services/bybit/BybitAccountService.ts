@@ -53,7 +53,7 @@ export class BybitAccountService implements AccountDataService {
   ) {}
 
   async getAccountSnapshot(context: ServiceRequestContext): Promise<AccountSnapshot> {
-    if (context.category === "bot") {
+    if (context.sourceMode === "bot") {
       const botReport = await this.botService.getBotReport(context);
       const positionsResult = await this.positionsService.getOpenPositions(context);
       const balances = aggregateBotBalances(botReport);
@@ -126,7 +126,7 @@ export class BybitAccountService implements AccountDataService {
     }
 
     try {
-      const authCategory = context.category === "bot" ? "linear" : context.category;
+      const authCategory = context.category;
       await this.client.getWalletBalance(authCategory, context.timeoutMs);
       diagnostics.push("auth_ok");
     } catch (error) {

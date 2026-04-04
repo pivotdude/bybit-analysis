@@ -4,9 +4,10 @@ import { MarkdownRenderer } from "../renderers/MarkdownRenderer";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
-import type { MarketCategory } from "../types/domain.types";
+import type { IntegrationMode, MarketCategory } from "../types/domain.types";
 
 const BASE_CONTEXT = {
+  sourceMode: "market" as const,
   futuresGridBotIds: [],
   spotGridBotIds: [],
   from: "2026-01-01T00:00:00.000Z",
@@ -14,15 +15,47 @@ const BASE_CONTEXT = {
   timeoutMs: 5_000
 } as const;
 
-function createContext(category: MarketCategory): ServiceRequestContext {
+function createContext(category: MarketCategory, sourceMode: IntegrationMode = "market"): ServiceRequestContext {
   return {
     ...BASE_CONTEXT,
-    category
+    category,
+    sourceMode
   };
 }
 
 const accountService: AccountDataService = {
   getAccountSnapshot: async (context) => {
+    if (context.sourceMode === "bot") {
+      return {
+        source: "bybit",
+        exchange: "bybit",
+        category: context.category,
+        capturedAt: "2026-01-31T00:00:00.000Z",
+        totalEquityUsd: 12_000,
+        walletBalanceUsd: 12_000,
+        availableBalanceUsd: 9_500,
+        unrealizedPnlUsd: 0,
+        positions: [],
+        balances: [
+          { asset: "USDT", walletBalance: 12_000, availableBalance: 9_500, usdValue: 12_000 }
+        ],
+        dataCompleteness: {
+          state: "degraded",
+          partial: true,
+          warnings: ["Bot equity source lagged by one polling interval"],
+          issues: [
+            {
+              code: "optional_item_failed",
+              scope: "unknown",
+              severity: "warning",
+              criticality: "optional",
+              message: "Bot equity source lagged by one polling interval"
+            }
+          ]
+        }
+      };
+    }
+
     if (context.category === "linear") {
       return {
         source: "bybit",
@@ -109,34 +142,7 @@ const accountService: AccountDataService = {
       };
     }
 
-    return {
-      source: "bybit",
-      exchange: "bybit",
-      category: "bot",
-      capturedAt: "2026-01-31T00:00:00.000Z",
-      totalEquityUsd: 12_000,
-      walletBalanceUsd: 12_000,
-      availableBalanceUsd: 9_500,
-      unrealizedPnlUsd: 0,
-      positions: [],
-      balances: [
-        { asset: "USDT", walletBalance: 12_000, availableBalance: 9_500, usdValue: 12_000 }
-      ],
-      dataCompleteness: {
-        state: "degraded",
-        partial: true,
-        warnings: ["Bot equity source lagged by one polling interval"],
-        issues: [
-          {
-            code: "optional_item_failed",
-            scope: "unknown",
-            severity: "warning",
-            criticality: "optional",
-            message: "Bot equity source lagged by one polling interval"
-          }
-        ]
-      }
-    };
+    throw new Error(`Unexpected category: ${context.category}`);
   },
   checkHealth: async () => ({
     connectivity: "ok",
@@ -281,7 +287,7 @@ const executionService: ExecutionDataService = {
 
 const botService: BotDataService = {
   getBotReport: async (context) => {
-    if (context.category !== "bot") {
+    if (context.sourceMode !== "bot") {
       return {
         source: "bybit",
         generatedAt: "2026-01-31T00:00:00.000Z",
@@ -329,17 +335,17 @@ const botService: BotDataService = {
   }
 };
 
-async function generateByCategory(category: MarketCategory) {
+async function generateByContext(category: MarketCategory, sourceMode: IntegrationMode = "market") {
   const generator = new SummaryReportGenerator(accountService, executionService, botService);
-  return generator.generate(createContext(category));
+  return generator.generate(createContext(category, sourceMode));
 }
 
 describe("SummaryReportGenerator schema stability", () => {
-  it("keeps section IDs and types identical across categories", async () => {
+  it("keeps section IDs and types identical across market/source modes", async () => {
     const [linear, spot, bot] = await Promise.all([
-      generateByCategory("linear"),
-      generateByCategory("spot"),
-      generateByCategory("bot")
+      generateByContext("linear", "market"),
+      generateByContext("spot", "market"),
+      generateByContext("linear", "bot")
     ]);
 
     const linearShape = linear.sections.map((section) => ({ id: section.id, type: section.type }));
@@ -356,24 +362,24 @@ describe("SummaryReportGenerator schema stability", () => {
   });
 
   it("produces stable snapshots for linear category sections", async () => {
-    const report = await generateByCategory("linear");
+    const report = await generateByContext("linear", "market");
     expect(report.sections).toMatchSnapshot();
   });
 
   it("produces stable snapshots for spot category sections", async () => {
-    const report = await generateByCategory("spot");
+    const report = await generateByContext("spot", "market");
     expect(report.sections).toMatchSnapshot();
   });
 
-  it("produces stable snapshots for bot category sections", async () => {
-    const report = await generateByCategory("bot");
+  it("produces stable snapshots for bot source mode sections", async () => {
+    const report = await generateByContext("linear", "bot");
     expect(report.sections).toMatchSnapshot();
   });
 
   it("keeps Alerts section type stable for both populated and fallback payloads", async () => {
     const [withActiveAlerts, withFallbackAlert] = await Promise.all([
-      generateByCategory("linear"),
-      generateByCategory("bot")
+      generateByContext("linear", "market"),
+      generateByContext("linear", "bot")
     ]);
 
     const populatedAlertsSection = withActiveAlerts.sections.find(
@@ -393,7 +399,7 @@ describe("SummaryReportGenerator schema stability", () => {
   });
 
   it("renders schema version and section IDs in markdown", async () => {
-    const report = await generateByCategory("linear");
+    const report = await generateByContext("linear", "market");
     const markdown = new MarkdownRenderer().render(report, "md");
 
     expect(markdown).toContain(`Schema: ${SUMMARY_SCHEMA_VERSION}`);

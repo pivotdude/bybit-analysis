@@ -1,4 +1,4 @@
-import type { MarketCategory } from "./domain.types";
+import type { IntegrationMode, MarketCategory } from "./domain.types";
 
 export type CommandName =
   | "summary"
@@ -26,6 +26,7 @@ export interface ParsedCliOptions {
   profile?: string;
   profilesFile?: string;
   category?: MarketCategory;
+  sourceMode?: IntegrationMode;
   futuresGridBotIds?: string[];
   spotGridBotIds?: string[];
   format?: OutputFormat;

@@ -7,6 +7,7 @@ const BYBIT_ENV_KEYS = [
   "BYBIT_API_SECRET",
   "BYBIT_PROFILE",
   "BYBIT_PROFILES_FILE",
+  "BYBIT_SOURCE_MODE",
   "BYBIT_FGRID_BOT_IDS",
   "BYBIT_SPOT_GRID_IDS",
   "BYBIT_CONFIG_DIAGNOSTICS",
@@ -89,11 +90,11 @@ describe("CLI stdout/stderr contract", () => {
   });
 
   it("routes runtime usage errors to stderr and keeps stdout empty", () => {
-    const result = runCli(["summary", "--category", "bot"]);
+    const result = runCli(["summary", "--source", "bot"]);
 
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("For --category bot provide --fgrid-bot-ids and/or --spot-grid-ids");
+    expect(result.stderr).toContain("For --source bot provide --fgrid-bot-ids and/or --spot-grid-ids");
   });
 
   it("rejects insecure credential flags in argv by default", () => {

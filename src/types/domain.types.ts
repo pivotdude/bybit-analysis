@@ -1,4 +1,5 @@
-export type MarketCategory = "linear" | "spot" | "bot";
+export type MarketCategory = "linear" | "spot";
+export type IntegrationMode = "market" | "bot";
 export type PositionSide = "long" | "short";
 export type MarginMode = "cross" | "isolated";
 export type RiskBand = "low" | "medium" | "high";

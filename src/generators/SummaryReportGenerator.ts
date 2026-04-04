@@ -193,6 +193,7 @@ export class SummaryReportGenerator {
         text: [
           `Schema version: ${SUMMARY_SCHEMA_VERSION}`,
           `Category: ${context.category}`,
+          `Source mode: ${context.sourceMode}`,
           `Period: ${pnl.periodFrom} -> ${pnl.periodTo}`,
           "All summary section IDs, order, and section types are stable across categories."
         ]
@@ -288,7 +289,7 @@ export class SummaryReportGenerator {
   }
 
   private async loadBotReport(context: ServiceRequestContext): Promise<BotLoadResult> {
-    if (context.category === "bot") {
+    if (context.sourceMode === "bot") {
       const report = await this.botService.getBotReport(context);
       return {
         report,

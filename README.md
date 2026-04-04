@@ -62,7 +62,7 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 
 ## Summary Markdown Contract (`summary-markdown-v1`)
 
-`summary` now uses a schema-stable section contract across all categories (`linear`, `spot`, `bot`).
+`summary` now uses a schema-stable section contract across market categories (`linear`, `spot`) and source modes (`market`, `bot`).
 
 - Section IDs are fixed and rendered in headings as `## [section.id] Title`.
 - Section order and section type are fixed.
@@ -70,8 +70,8 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 - Missing category-specific data is represented as empty rows / zero values / info alerts, not by omitting sections.
 - `summary.alerts` is always `alerts`; if a tabular/alternative representation is needed, it must use a different section ID and title.
 - Bot enrichment failure policy:
-  - `--category linear|spot`: bot summary is optional enrichment. Failures do not abort report generation, but are surfaced explicitly in `summary.alerts` and `summary.data_completeness` with the original error reason.
-  - `--category bot`: bot summary is required input. Bot fetch failures are fail-fast and abort summary generation.
+  - `--source market`: bot summary is optional enrichment. Failures do not abort report generation, but are surfaced explicitly in `summary.alerts` and `summary.data_completeness` with the original error reason.
+  - `--source bot`: bot summary is required input. Bot fetch failures are fail-fast and abort summary generation.
 
 Report-level metadata:
 
@@ -117,7 +117,8 @@ Example (`pnl` section):
 
 - `--profile <name>`
 - `--profiles-file <path>`
-- `--category <linear|spot|bot>`
+- `--category <linear|spot>`
+- `--source <market|bot>`
 - `--fgrid-bot-ids <id1,id2,...>`
 - `--spot-grid-ids <id1,id2,...>`
 - `--format <md|compact>`
@@ -141,6 +142,7 @@ Supported env vars:
 - `BYBIT_PROFILE`
 - `BYBIT_PROFILES_FILE`
 - `BYBIT_CATEGORY`
+- `BYBIT_SOURCE_MODE`
 - `BYBIT_FGRID_BOT_IDS`
 - `BYBIT_SPOT_GRID_IDS`
 - `BYBIT_FORMAT`
@@ -228,7 +230,8 @@ Example:
   "subaccount-b": {
     "apiKey": "aaa",
     "apiSecret": "bbb",
-    "category": "bot",
+    "category": "linear",
+    "sourceMode": "bot",
     "futuresGridBotIds": ["612330315406398322"]
   }
 }
@@ -238,7 +241,8 @@ Example:
 
 You can run built-in reports against grid bots by setting:
 
-- `--category bot`
+- `--source bot`
+- `--category linear|spot` (optional; default `linear`)
 - `--fgrid-bot-ids <id1,id2,...>` for Futures Grid bots
 - `--spot-grid-ids <id1,id2,...>` for Spot Grid bots
 
@@ -257,7 +261,7 @@ Example:
 
 ```bash
 bun run src/index.ts summary \
-  --category bot \
+  --source bot \
   --fgrid-bot-ids 612330315406398322 \
   --spot-grid-ids 612340768081708828
 ```
