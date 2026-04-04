@@ -5,8 +5,7 @@ import type { AccountDataService, ServiceRequestContext } from "../services/cont
 const context: ServiceRequestContext = {
   category: "linear",
   sourceMode: "market",
-  futuresGridBotIds: [],
-  spotGridBotIds: [],
+  providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: [], spotGridBotIds: [] } } },
   from: "2026-01-01T00:00:00.000Z",
   to: "2026-02-01T00:00:00.000Z",
   timeoutMs: 5_000

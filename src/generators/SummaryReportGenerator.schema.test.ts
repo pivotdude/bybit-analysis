@@ -8,8 +8,7 @@ import type { IntegrationMode, MarketCategory } from "../types/domain.types";
 
 const BASE_CONTEXT = {
   sourceMode: "market" as const,
-  futuresGridBotIds: [],
-  spotGridBotIds: [],
+  providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: [], spotGridBotIds: [] } } },
   from: "2026-01-01T00:00:00.000Z",
   to: "2026-01-31T00:00:00.000Z",
   timeoutMs: 5_000

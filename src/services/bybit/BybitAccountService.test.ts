@@ -27,8 +27,7 @@ function createMemoryCache(): CacheStore {
 const requestContext: ServiceRequestContext = {
   category: "linear",
   sourceMode: "market",
-  futuresGridBotIds: [],
-  spotGridBotIds: [],
+  providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: [], spotGridBotIds: [] } } },
   from: "2026-01-01T00:00:00.000Z",
   to: "2026-02-01T00:00:00.000Z",
   timeoutMs: 5_000
@@ -177,7 +176,7 @@ describe("BybitAccountService#getAccountSnapshot", () => {
     const snapshot = await service.getAccountSnapshot({
       ...requestContext,
       sourceMode: "bot",
-      futuresGridBotIds: ["fgrid-1"]
+      providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["fgrid-1"], spotGridBotIds: [] } } }
     });
 
     expect(requirement).toBe("required");

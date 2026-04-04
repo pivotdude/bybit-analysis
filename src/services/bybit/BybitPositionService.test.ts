@@ -9,8 +9,7 @@ import { PaginationLimitReachedError } from "./pagination";
 const context: ServiceRequestContext = {
   category: "linear",
   sourceMode: "market",
-  futuresGridBotIds: [],
-  spotGridBotIds: [],
+  providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: [], spotGridBotIds: [] } } },
   from: "2026-01-01T00:00:00.000Z",
   to: "2026-01-31T00:00:00.000Z",
   timeoutMs: 5_000
@@ -217,7 +216,7 @@ describe("BybitPositionService pagination", () => {
     const result = await service.getOpenPositions({
       ...context,
       sourceMode: "bot",
-      futuresGridBotIds: ["fgrid-1"]
+      providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["fgrid-1"], spotGridBotIds: [] } } }
     });
 
     expect(requirement).toBe("required");
@@ -245,7 +244,7 @@ describe("BybitPositionService pagination", () => {
         ...context,
         category: "spot",
         sourceMode: "bot",
-        futuresGridBotIds: ["bot-id-1"]
+        providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["bot-id-1"], spotGridBotIds: [] } } }
       })
     ).rejects.toBeInstanceOf(RequiredBotDataUnavailableError);
   });
