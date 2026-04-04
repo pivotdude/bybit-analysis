@@ -82,6 +82,10 @@ const executionService: ExecutionDataService = {
       fundingFeesUsd: 5
     },
     netPnlUsd: 1_145,
+    roiStatus: "supported",
+    roiUnsupportedReason: undefined,
+    roiStartEquityUsd: 20_000,
+    roiEndEquityUsd: 21_145,
     roiPct: 5.725,
     bySymbol: [
       {

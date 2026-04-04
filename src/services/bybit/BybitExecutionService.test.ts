@@ -58,6 +58,53 @@ function spotTrade(args: {
 }
 
 describe("BybitExecutionService pagination", () => {
+  it("returns supported ROI contract when start/end equity are provided", async () => {
+    const client = {
+      getClosedPnl: async () => ({
+        list: [],
+        nextPageCursor: undefined
+      }),
+      getWalletBalance: async () => ({
+        list: [{ totalPerpUPL: "0" }]
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    const report = await service.getPnlReport({
+      context: linearContext,
+      equityStartUsd: 1_000,
+      equityEndUsd: 1_100
+    });
+
+    expect(report.roiStatus).toBe("supported");
+    expect(report.roiPct).toBeCloseTo(10);
+    expect(report.roiStartEquityUsd).toBe(1_000);
+    expect(report.roiEndEquityUsd).toBe(1_100);
+  });
+
+  it("returns unsupported ROI contract with reason when start equity is missing", async () => {
+    const client = {
+      getClosedPnl: async () => ({
+        list: [],
+        nextPageCursor: undefined
+      }),
+      getWalletBalance: async () => ({
+        list: [{ totalPerpUPL: "0" }]
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    const report = await service.getPnlReport({
+      context: linearContext,
+      equityStartUsd: undefined,
+      equityEndUsd: 1_100
+    });
+
+    expect(report.roiStatus).toBe("unsupported");
+    expect(report.roiPct).toBeUndefined();
+    expect(report.roiUnsupportedReason).toContain("starting equity is unavailable");
+  });
+
   it("reads all spot execution pages when no safety limit is configured", async () => {
     let calls = 0;
     const totalPages = 25;

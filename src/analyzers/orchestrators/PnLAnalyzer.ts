@@ -7,6 +7,10 @@ export interface PnLAnalysis {
   unrealizedPnlUsd: number;
   totalFeesUsd: number;
   netPnlUsd: number;
+  roiStatus: PnLReport["roiStatus"];
+  roiUnsupportedReason?: PnLReport["roiUnsupportedReason"];
+  roiStartEquityUsd?: PnLReport["roiStartEquityUsd"];
+  roiEndEquityUsd?: PnLReport["roiEndEquityUsd"];
   roiPct?: number;
   bySymbol: PnLReport["bySymbol"];
   bestSymbols: PnLReport["bestSymbols"];
@@ -22,6 +26,10 @@ export class PnLAnalyzer {
       unrealizedPnlUsd: report.unrealizedPnlUsd,
       totalFeesUsd: report.fees.tradingFeesUsd + report.fees.fundingFeesUsd + (report.fees.otherFeesUsd ?? 0),
       netPnlUsd: report.netPnlUsd,
+      roiStatus: report.roiStatus,
+      roiUnsupportedReason: report.roiUnsupportedReason,
+      roiStartEquityUsd: report.roiStartEquityUsd,
+      roiEndEquityUsd: report.roiEndEquityUsd,
       roiPct: report.roiPct,
       bySymbol: report.bySymbol,
       bestSymbols: report.bestSymbols,

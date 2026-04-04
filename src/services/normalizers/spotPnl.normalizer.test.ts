@@ -30,6 +30,22 @@ function trade(args: {
 }
 
 describe("normalizeSpotPnlReport", () => {
+  it("returns supported ROI contract when both equity bounds are provided", () => {
+    const report = normalizeSpotPnlReport(
+      {
+        list: [trade({ side: "Buy", qty: 1, price: 100, time: 1 })]
+      },
+      periodFrom,
+      periodTo,
+      1_000,
+      1_100
+    );
+
+    expect(report.roiStatus).toBe("supported");
+    expect(report.roiPct).toBeCloseTo(10);
+    expect(report.roiUnsupportedReason).toBeUndefined();
+  });
+
   it("uses opening inventory from executions before period boundary", () => {
     const report = normalizeSpotPnlReport(
       {
@@ -48,6 +64,8 @@ describe("normalizeSpotPnlReport", () => {
 
     expect(report.realizedPnlUsd).toBeCloseTo(50);
     expect(report.netPnlUsd).toBeCloseTo(50);
+    expect(report.roiStatus).toBe("unsupported");
+    expect(report.roiUnsupportedReason).toContain("starting equity is unavailable");
     expect(report.dataCompleteness.partial).toBe(false);
     expect(report.bySymbol[0]?.realizedPnlUsd).toBeCloseTo(50);
   });

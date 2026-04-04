@@ -1,5 +1,6 @@
 import type { PnLReport, SymbolPnL } from "../../types/domain.types";
 import { completeDataCompleteness } from "../reliability/dataCompleteness";
+import { normalizeRoi } from "./roi.normalizer";
 
 function toNumber(input: unknown): number {
   const value = Number(input);
@@ -42,11 +43,7 @@ export function normalizePnlReport(input: unknown, periodFrom: string, periodTo:
   const bySymbol = Array.from(bySymbolMap.values()).sort((left, right) => right.netPnlUsd - left.netPnlUsd);
   const totalFeesUsd = tradingFeesUsd;
   const netPnlUsd = realizedPnlUsd + unrealizedPnlUsd - totalFeesUsd;
-
-  const roiPct =
-    equityStartUsd && equityStartUsd > 0 && typeof equityEndUsd === "number"
-      ? ((equityEndUsd - equityStartUsd) / equityStartUsd) * 100
-      : undefined;
+  const roi = normalizeRoi({ equityStartUsd, equityEndUsd });
 
   return {
     source: "bybit",
@@ -60,7 +57,7 @@ export function normalizePnlReport(input: unknown, periodFrom: string, periodTo:
       fundingFeesUsd: 0
     },
     netPnlUsd,
-    roiPct,
+    ...roi,
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
     worstSymbols: [...bySymbol].reverse().slice(0, 5),

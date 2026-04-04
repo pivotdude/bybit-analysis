@@ -71,6 +71,10 @@ const partialPnlReport = {
     fundingFeesUsd: 0
   },
   netPnlUsd: 9,
+  roiStatus: "supported" as const,
+  roiUnsupportedReason: undefined,
+  roiStartEquityUsd: 10_000,
+  roiEndEquityUsd: 10_009,
   roiPct: 0.09,
   bySymbol: [
     {

@@ -81,6 +81,21 @@ Fixed section order:
 - Opening inventory at `--from` is reconstructed from pre-window spot executions (lookback: last 365 days) for symbols sold inside the window.
 - If sell quantity cannot be matched to reconstructed inventory, the report is marked `dataCompleteness.partial=true`, and unmatched quantity is excluded from realized PnL (no fallback to sell execution price).
 
+## PnL ROI Contract
+
+- `pnl` uses explicit ROI status: `supported` or `unsupported`.
+- ROI is `supported` only when both start and end equity are available.
+- Start equity is resolved from `account.equityHistory` using the latest sample at or before `--from`.
+- If start equity is unavailable, ROI KPI is rendered as `unsupported`, and the report includes an explicit reason in `ROI Status`.
+
+Example (`pnl` section):
+
+```md
+## ROI Status
+- Status: unsupported
+- Reason: no equity sample found at or before period start
+```
+
 ## Global Options
 
 - `--profile <name>`

@@ -1,5 +1,6 @@
 import type { PnLReport, SymbolPnL } from "../../types/domain.types";
 import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
+import { normalizeRoi } from "./roi.normalizer";
 
 interface SymbolParts {
   baseAsset: string;
@@ -232,10 +233,7 @@ export function normalizeSpotPnlReport(
     .sort((left, right) => right.netPnlUsd - left.netPnlUsd);
 
   const netPnlUsd = realizedPnlUsd - tradingFeesUsd;
-  const roiPct =
-    equityStartUsd && equityStartUsd > 0 && typeof equityEndUsd === "number"
-      ? ((equityEndUsd - equityStartUsd) / equityStartUsd) * 100
-      : undefined;
+  const roi = normalizeRoi({ equityStartUsd, equityEndUsd });
   const warnings = Array.from(uncoveredSellQtyBySymbol.entries()).map(
     ([symbol, unmatchedQty]) =>
       `Unable to reconstruct full spot cost basis for ${symbol}: ${unmatchedQty.toFixed(8)} quantity sold in the period was unmatched by opening inventory. Realized PnL excludes unmatched quantity.`
@@ -260,7 +258,7 @@ export function normalizeSpotPnlReport(
       fundingFeesUsd: 0
     },
     netPnlUsd,
-    roiPct,
+    ...roi,
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
     worstSymbols: [...bySymbol].reverse().slice(0, 5),

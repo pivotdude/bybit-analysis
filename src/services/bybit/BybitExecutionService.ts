@@ -6,6 +6,7 @@ import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePnlReport } from "../normalizers/pnl.normalizer";
 import { normalizeSpotPnlReport } from "../normalizers/spotPnl.normalizer";
+import { normalizeRoi } from "../normalizers/roi.normalizer";
 import type { DataCompleteness, PnLReport, SymbolPnL } from "../../types/domain.types";
 import {
   buildPaginationLimitMessage,
@@ -141,10 +142,7 @@ function toBotPnlReport(
   const realizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.realizedPnlUsd, 0);
   const unrealizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.unrealizedPnlUsd, 0);
   const netPnlUsd = realizedPnlUsd + unrealizedPnlUsd;
-  const roiPct =
-    equityStartUsd && equityStartUsd > 0 && typeof equityEndUsd === "number"
-      ? ((equityEndUsd - equityStartUsd) / equityStartUsd) * 100
-      : undefined;
+  const roi = normalizeRoi({ equityStartUsd, equityEndUsd });
 
   return {
     source: "bybit",
@@ -158,7 +156,7 @@ function toBotPnlReport(
       fundingFeesUsd: 0
     },
     netPnlUsd,
-    roiPct,
+    ...roi,
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
     worstSymbols: [...bySymbol].reverse().slice(0, 5),
