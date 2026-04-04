@@ -70,6 +70,15 @@ describe("CLI stdout/stderr contract", () => {
     expect(result.stdout).toContain("Usage:");
   });
 
+  it("prints command-specific help to stdout and exits 0 for <command> --help", () => {
+    const result = runCli(["summary", "--help"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("# bybit-analysis summary");
+    expect(result.stdout).toContain("bybit-analysis summary [options]");
+  });
+
   it("returns usage diagnostics to stderr when command is missing", () => {
     const result = runCli([]);
 

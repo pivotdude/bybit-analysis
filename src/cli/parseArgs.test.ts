@@ -27,6 +27,67 @@ describe("parseArgs secret flags", () => {
   });
 });
 
+describe("parseArgs CLI conventions", () => {
+  const cases: Array<{
+    name: string;
+    argv: string[];
+    assert: (parsed: ReturnType<typeof parseArgs>) => void;
+  }> = [
+    {
+      name: "supports --flag=value syntax",
+      argv: ["summary", "--format=compact", "--timeout-ms=15000"],
+      assert: (parsed) => {
+        expect(parsed.command).toBe("summary");
+        expect(parsed.errors).toEqual([]);
+        expect(parsed.options.format).toBe("compact");
+        expect(parsed.options.timeoutMs).toBe(15000);
+      }
+    },
+    {
+      name: "supports option terminator -- and keeps remaining args positional",
+      argv: ["summary", "--", "--format=compact"],
+      assert: (parsed) => {
+        expect(parsed.command).toBe("summary");
+        expect(parsed.options.format).toBeUndefined();
+        expect(parsed.errors).toEqual(["Unexpected argument for summary: --format=compact"]);
+      }
+    },
+    {
+      name: "applies last-value-wins for repeated scalar options",
+      argv: ["summary", "--format", "md", "--format", "compact"],
+      assert: (parsed) => {
+        expect(parsed.errors).toEqual([]);
+        expect(parsed.options.format).toBe("compact");
+      }
+    },
+    {
+      name: "appends repeated list options in argument order",
+      argv: ["summary", "--fgrid-bot-ids", "1,2", "--fgrid-bot-ids", "3", "--spot-grid-ids=9,10"],
+      assert: (parsed) => {
+        expect(parsed.errors).toEqual([]);
+        expect(parsed.options.futuresGridBotIds).toEqual(["1", "2", "3"]);
+        expect(parsed.options.spotGridBotIds).toEqual(["9", "10"]);
+      }
+    },
+    {
+      name: "supports command-specific help path",
+      argv: ["summary", "--help"],
+      assert: (parsed) => {
+        expect(parsed.command).toBe("summary");
+        expect(parsed.errors).toEqual([]);
+        expect(parsed.options.help).toBe(true);
+      }
+    }
+  ];
+
+  for (const testCase of cases) {
+    it(testCase.name, () => {
+      const parsed = parseArgs(testCase.argv, {});
+      testCase.assert(parsed);
+    });
+  }
+});
+
 describe("parseArgs config diagnostics", () => {
   it("enables expanded config diagnostics only with explicit flag", () => {
     const parsed = parseArgs(["config", "--config-diagnostics"], {});
@@ -45,5 +106,13 @@ describe("renderHelp", () => {
     expect(help).toContain("BYBIT_ALLOW_INSECURE_CLI_SECRETS=1");
     expect(help).toContain("--config-diagnostics  show expanded config diagnostics (sensitive identifiers)");
     expect(help).toContain("BYBIT_CONFIG_DIAGNOSTICS=1 enables expanded config details");
+  });
+
+  it("renders command-specific usage when command is provided", () => {
+    const help = renderHelp("summary");
+
+    expect(help).toContain("# bybit-analysis summary");
+    expect(help).toContain("bybit-analysis summary [options]");
+    expect(help).toContain("CLI conventions:");
   });
 });

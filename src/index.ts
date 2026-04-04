@@ -8,7 +8,7 @@ async function main(): Promise<void> {
   const parsed = parseArgs(Bun.argv.slice(2));
 
   if (parsed.options.help && parsed.errors.length === 0) {
-    process.stdout.write(`${renderHelp()}\n`);
+    process.stdout.write(`${renderHelp(parsed.command)}\n`);
     process.exit(0);
   }
 

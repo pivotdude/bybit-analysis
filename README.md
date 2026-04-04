@@ -14,6 +14,12 @@ bun install
 bun run src/index.ts <command> [options]
 ```
 
+Command-specific help:
+
+```bash
+bun run src/index.ts <command> --help
+```
+
 ## Testing
 
 ```bash
@@ -116,6 +122,18 @@ Example (`pnl` section):
 - `--executions-max-pages-per-chunk <number>`
 - `--pagination-limit-mode <error|partial>`
 - `--help, -h`
+
+CLI parsing conventions:
+
+- Value options support both `--flag value` and `--flag=value`.
+- `--` stops option parsing; everything after is treated as positional arguments.
+- Repeated scalar options use last-value-wins semantics.
+- Repeatable list options `--fgrid-bot-ids` and `--spot-grid-ids` append values in argument order.
+
+Parser strategy:
+
+- The project keeps a custom parser for now to preserve strict, predictable behavior and zero runtime dependencies.
+- Behavior is locked with table-driven tests in `src/cli/parseArgs.test.ts`.
 
 Output formats:
 
