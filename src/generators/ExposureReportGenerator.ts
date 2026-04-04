@@ -12,7 +12,7 @@ export class ExposureReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const positionsResult = await this.positionsService.getOpenPositions(context);
-    const report = this.analyzer.analyze(positionsResult.positions);
+    const report = this.analyzer.analyze(positionsResult.positions, positionsResult.source);
     const sections: ReportDocument["sections"] = [
       {
         title: "Exposure Overview",

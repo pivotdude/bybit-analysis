@@ -1,10 +1,6 @@
 import { resolveRuntimeConfig, validateCredentials } from "../config";
 import { MemoryCacheStore } from "../services/cache/MemoryCacheStore";
-import { BybitAccountService } from "../services/bybit/BybitAccountService";
-import { BybitBotService } from "../services/bybit/BybitBotService";
-import { createBybitClient } from "../services/bybit/BybitClientFactory";
-import { BybitExecutionService } from "../services/bybit/BybitExecutionService";
-import { BybitPositionService } from "../services/bybit/BybitPositionService";
+import { createServiceBundle } from "../services/composition/createServiceBundle";
 import type { ParsedCliArgs } from "../types/command.types";
 import { MarkdownRenderer } from "../renderers/MarkdownRenderer";
 import { balanceHandler } from "./commandHandlers/balance.handler";
@@ -25,17 +21,12 @@ export class UsageError extends Error {}
 function buildDeps(parsed: ParsedCliArgs): HandlerDeps {
   const config = resolveRuntimeConfig(parsed.options);
   const cache = new MemoryCacheStore();
-  const client = createBybitClient(config);
-  const botService = new BybitBotService(client, cache);
-  const positionService = new BybitPositionService(client, botService, cache, {
-    maxPages: config.pagination.positionsMaxPages,
-    limitMode: config.pagination.limitMode
-  });
-  const accountService = new BybitAccountService(client, positionService, botService, cache);
-  const executionService = new BybitExecutionService(client, botService, cache, {
-    maxPagesPerChunk: config.pagination.executionsMaxPagesPerChunk,
-    limitMode: config.pagination.limitMode
-  });
+  const {
+    accountService,
+    positionService,
+    executionService,
+    botService
+  } = createServiceBundle(config, cache);
 
   return {
     config,

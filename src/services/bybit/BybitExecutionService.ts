@@ -4,8 +4,8 @@ import type { BotDataService } from "../contracts/BotDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
-import { normalizePnlReport } from "../normalizers/pnl.normalizer";
-import { normalizeSpotPnlReport } from "../normalizers/spotPnl.normalizer";
+import { normalizePnlReport } from "./normalizers/pnl.normalizer";
+import { normalizeSpotPnlReport } from "./normalizers/spotPnl.normalizer";
 import { normalizeRoi } from "../normalizers/roi.normalizer";
 import type { DataCompleteness, PnLReport, SymbolPnL } from "../../types/domain.types";
 import {
