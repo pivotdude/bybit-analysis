@@ -16,6 +16,14 @@ export class PerformanceReportGenerator {
     const account = await this.accountService.getAccountSnapshot(context);
     const pnl = await this.executionService.getPnlReport(context, undefined, account.totalEquityUsd);
     const analysis = this.analyzer.analyze(account, pnl);
+    const capitalEfficiency =
+      analysis.capitalEfficiencyStatus === "supported" && typeof analysis.capitalEfficiencyPct === "number"
+        ? fmtPct(analysis.capitalEfficiencyPct)
+        : "unsupported";
+    const avgDeployedCapital =
+      analysis.capitalEfficiencyStatus === "supported" && typeof analysis.avgDeployedCapitalUsd === "number"
+        ? fmtUsd(analysis.avgDeployedCapitalUsd)
+        : "unsupported";
     const sections: ReportDocument["sections"] = [
       {
         title: "Performance Overview",
@@ -34,14 +42,19 @@ export class PerformanceReportGenerator {
         title: "Capital Efficiency",
         type: "kpi",
         kpis: [
-          { label: "Capital Efficiency", value: fmtPct(analysis.capitalEfficiencyPct) },
-          { label: "Avg Deployed Capital", value: fmtUsd(analysis.avgDeployedCapitalUsd) }
+          { label: "Capital Efficiency", value: capitalEfficiency },
+          { label: "Avg Deployed Capital", value: avgDeployedCapital }
         ]
       },
       {
         title: "Interpretation",
         type: "text",
-        text: [`Interpretation: ${analysis.interpretation}`]
+        text: [
+          `Interpretation: ${analysis.interpretation}`,
+          analysis.capitalEfficiencyStatus === "unsupported"
+            ? `Capital efficiency status: unsupported (${analysis.capitalEfficiencyReason ?? "equity history is unavailable"})`
+            : "Capital efficiency status: supported"
+        ]
       }
     ];
 

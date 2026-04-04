@@ -36,6 +36,11 @@ export class SummaryReportGenerator {
     }
 
     const summary = this.analyzer.analyze(account, pnl, botReport);
+    const capitalEfficiency =
+      summary.performance.capitalEfficiencyStatus === "supported" &&
+      typeof summary.performance.capitalEfficiencyPct === "number"
+        ? fmtPct(summary.performance.capitalEfficiencyPct)
+        : "unsupported";
     const alertRows = summary.risk.alerts.map((alert) => [alert.severity, alert.message]);
     const sections: ReportSection[] = [
       {
@@ -65,7 +70,7 @@ export class SummaryReportGenerator {
         kpis: [
           { label: "Period Net PnL", value: fmtUsd(summary.performance.periodNetPnlUsd) },
           { label: "ROI", value: fmtPct(summary.performance.roiPct) },
-          { label: "Capital Efficiency", value: fmtPct(summary.performance.capitalEfficiencyPct) },
+          { label: "Capital Efficiency", value: capitalEfficiency },
           { label: "Interpretation", value: summary.performance.interpretation }
         ]
       },

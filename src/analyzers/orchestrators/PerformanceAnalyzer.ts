@@ -7,8 +7,10 @@ export interface PerformanceAnalysis {
   periodTo: string;
   periodNetPnlUsd: number;
   roiPct: number;
-  capitalEfficiencyPct: number;
-  avgDeployedCapitalUsd: number;
+  capitalEfficiencyStatus: "supported" | "unsupported";
+  capitalEfficiencyReason?: string;
+  capitalEfficiencyPct?: number;
+  avgDeployedCapitalUsd?: number;
   interpretation: "positive" | "neutral" | "negative";
 }
 
@@ -22,11 +24,13 @@ export class PerformanceAnalyzer {
     const roiPct = calculateRoiPct(periodStartEquityUsd, account.totalEquityUsd);
 
     const efficiency = calculateCapitalEfficiency(pnl.realizedPnlUsd, account.equityHistory);
+    const capitalEfficiencyPct = efficiency.capitalEfficiencyPct;
+    const hasCapitalEfficiency = typeof capitalEfficiencyPct === "number";
 
     const interpretation =
-      roiPct > 2 && efficiency.capitalEfficiencyPct > 1
+      roiPct > 2 && (!hasCapitalEfficiency || capitalEfficiencyPct > 1)
         ? "positive"
-        : roiPct < -2 || efficiency.capitalEfficiencyPct < -1
+        : roiPct < -2 || (hasCapitalEfficiency && capitalEfficiencyPct < -1)
           ? "negative"
           : "neutral";
 
@@ -35,7 +39,9 @@ export class PerformanceAnalyzer {
       periodTo: pnl.periodTo,
       periodNetPnlUsd,
       roiPct,
-      capitalEfficiencyPct: efficiency.capitalEfficiencyPct,
+      capitalEfficiencyStatus: efficiency.status,
+      capitalEfficiencyReason: efficiency.reason,
+      capitalEfficiencyPct,
       avgDeployedCapitalUsd: efficiency.avgDeployedCapitalUsd,
       interpretation
     };
