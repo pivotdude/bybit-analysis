@@ -75,6 +75,11 @@ export interface SymbolPnL {
   tradesCount?: number;
 }
 
+export interface DataCompleteness {
+  partial: boolean;
+  warnings: string[];
+}
+
 export interface PnLReport {
   source: DataSource;
   generatedAt: string;
@@ -88,6 +93,7 @@ export interface PnLReport {
   bySymbol: SymbolPnL[];
   bestSymbols: SymbolPnL[];
   worstSymbols: SymbolPnL[];
+  dataCompleteness: DataCompleteness;
 }
 
 export interface AssetExposure {

@@ -6,6 +6,7 @@ import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePositions } from "../normalizers/position.normalizer";
 import type { Position } from "../../types/domain.types";
+import { PaginationLimitReachedError } from "./pagination";
 
 const POSITIONS_TTL_MS = 15_000;
 
@@ -61,7 +62,10 @@ export class BybitPositionService implements PositionDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
     private readonly botService: BotDataService,
-    private readonly cache: CacheStore
+    private readonly cache: CacheStore,
+    private readonly paginationOptions: {
+      maxPages?: number;
+    } = {}
   ) {}
 
   async getOpenPositions(context: ServiceRequestContext): Promise<Position[]> {
@@ -82,18 +86,29 @@ export class BybitPositionService implements PositionDataService {
 
     const allRows: Array<Record<string, unknown>> = [];
     let cursor: string | undefined;
+    let pagesFetched = 0;
 
-    for (let page = 0; page < 10; page += 1) {
+    while (true) {
       const result = (await this.client.getPositions(context.category, cursor, context.timeoutMs)) as {
         list?: Array<Record<string, unknown>>;
         nextPageCursor?: string;
       };
+      pagesFetched += 1;
 
       allRows.push(...(result.list ?? []));
       cursor = result.nextPageCursor;
 
       if (!cursor) {
         break;
+      }
+
+      if (this.paginationOptions.maxPages && pagesFetched >= this.paginationOptions.maxPages) {
+        throw new PaginationLimitReachedError({
+          endpoint: "positions",
+          pageLimit: this.paginationOptions.maxPages,
+          pagesFetched,
+          nextPageCursor: cursor
+        });
       }
     }
 

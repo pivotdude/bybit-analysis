@@ -16,39 +16,48 @@ export class PerformanceReportGenerator {
     const account = await this.accountService.getAccountSnapshot(context);
     const pnl = await this.executionService.getPnlReport(context, undefined, account.totalEquityUsd);
     const analysis = this.analyzer.analyze(account, pnl);
+    const sections: ReportDocument["sections"] = [
+      {
+        title: "Performance Overview",
+        type: "text",
+        text: [`From: ${fmtIso(analysis.periodFrom)}`, `To: ${fmtIso(analysis.periodTo)}`]
+      },
+      {
+        title: "ROI",
+        type: "kpi",
+        kpis: [
+          { label: "Period Net PnL", value: fmtUsd(analysis.periodNetPnlUsd) },
+          { label: "ROI", value: fmtPct(analysis.roiPct) }
+        ]
+      },
+      {
+        title: "Capital Efficiency",
+        type: "kpi",
+        kpis: [
+          { label: "Capital Efficiency", value: fmtPct(analysis.capitalEfficiencyPct) },
+          { label: "Avg Deployed Capital", value: fmtUsd(analysis.avgDeployedCapitalUsd) }
+        ]
+      },
+      {
+        title: "Interpretation",
+        type: "text",
+        text: [`Interpretation: ${analysis.interpretation}`]
+      }
+    ];
+
+    if (pnl.dataCompleteness.partial) {
+      sections.push({
+        title: "Data Completeness",
+        type: "alerts",
+        alerts: pnl.dataCompleteness.warnings.map((message) => ({ severity: "warning", message }))
+      });
+    }
 
     return {
       command: "performance",
       title: "Performance Analytics",
       generatedAt: new Date().toISOString(),
-      sections: [
-        {
-          title: "Performance Overview",
-          type: "text",
-          text: [`From: ${fmtIso(analysis.periodFrom)}`, `To: ${fmtIso(analysis.periodTo)}`]
-        },
-        {
-          title: "ROI",
-          type: "kpi",
-          kpis: [
-            { label: "Period Net PnL", value: fmtUsd(analysis.periodNetPnlUsd) },
-            { label: "ROI", value: fmtPct(analysis.roiPct) }
-          ]
-        },
-        {
-          title: "Capital Efficiency",
-          type: "kpi",
-          kpis: [
-            { label: "Capital Efficiency", value: fmtPct(analysis.capitalEfficiencyPct) },
-            { label: "Avg Deployed Capital", value: fmtUsd(analysis.avgDeployedCapitalUsd) }
-          ]
-        },
-        {
-          title: "Interpretation",
-          type: "text",
-          text: [`Interpretation: ${analysis.interpretation}`]
-        }
-      ]
+      sections
     };
   }
 }

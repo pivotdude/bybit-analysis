@@ -2,6 +2,13 @@ import type { MarketCategory } from "./domain.types";
 import type { OutputFormat, TimeRange } from "./command.types";
 
 export type ConfigSource = "cli" | "profile" | "env" | "default";
+export type PaginationLimitMode = "error" | "partial";
+
+export interface PaginationSafetyConfig {
+  positionsMaxPages?: number;
+  executionsMaxPagesPerChunk?: number;
+  limitMode: PaginationLimitMode;
+}
 
 export interface ResolvedConfigSources {
   profile: "cli" | "env" | "default";
@@ -15,6 +22,9 @@ export interface ResolvedConfigSources {
   lang: ConfigSource;
   timeoutMs: ConfigSource;
   timeRange: ConfigSource;
+  positionsMaxPages: ConfigSource;
+  executionsMaxPagesPerChunk: ConfigSource;
+  paginationLimitMode: ConfigSource;
 }
 
 export interface RuntimeConfig {
@@ -29,6 +39,7 @@ export interface RuntimeConfig {
   lang: string;
   timeoutMs: number;
   timeRange: TimeRange;
+  pagination: PaginationSafetyConfig;
   sources: ResolvedConfigSources;
 }
 
@@ -42,6 +53,7 @@ export interface RedactedConfigView {
   lang: string;
   timeoutMs: number;
   timeRange: TimeRange;
+  pagination: PaginationSafetyConfig;
   apiKey: string;
   apiSecret: string;
   sources: ResolvedConfigSources;

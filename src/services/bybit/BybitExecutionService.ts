@@ -7,6 +7,11 @@ import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePnlReport } from "../normalizers/pnl.normalizer";
 import { normalizeSpotPnlReport } from "../normalizers/spotPnl.normalizer";
 import type { PnLReport, SymbolPnL } from "../../types/domain.types";
+import {
+  buildPaginationLimitMessage,
+  PaginationLimitReachedError
+} from "./pagination";
+import type { PaginationLimitMode } from "./pagination";
 
 const CLOSED_PNL_TTL_MS = 20_000;
 const MAX_CLOSED_PNL_RANGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -82,7 +87,11 @@ function toBotPnlReport(
     roiPct,
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
-    worstSymbols: [...bySymbol].reverse().slice(0, 5)
+    worstSymbols: [...bySymbol].reverse().slice(0, 5),
+    dataCompleteness: {
+      partial: false,
+      warnings: []
+    }
   };
 }
 
@@ -90,7 +99,11 @@ export class BybitExecutionService implements ExecutionDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
     private readonly botService: BotDataService,
-    private readonly cache: CacheStore
+    private readonly cache: CacheStore,
+    private readonly paginationOptions: {
+      maxPagesPerChunk?: number;
+      limitMode?: PaginationLimitMode;
+    } = {}
   ) {}
 
   async getPnlReport(context: ServiceRequestContext, equityStartUsd?: number, equityEndUsd?: number): Promise<PnLReport> {
@@ -102,11 +115,14 @@ export class BybitExecutionService implements ExecutionDataService {
     if (context.category === "spot") {
       const executions: Array<Record<string, unknown>> = [];
       const chunks = splitRangeByMaxWindow(context.from, context.to);
+      const warnings: string[] = [];
+      let partial = false;
 
       for (const chunk of chunks) {
         let cursor: string | undefined;
+        let pagesFetched = 0;
 
-        for (let page = 0; page < 20; page += 1) {
+        while (true) {
           const key = cacheKeys.executionHistory(context.category, chunk.from, chunk.to, cursor);
           let payload = this.cache.get<{
             list?: Array<Record<string, unknown>>;
@@ -125,29 +141,57 @@ export class BybitExecutionService implements ExecutionDataService {
           }
 
           executions.push(...(payload.list ?? []));
+          pagesFetched += 1;
           cursor = payload.nextPageCursor;
           if (!cursor) {
+            break;
+          }
+
+          const maxPages = this.paginationOptions.maxPagesPerChunk;
+          if (maxPages && pagesFetched >= maxPages) {
+            const error = new PaginationLimitReachedError({
+              endpoint: "execution-list",
+              pageLimit: maxPages,
+              pagesFetched,
+              nextPageCursor: cursor,
+              chunkFrom: chunk.from,
+              chunkTo: chunk.to
+            });
+
+            if ((this.paginationOptions.limitMode ?? "error") === "error") {
+              throw error;
+            }
+
+            partial = true;
+            warnings.push(buildPaginationLimitMessage(error.context));
             break;
           }
         }
       }
 
-      return normalizeSpotPnlReport(
+      const report = normalizeSpotPnlReport(
         { list: executions },
         context.from,
         context.to,
         equityStartUsd,
         equityEndUsd
       );
+      if (partial) {
+        report.dataCompleteness = { partial: true, warnings };
+      }
+      return report;
     }
 
     const events: Array<Record<string, unknown>> = [];
     const chunks = splitRangeByMaxWindow(context.from, context.to);
+    const warnings: string[] = [];
+    let partial = false;
 
     for (const chunk of chunks) {
       let cursor: string | undefined;
+      let pagesFetched = 0;
 
-      for (let page = 0; page < 20; page += 1) {
+      while (true) {
         const key = cacheKeys.closedPnl(context.category, chunk.from, chunk.to, cursor);
         let payload = this.cache.get<{
           list?: Array<Record<string, unknown>>;
@@ -166,8 +210,29 @@ export class BybitExecutionService implements ExecutionDataService {
         }
 
         events.push(...(payload.list ?? []));
+        pagesFetched += 1;
         cursor = payload.nextPageCursor;
         if (!cursor) {
+          break;
+        }
+
+        const maxPages = this.paginationOptions.maxPagesPerChunk;
+        if (maxPages && pagesFetched >= maxPages) {
+          const error = new PaginationLimitReachedError({
+            endpoint: "closed-pnl",
+            pageLimit: maxPages,
+            pagesFetched,
+            nextPageCursor: cursor,
+            chunkFrom: chunk.from,
+            chunkTo: chunk.to
+          });
+
+          if ((this.paginationOptions.limitMode ?? "error") === "error") {
+            throw error;
+          }
+
+          partial = true;
+          warnings.push(buildPaginationLimitMessage(error.context));
           break;
         }
       }
@@ -179,7 +244,7 @@ export class BybitExecutionService implements ExecutionDataService {
 
     const unrealizedPnlUsd = Number(wallet.list?.[0]?.totalPerpUPL ?? 0);
 
-    return normalizePnlReport(
+    const report = normalizePnlReport(
       { list: events },
       context.from,
       context.to,
@@ -187,5 +252,9 @@ export class BybitExecutionService implements ExecutionDataService {
       equityStartUsd,
       equityEndUsd
     );
+    if (partial) {
+      report.dataCompleteness = { partial: true, warnings };
+    }
+    return report;
   }
 }

@@ -23,54 +23,63 @@ export class PnLReportGenerator {
     const loserRows = analysis.worstSymbols
       .filter((item) => !winnerSymbols.has(item.symbol) && item.netPnlUsd < 0)
       .map((item) => ["Loser", item.symbol, fmtUsd(item.netPnlUsd)]);
+    const sections: ReportDocument["sections"] = [
+      {
+        title: "Period",
+        type: "text",
+        text: [`From: ${fmtIso(analysis.periodFrom)}`, `To: ${fmtIso(analysis.periodTo)}`]
+      },
+      {
+        title: "PnL Summary",
+        type: "kpi",
+        kpis: [
+          { label: "Realized PnL", value: fmtUsd(analysis.realizedPnlUsd) },
+          { label: "Unrealized PnL", value: fmtUsd(analysis.unrealizedPnlUsd) },
+          { label: "Fees", value: fmtUsd(analysis.totalFeesUsd) },
+          { label: "Net PnL", value: fmtUsd(analysis.netPnlUsd) },
+          { label: "ROI", value: roi }
+        ]
+      },
+      {
+        title: "Symbol Breakdown",
+        type: "table",
+        table: {
+          headers: ["Symbol", "Realized", "Unrealized", "Net", "Trades"],
+          rows: analysis.bySymbol.map((item) => [
+            item.symbol,
+            fmtUsd(item.realizedPnlUsd),
+            fmtUsd(item.unrealizedPnlUsd),
+            fmtUsd(item.netPnlUsd),
+            String(item.tradesCount ?? 0)
+          ])
+        }
+      },
+      {
+        title: "Winners/Losers",
+        type: "table",
+        table: {
+          headers: ["Bucket", "Symbol", "Net PnL"],
+          rows: [
+            ...winnerRows,
+            ...(loserRows.length > 0 ? loserRows : [["Loser", "-", "No losing symbols in period"]])
+          ]
+        }
+      }
+    ];
+
+    if (pnl.dataCompleteness.partial) {
+      sections.push({
+        title: "Data Completeness",
+        type: "alerts",
+        alerts: pnl.dataCompleteness.warnings.map((message) => ({ severity: "warning", message }))
+      });
+    }
 
     return {
       command: "pnl",
       title: "PnL Analytics",
       generatedAt: new Date().toISOString(),
-      sections: [
-        {
-          title: "Period",
-          type: "text",
-          text: [`From: ${fmtIso(analysis.periodFrom)}`, `To: ${fmtIso(analysis.periodTo)}`]
-        },
-        {
-          title: "PnL Summary",
-          type: "kpi",
-          kpis: [
-            { label: "Realized PnL", value: fmtUsd(analysis.realizedPnlUsd) },
-            { label: "Unrealized PnL", value: fmtUsd(analysis.unrealizedPnlUsd) },
-            { label: "Fees", value: fmtUsd(analysis.totalFeesUsd) },
-            { label: "Net PnL", value: fmtUsd(analysis.netPnlUsd) },
-            { label: "ROI", value: roi }
-          ]
-        },
-        {
-          title: "Symbol Breakdown",
-          type: "table",
-          table: {
-            headers: ["Symbol", "Realized", "Unrealized", "Net", "Trades"],
-            rows: analysis.bySymbol.map((item) => [
-              item.symbol,
-              fmtUsd(item.realizedPnlUsd),
-              fmtUsd(item.unrealizedPnlUsd),
-              fmtUsd(item.netPnlUsd),
-              String(item.tradesCount ?? 0)
-            ])
-          }
-        },
-        {
-          title: "Winners/Losers",
-          type: "table",
-          table: {
-            headers: ["Bucket", "Symbol", "Net PnL"],
-            rows: [
-              ...winnerRows,
-              ...(loserRows.length > 0 ? loserRows : [["Loser", "-", "No losing symbols in period"]])
-            ]
-          }
-        }
-      ]
+      sections
     };
   }
 }

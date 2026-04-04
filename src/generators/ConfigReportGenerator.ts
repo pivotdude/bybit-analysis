@@ -26,6 +26,12 @@ export class ConfigReportGenerator {
               ["format", view.format],
               ["lang", view.lang],
               ["timeoutMs", String(view.timeoutMs)],
+              ["pagination.positionsMaxPages", String(view.pagination.positionsMaxPages ?? "<none>")],
+              [
+                "pagination.executionsMaxPagesPerChunk",
+                String(view.pagination.executionsMaxPagesPerChunk ?? "<none>")
+              ],
+              ["pagination.limitMode", view.pagination.limitMode],
               ["from", fmtIso(view.timeRange.from)],
               ["to", fmtIso(view.timeRange.to)],
               ["apiKey", view.apiKey],

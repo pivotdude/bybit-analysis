@@ -2,7 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import type { ParsedCliOptions, TimeRange } from "./types/command.types";
 import type { MarketCategory } from "./types/domain.types";
-import type { RedactedConfigView, ResolvedConfigSources, RuntimeConfig } from "./types/config.types";
+import type {
+  PaginationLimitMode,
+  RedactedConfigView,
+  ResolvedConfigSources,
+  RuntimeConfig
+} from "./types/config.types";
 
 const DEFAULT_CATEGORY: MarketCategory = "linear";
 const DEFAULT_FORMAT = "md" as const;
@@ -10,6 +15,7 @@ const DEFAULT_LANG = "en";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_WINDOW_DAYS = 30;
 const DEFAULT_PROFILES_FILE = ".bybit-profiles.json";
+const DEFAULT_PAGINATION_LIMIT_MODE: PaginationLimitMode = "error";
 
 function parseWindow(windowValue: string): number | null {
   const match = /^(\d+)(d)$/i.exec(windowValue.trim());
@@ -150,6 +156,29 @@ function defaultTimeRange(now: Date): TimeRange {
   return { from: fromDate.toISOString(), to };
 }
 
+function parseOptionalPositiveInt(raw: string | undefined, fieldName: string): number | undefined {
+  if (raw === undefined || raw.trim().length === 0) {
+    return undefined;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${fieldName}: ${raw}. Expected a positive integer`);
+  }
+
+  return parsed;
+}
+
+function resolvePaginationLimitMode(raw: string | undefined, fieldName: string): PaginationLimitMode {
+  if (!raw || raw.trim().length === 0) {
+    return DEFAULT_PAGINATION_LIMIT_MODE;
+  }
+  if (raw === "error" || raw === "partial") {
+    return raw;
+  }
+  throw new Error(`Invalid ${fieldName}: ${raw}. Expected error|partial`);
+}
+
 function resolveTimeRange(options: ParsedCliOptions, env: Record<string, string | undefined>, now: Date): { value: TimeRange; source: ResolvedConfigSources["timeRange"] } {
   if (options.from || options.to) {
     if (!options.from || !options.to) {
@@ -217,6 +246,18 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
   const lang = options.lang ?? env.DEFAULT_LANG ?? DEFAULT_LANG;
   const timeoutMs = options.timeoutMs ?? Number(env.DEFAULT_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
   const timeRange = resolveTimeRange(options, env, now);
+  const positionsMaxPages =
+    options.positionsMaxPages ?? parseOptionalPositiveInt(env.BYBIT_POSITIONS_MAX_PAGES, "BYBIT_POSITIONS_MAX_PAGES");
+  const executionsMaxPagesPerChunk =
+    options.executionsMaxPagesPerChunk ??
+    parseOptionalPositiveInt(
+      env.BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK,
+      "BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK"
+    );
+  const paginationLimitMode = resolvePaginationLimitMode(
+    options.paginationLimitMode ?? env.BYBIT_PAGINATION_LIMIT_MODE,
+    options.paginationLimitMode ? "--pagination-limit-mode" : "BYBIT_PAGINATION_LIMIT_MODE"
+  );
 
   if (category !== "linear" && category !== "spot" && category !== "bot") {
     throw new Error(`Invalid category: ${category}. Expected linear|spot|bot`);
@@ -243,6 +284,11 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
     lang,
     timeoutMs,
     timeRange: timeRange.value,
+    pagination: {
+      positionsMaxPages,
+      executionsMaxPagesPerChunk,
+      limitMode: paginationLimitMode
+    },
     sources: {
       profile: options.profile ? "cli" : env.BYBIT_PROFILE ? "env" : "default",
       profilesFile: options.profilesFile ? "cli" : env.BYBIT_PROFILES_FILE ? "env" : "default",
@@ -272,7 +318,22 @@ export function resolveRuntimeConfig(options: ParsedCliOptions, env: Record<stri
       format: options.format ? "cli" : env.DEFAULT_FORMAT ? "env" : "default",
       lang: options.lang ? "cli" : env.DEFAULT_LANG ? "env" : "default",
       timeoutMs: options.timeoutMs ? "cli" : env.DEFAULT_TIMEOUT_MS ? "env" : "default",
-      timeRange: timeRange.source
+      timeRange: timeRange.source,
+      positionsMaxPages: options.positionsMaxPages
+        ? "cli"
+        : env.BYBIT_POSITIONS_MAX_PAGES
+          ? "env"
+          : "default",
+      executionsMaxPagesPerChunk: options.executionsMaxPagesPerChunk
+        ? "cli"
+        : env.BYBIT_EXECUTIONS_MAX_PAGES_PER_CHUNK
+          ? "env"
+          : "default",
+      paginationLimitMode: options.paginationLimitMode
+        ? "cli"
+        : env.BYBIT_PAGINATION_LIMIT_MODE
+          ? "env"
+          : "default"
     }
   };
 }
@@ -294,6 +355,7 @@ export function toRedactedConfigView(config: RuntimeConfig): RedactedConfigView 
     lang: config.lang,
     timeoutMs: config.timeoutMs,
     timeRange: config.timeRange,
+    pagination: config.pagination,
     apiKey: maskSecret(config.apiKey),
     apiSecret: maskSecret(config.apiSecret),
     sources: config.sources
