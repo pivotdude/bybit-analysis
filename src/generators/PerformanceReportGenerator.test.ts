@@ -29,8 +29,10 @@ const executionService: ExecutionDataService = {
     bestSymbols: [],
     worstSymbols: [],
     dataCompleteness: {
+      state: "complete",
       partial: false,
-      warnings: []
+      warnings: [],
+      issues: []
     }
   })
 };
@@ -50,8 +52,10 @@ describe("PerformanceReportGenerator", () => {
         positions: [],
         balances: [],
         dataCompleteness: {
+          state: "complete",
           partial: false,
-          warnings: []
+          warnings: [],
+          issues: []
         }
       }),
       checkHealth: async () => ({

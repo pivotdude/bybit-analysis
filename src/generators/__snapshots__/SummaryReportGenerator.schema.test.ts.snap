@@ -821,11 +821,11 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "alerts": [
       {
-        "message": "Bot equity source lagged by one polling interval",
+        "message": "optional_item_failed (unknown): Bot equity source lagged by one polling interval",
         "severity": "warning",
       },
       {
-        "message": "Execution history truncated at configured safety limit",
+        "message": "pagination_limit_reached (execution_window): Execution history truncated at configured safety limit",
         "severity": "warning",
       },
     ],

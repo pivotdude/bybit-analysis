@@ -3,6 +3,7 @@ import type { PositionDataService } from "../services/contracts/PositionDataServ
 import type { ReportDocument } from "../types/report.types";
 import type { ServiceRequestContext } from "../services/contracts/AccountDataService";
 import { fmtPct, fmtUsd } from "./formatters";
+import { pushDataCompletenessSections } from "./dataCompleteness";
 
 export class ExposureReportGenerator {
   private readonly analyzer = new ExposureAnalyzer();
@@ -51,19 +52,14 @@ export class ExposureReportGenerator {
       }
     ];
 
-    if (positionsResult.dataCompleteness.partial) {
-      sections.push({
-        title: "Data Completeness",
-        type: "alerts",
-        alerts: positionsResult.dataCompleteness.warnings.map((message) => ({ severity: "warning", message }))
-      });
-    }
+    pushDataCompletenessSections(sections, positionsResult.dataCompleteness);
 
     return {
       command: "exposure",
       title: "Exposure Analytics",
       generatedAt: new Date().toISOString(),
-      sections
+      sections,
+      dataCompleteness: positionsResult.dataCompleteness
     };
   }
 }

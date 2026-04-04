@@ -1,3 +1,5 @@
+import type { DataCompleteness } from "./domain.types";
+
 export type ReportSectionType = "kpi" | "table" | "alerts" | "text";
 
 export interface MarkdownKpi {
@@ -31,4 +33,5 @@ export interface ReportDocument {
   generatedAt: string;
   schemaVersion?: string;
   sections: ReportSection[];
+  dataCompleteness?: DataCompleteness;
 }

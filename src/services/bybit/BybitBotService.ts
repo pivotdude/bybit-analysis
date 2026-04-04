@@ -5,6 +5,8 @@ import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeFuturesGridBotSummary, normalizeSpotGridBotSummary } from "../normalizers/bot.normalizer";
 import type { BotReport, BotSummary } from "../../types/domain.types";
+import { BYBIT_PARTIAL_FAILURE_POLICY, buildOptionalItemIssue, runWithRetries } from "./partialFailurePolicy";
+import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
 
 const BOT_DETAIL_TTL_MS = 15_000;
 const BOT_REPORT_TTL_MS = 10_000;
@@ -43,19 +45,25 @@ export class BybitBotService implements BotDataService {
         generatedAt: new Date().toISOString(),
         availability: "not_available",
         availabilityReason: availabilityReason(context),
-        bots: []
+        bots: [],
+        dataCompleteness: completeDataCompleteness()
       };
     }
 
     const bots: BotSummary[] = [];
-    const errors: string[] = [];
+    const issues: BotReport["dataCompleteness"]["issues"] = [];
 
     for (const botId of context.futuresGridBotIds) {
       try {
         const detail = await this.getFuturesGridDetail(botId, context.timeoutMs);
         bots.push(normalizeFuturesGridBotSummary(botId, detail));
       } catch (error) {
-        errors.push(`futures_grid:${botId}:${error instanceof Error ? error.message : String(error)}`);
+        issues.push(
+          buildOptionalItemIssue({
+            scope: "bots",
+            message: `futures_grid:${botId}:${error instanceof Error ? error.message : String(error)}`
+          })
+        );
       }
     }
 
@@ -64,7 +72,12 @@ export class BybitBotService implements BotDataService {
         const detail = await this.getSpotGridDetail(botId, context.timeoutMs);
         bots.push(normalizeSpotGridBotSummary(botId, detail));
       } catch (error) {
-        errors.push(`spot_grid:${botId}:${error instanceof Error ? error.message : String(error)}`);
+        issues.push(
+          buildOptionalItemIssue({
+            scope: "bots",
+            message: `spot_grid:${botId}:${error instanceof Error ? error.message : String(error)}`
+          })
+        );
       }
     }
 
@@ -76,11 +89,12 @@ export class BybitBotService implements BotDataService {
       source: "bybit",
       generatedAt: new Date().toISOString(),
       availability: bots.length > 0 ? "available" : "not_available",
-      availabilityReason: errors.length > 0 ? errors.join(" | ") : undefined,
+      availabilityReason: issues.length > 0 ? issues.map((issue) => issue.message).join(" | ") : undefined,
       bots,
       totalAllocatedUsd,
       totalBotExposureUsd,
-      totalBotPnlUsd
+      totalBotPnlUsd,
+      dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
     };
 
     this.cache.set(reportKey, report, BOT_REPORT_TTL_MS);
@@ -94,7 +108,8 @@ export class BybitBotService implements BotDataService {
       return cached;
     }
 
-    const result = await this.client.getFuturesGridBotDetail(botId, timeoutMs);
+    const retries = BYBIT_PARTIAL_FAILURE_POLICY.bot_detail.partialOnFailure === "per_item" ? 3 : 1;
+    const result = await runWithRetries(() => this.client.getFuturesGridBotDetail(botId, timeoutMs), retries);
     this.cache.set(key, result, BOT_DETAIL_TTL_MS);
     return result;
   }
@@ -106,7 +121,8 @@ export class BybitBotService implements BotDataService {
       return cached;
     }
 
-    const result = await this.client.getSpotGridBotDetail(botId, timeoutMs);
+    const retries = BYBIT_PARTIAL_FAILURE_POLICY.bot_detail.partialOnFailure === "per_item" ? 3 : 1;
+    const result = await runWithRetries(() => this.client.getSpotGridBotDetail(botId, timeoutMs), retries);
     this.cache.set(key, result, BOT_DETAIL_TTL_MS);
     return result;
   }

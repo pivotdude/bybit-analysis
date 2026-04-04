@@ -14,6 +14,24 @@ bun install
 bun run src/index.ts <command> [options]
 ```
 
+## Testing
+
+```bash
+# unit + integration suite
+bun run test
+
+# watch mode during development
+bun run test:watch
+
+# optional local coverage report
+bun run test:coverage
+
+# standard local gate (types + tests)
+bun run verify
+```
+
+Current suite covers production-critical paths: spot PnL normalization, pagination safety handling, secret redaction, CLI stdout/stderr contract, summary report schema contract, and CLI smoke/integration flow.
+
 ## Commands
 
 - `summary` - Full account analytics snapshot
@@ -63,8 +81,6 @@ Fixed section order:
 
 ## Global Options
 
-- `--api-key <value>`
-- `--api-secret <value>`
 - `--profile <name>`
 - `--profiles-file <path>`
 - `--category <linear|spot|bot>`
@@ -81,9 +97,30 @@ Fixed section order:
 - `--pagination-limit-mode <error|partial>`
 - `--help, -h`
 
+## Credentials (Secure Default)
+
+Recommended production paths:
+
+- Environment variables (`BYBIT_API_KEY` + `BYBIT_SECRET` or `BYBIT_API_SECRET`)
+- `.env` file (loaded by Bun runtime)
+- Credential profile file (`--profile` + `--profiles-file`)
+- OS secret store -> export to env before launch
+
+Example (`.env`):
+
+```env
+BYBIT_API_KEY=xxx
+BYBIT_SECRET=yyy
+```
+
+Legacy path (deprecated, insecure):
+
+- `--api-key` and `--api-secret` are disabled by default because command-line secrets can leak via shell history, process listing, and command logging.
+- Temporary bypass only: set `BYBIT_ALLOW_INSECURE_CLI_SECRETS=1`.
+
 ## Config Priority
 
-`CLI flags > profile > .env > defaults`
+`profile > .env/env > legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) > defaults`
 
 ## Credential Profiles
 

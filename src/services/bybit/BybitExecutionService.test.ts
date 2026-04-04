@@ -24,7 +24,13 @@ const botService = {
     source: "bybit" as const,
     generatedAt: new Date().toISOString(),
     availability: "available" as const,
-    bots: []
+    bots: [],
+    dataCompleteness: {
+      state: "complete" as const,
+      partial: false,
+      warnings: [],
+      issues: []
+    }
   })
 };
 
@@ -250,5 +256,50 @@ describe("BybitExecutionService pagination", () => {
       expect(paginationError.context.pageLimit).toBe(2);
       expect(paginationError.context.pagesFetched).toBe(2);
     }
+  });
+
+  it("fails fast when first closed-pnl page cannot be fetched", async () => {
+    const client = {
+      getClosedPnl: async () => {
+        throw new Error("network timeout");
+      },
+      getWalletBalance: async () => ({
+        list: [{ totalPerpUPL: "0" }]
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    await expect(service.getPnlReport(linearContext)).rejects.toThrow("Failed to fetch page 1");
+  });
+
+  it("degrades when subsequent closed-pnl page fails", async () => {
+    const client = {
+      getClosedPnl: async (_category: string, _from: string, _to: string, cursor?: string) => {
+        if (!cursor) {
+          return {
+            list: [
+              {
+                symbol: "BTCUSDT",
+                closedPnl: "10",
+                openFee: "1",
+                closeFee: "1"
+              }
+            ],
+            nextPageCursor: "next-page"
+          };
+        }
+        throw new Error("upstream failed on second page");
+      },
+      getWalletBalance: async () => ({
+        list: [{ totalPerpUPL: "0" }]
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    const report = await service.getPnlReport(linearContext);
+
+    expect(report.bySymbol[0]?.symbol).toBe("BTCUSDT");
+    expect(report.dataCompleteness.partial).toBe(true);
+    expect(report.dataCompleteness.issues[0]?.code).toBe("page_fetch_failed");
   });
 });

@@ -5,6 +5,10 @@ import type { BotDataService } from "../services/contracts/BotDataService";
 import type { ReportDocument, ReportSection } from "../types/report.types";
 import type { BotReport, DataCompleteness } from "../types/domain.types";
 import { fmtPct, fmtUsd } from "./formatters";
+import {
+  degradedDataCompleteness,
+  mergeDataCompleteness
+} from "../services/reliability/dataCompleteness";
 
 export const SUMMARY_SCHEMA_VERSION = "summary-markdown-v1";
 
@@ -25,6 +29,11 @@ const SUMMARY_SECTION_IDS = {
 
 const STABLE_ASSETS = new Set(["USDT", "USDC", "USD", "USDE", "FDUSD", "DAI", "TUSD", "USDD"]);
 
+interface BotLoadResult {
+  report?: BotReport;
+  dataCompleteness: DataCompleteness;
+}
+
 export class SummaryReportGenerator {
   private readonly analyzer = new SummaryAnalyzer();
 
@@ -37,7 +46,8 @@ export class SummaryReportGenerator {
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const account = await this.accountService.getAccountSnapshot(context);
     const pnl = await this.executionService.getPnlReport(context, undefined, account.totalEquityUsd);
-    const botReport = await this.loadBotReport(context);
+    const bot = await this.loadBotReport(context);
+    const botReport = bot.report;
     const summary = this.analyzer.analyze(account, pnl, botReport);
 
     const tradedSymbols = pnl.bySymbol.length;
@@ -85,14 +95,14 @@ export class SummaryReportGenerator {
       String(item.tradesCount ?? 0)
     ]);
 
-    const botRows = (botReport?.bots ?? []).map((bot) => [
-      bot.name,
-      bot.status,
-      fmtUsd(bot.allocatedCapitalUsd ?? 0),
-      fmtUsd(bot.exposureUsd ?? 0),
-      fmtUsd(bot.realizedPnlUsd ?? 0),
-      fmtUsd(bot.unrealizedPnlUsd ?? 0),
-      typeof bot.roiPct === "number" ? fmtPct(bot.roiPct) : "N/A"
+    const botRows = (botReport?.bots ?? []).map((botItem) => [
+      botItem.name,
+      botItem.status,
+      fmtUsd(botItem.allocatedCapitalUsd ?? 0),
+      fmtUsd(botItem.exposureUsd ?? 0),
+      fmtUsd(botItem.realizedPnlUsd ?? 0),
+      fmtUsd(botItem.unrealizedPnlUsd ?? 0),
+      typeof botItem.roiPct === "number" ? fmtPct(botItem.roiPct) : "N/A"
     ]);
 
     const alerts = summary.risk.alerts.map((alert) => ({
@@ -109,8 +119,8 @@ export class SummaryReportGenerator {
 
     if (!botReport) {
       alerts.push({
-        severity: "info",
-        message: "Bot metrics unavailable for this category or bot endpoints."
+        severity: "warning",
+        message: "Bot metrics unavailable due to optional enrichment failure."
       });
     }
 
@@ -121,7 +131,14 @@ export class SummaryReportGenerator {
       });
     }
 
-    const dataCompletenessWarnings = this.collectCompletenessWarnings(account.dataCompleteness, pnl.dataCompleteness);
+    const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness, bot.dataCompleteness);
+    const dataCompletenessAlerts =
+      dataCompleteness.issues.length > 0
+        ? dataCompleteness.issues.map((issue) => ({
+            severity: issue.severity,
+            message: `${issue.code} (${issue.scope}): ${issue.message}`
+          }))
+        : [{ severity: "info", message: "No data completeness warnings." }];
 
     const sections: ReportSection[] = [
       {
@@ -244,10 +261,7 @@ export class SummaryReportGenerator {
         id: SUMMARY_SECTION_IDS.dataCompleteness,
         title: "Data Completeness",
         type: "alerts",
-        alerts:
-          dataCompletenessWarnings.length > 0
-            ? dataCompletenessWarnings.map((message) => ({ severity: "warning", message }))
-            : [{ severity: "info", message: "No data completeness warnings." }]
+        alerts: dataCompletenessAlerts
       }
     ];
 
@@ -256,23 +270,39 @@ export class SummaryReportGenerator {
       title: "Account Summary",
       generatedAt: summary.generatedAt,
       schemaVersion: SUMMARY_SCHEMA_VERSION,
-      sections
+      sections,
+      dataCompleteness
     };
   }
 
-  private async loadBotReport(context: ServiceRequestContext): Promise<BotReport | undefined> {
+  private async loadBotReport(context: ServiceRequestContext): Promise<BotLoadResult> {
     if (context.category === "bot") {
-      return this.botService.getBotReport(context);
+      const report = await this.botService.getBotReport(context);
+      return {
+        report,
+        dataCompleteness: report.dataCompleteness
+      };
     }
 
     try {
-      return await this.botService.getBotReport(context);
-    } catch {
-      return undefined;
+      const report = await this.botService.getBotReport(context);
+      return {
+        report,
+        dataCompleteness: report.dataCompleteness
+      };
+    } catch (error) {
+      return {
+        report: undefined,
+        dataCompleteness: degradedDataCompleteness([
+          {
+            code: "optional_item_failed",
+            scope: "bots",
+            severity: "warning",
+            criticality: "optional",
+            message: `Bot summary enrichment failed: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ])
+      };
     }
-  }
-
-  private collectCompletenessWarnings(...completeness: DataCompleteness[]): string[] {
-    return Array.from(new Set(completeness.flatMap((item) => (item.partial ? item.warnings : []))));
   }
 }

@@ -77,8 +77,10 @@ const accountService: AccountDataService = {
           { asset: "ETH", walletBalance: 0.2, availableBalance: 0.1, usdValue: 400 }
         ],
         dataCompleteness: {
+          state: "complete",
           partial: false,
-          warnings: []
+          warnings: [],
+          issues: []
         }
       };
     }
@@ -99,8 +101,10 @@ const accountService: AccountDataService = {
           { asset: "SOL", walletBalance: 30, availableBalance: 30, usdValue: 3_000 }
         ],
         dataCompleteness: {
+          state: "complete",
           partial: false,
-          warnings: []
+          warnings: [],
+          issues: []
         }
       };
     }
@@ -119,8 +123,18 @@ const accountService: AccountDataService = {
         { asset: "USDT", walletBalance: 12_000, availableBalance: 9_500, usdValue: 12_000 }
       ],
       dataCompleteness: {
+        state: "degraded",
         partial: true,
-        warnings: ["Bot equity source lagged by one polling interval"]
+        warnings: ["Bot equity source lagged by one polling interval"],
+        issues: [
+          {
+            code: "optional_item_failed",
+            scope: "unknown",
+            severity: "warning",
+            criticality: "optional",
+            message: "Bot equity source lagged by one polling interval"
+          }
+        ]
       }
     };
   },
@@ -175,8 +189,10 @@ const executionService: ExecutionDataService = {
         bestSymbols: [],
         worstSymbols: [],
         dataCompleteness: {
+          state: "complete",
           partial: false,
-          warnings: []
+          warnings: [],
+          issues: []
         }
       };
     }
@@ -206,8 +222,10 @@ const executionService: ExecutionDataService = {
         bestSymbols: [],
         worstSymbols: [],
         dataCompleteness: {
+          state: "complete",
           partial: false,
-          warnings: []
+          warnings: [],
+          issues: []
         }
       };
     }
@@ -228,8 +246,18 @@ const executionService: ExecutionDataService = {
       bestSymbols: [],
       worstSymbols: [],
       dataCompleteness: {
+        state: "degraded",
         partial: true,
-        warnings: ["Execution history truncated at configured safety limit"]
+        warnings: ["Execution history truncated at configured safety limit"],
+        issues: [
+          {
+            code: "pagination_limit_reached",
+            scope: "execution_window",
+            severity: "warning",
+            criticality: "critical",
+            message: "Execution history truncated at configured safety limit"
+          }
+        ]
       }
     };
   }
@@ -243,7 +271,13 @@ const botService: BotDataService = {
         generatedAt: "2026-01-31T00:00:00.000Z",
         availability: "not_available",
         availabilityReason: "Bot endpoints disabled for this category",
-        bots: []
+        bots: [],
+        dataCompleteness: {
+          state: "complete",
+          partial: false,
+          warnings: [],
+          issues: []
+        }
       };
     }
 
@@ -268,7 +302,13 @@ const botService: BotDataService = {
       ],
       totalAllocatedUsd: 1_500,
       totalBotExposureUsd: 1_850,
-      totalBotPnlUsd: 95
+      totalBotPnlUsd: 95,
+      dataCompleteness: {
+        state: "complete",
+        partial: false,
+        warnings: [],
+        issues: []
+      }
     };
   }
 };

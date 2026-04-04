@@ -6,12 +6,26 @@ import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePnlReport } from "../normalizers/pnl.normalizer";
 import { normalizeSpotPnlReport } from "../normalizers/spotPnl.normalizer";
-import type { PnLReport, SymbolPnL } from "../../types/domain.types";
+import type { DataCompleteness, PnLReport, SymbolPnL } from "../../types/domain.types";
 import {
   buildPaginationLimitMessage,
   PaginationLimitReachedError
 } from "./pagination";
 import type { PaginationLimitMode } from "./pagination";
+import {
+  BYBIT_PARTIAL_FAILURE_POLICY,
+  DEFAULT_PAGE_FETCH_ATTEMPTS,
+  buildInvalidWindowIssue,
+  buildPageFetchIssue,
+  buildPaginationIssue,
+  buildSpotCostBasisIssue,
+  runWithRetries
+} from "./partialFailurePolicy";
+import {
+  completeDataCompleteness,
+  degradedDataCompleteness,
+  mergeDataCompleteness
+} from "../reliability/dataCompleteness";
 
 const CLOSED_PNL_TTL_MS = 20_000;
 const MAX_CLOSED_PNL_RANGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -32,8 +46,7 @@ interface SpotExecutionRow {
 
 interface ExecutionHistoryFetchResult {
   rows: Array<Record<string, unknown>>;
-  partial: boolean;
-  warnings: string[];
+  dataCompleteness: DataCompleteness;
 }
 
 type SpotExecutionFetchPurpose = "window" | "opening_inventory";
@@ -105,10 +118,6 @@ function toSpotOpeningInventoryRange(periodFrom: string): TimeChunk | undefined 
   };
 }
 
-function dedupeWarnings(warnings: string[]): string[] {
-  return Array.from(new Set(warnings));
-}
-
 function toBotPnlReport(
   context: ServiceRequestContext,
   report: Awaited<ReturnType<BotDataService["getBotReport"]>>,
@@ -153,10 +162,7 @@ function toBotPnlReport(
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
     worstSymbols: [...bySymbol].reverse().slice(0, 5),
-    dataCompleteness: {
-      partial: false,
-      warnings: []
-    }
+    dataCompleteness: report.dataCompleteness
   };
 }
 
@@ -180,8 +186,9 @@ export class BybitExecutionService implements ExecutionDataService {
     }
   ): Promise<ExecutionHistoryFetchResult> {
     const rows: Array<Record<string, unknown>> = [];
-    const warnings: string[] = [];
-    let partial = false;
+    const issues: DataCompleteness["issues"] = [];
+    const policyKey = options.purpose === "opening_inventory" ? "opening_inventory" : "execution_window";
+    let pagesFetchedTotal = 0;
 
     for (const chunk of splitRangeByMaxWindow(range.from, range.to)) {
       let cursor: string | undefined;
@@ -195,19 +202,53 @@ export class BybitExecutionService implements ExecutionDataService {
         }>(key);
 
         if (!payload) {
-          payload = (await this.client.getExecutionList(
-            context.category,
-            chunk.from,
-            chunk.to,
-            cursor,
-            context.timeoutMs,
-            options.symbol
-          )) as { list?: Array<Record<string, unknown>>; nextPageCursor?: string };
-          this.cache.set(key, payload, CLOSED_PNL_TTL_MS);
+          try {
+            payload = (await runWithRetries(
+              () =>
+                this.client.getExecutionList(
+                  context.category,
+                  chunk.from,
+                  chunk.to,
+                  cursor,
+                  context.timeoutMs,
+                  options.symbol
+                ),
+              DEFAULT_PAGE_FETCH_ATTEMPTS
+            )) as { list?: Array<Record<string, unknown>>; nextPageCursor?: string };
+            this.cache.set(key, payload, CLOSED_PNL_TTL_MS);
+          } catch (error) {
+            const pageIssue = buildPageFetchIssue({
+              scope: policyKey,
+              criticality: BYBIT_PARTIAL_FAILURE_POLICY[policyKey].criticality,
+              page: pagesFetchedTotal + 1,
+              cursor,
+              retries: DEFAULT_PAGE_FETCH_ATTEMPTS,
+              error
+            });
+            const issue =
+              options.purpose === "opening_inventory"
+                ? {
+                    ...pageIssue,
+                    message: `Opening inventory reconstruction failed for ${options.symbol ?? "UNKNOWN"}: ${pageIssue.message}`
+                  }
+                : pageIssue;
+
+            if (
+              BYBIT_PARTIAL_FAILURE_POLICY[policyKey].criticality === "critical" &&
+              pagesFetchedTotal === 0 &&
+              BYBIT_PARTIAL_FAILURE_POLICY[policyKey].partialOnFailure === "after_first_page"
+            ) {
+              throw new Error(issue.message, { cause: error });
+            }
+
+            issues.push(issue);
+            break;
+          }
         }
 
         rows.push(...(payload.list ?? []));
         pagesFetched += 1;
+        pagesFetchedTotal += 1;
         cursor = payload.nextPageCursor;
         if (!cursor) {
           break;
@@ -228,21 +269,26 @@ export class BybitExecutionService implements ExecutionDataService {
             throw error;
           }
 
-          partial = true;
           const baseWarning = buildPaginationLimitMessage(error.context);
-          if (options.purpose === "opening_inventory") {
-            warnings.push(
-              `Opening inventory reconstruction is incomplete for ${options.symbol ?? "UNKNOWN"}: ${baseWarning}`
-            );
-          } else {
-            warnings.push(baseWarning);
-          }
+          issues.push(
+            buildPaginationIssue({
+              scope: policyKey,
+              criticality: BYBIT_PARTIAL_FAILURE_POLICY[policyKey].criticality,
+              message:
+                options.purpose === "opening_inventory"
+                  ? `Opening inventory reconstruction is incomplete for ${options.symbol ?? "UNKNOWN"}: ${baseWarning}`
+                  : baseWarning
+            })
+          );
           break;
         }
       }
     }
 
-    return { rows, partial, warnings };
+    return {
+      rows,
+      dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
+    };
   }
 
   async getPnlReport(context: ServiceRequestContext, equityStartUsd?: number, equityEndUsd?: number): Promise<PnLReport> {
@@ -252,25 +298,26 @@ export class BybitExecutionService implements ExecutionDataService {
     }
 
     if (context.category === "spot") {
-      const warnings: string[] = [];
-
       const periodExecutions = await this.fetchSpotExecutionHistory(
         context,
         { from: context.from, to: context.to },
         { purpose: "window" }
       );
-      warnings.push(...periodExecutions.warnings);
 
       const openingExecutions: Array<Record<string, unknown>> = [];
       const openingRange = toSpotOpeningInventoryRange(context.from);
       const soldSymbols = extractSpotSellSymbols(periodExecutions.rows);
-      let openingPartial = false;
+      const openingIssues: DataCompleteness["issues"] = [];
 
       if (soldSymbols.length > 0) {
         if (!openingRange) {
-          openingPartial = true;
-          warnings.push(
-            "Opening inventory reconstruction failed: invalid --from boundary prevented loading pre-window executions."
+          openingIssues.push(
+            buildInvalidWindowIssue({
+              scope: "opening_inventory",
+              criticality: BYBIT_PARTIAL_FAILURE_POLICY.opening_inventory.criticality,
+              message:
+                "Opening inventory reconstruction failed: invalid --from boundary prevented loading pre-window executions."
+            })
           );
         } else {
           for (const symbol of soldSymbols) {
@@ -283,8 +330,7 @@ export class BybitExecutionService implements ExecutionDataService {
               }
             );
             openingExecutions.push(...openingHistory.rows);
-            openingPartial = openingPartial || openingHistory.partial;
-            warnings.push(...openingHistory.warnings);
+            openingIssues.push(...openingHistory.dataCompleteness.issues);
           }
         }
       }
@@ -301,20 +347,19 @@ export class BybitExecutionService implements ExecutionDataService {
         }
       );
 
-      const partial = periodExecutions.partial || openingPartial || report.dataCompleteness.partial;
-      if (partial) {
-        report.dataCompleteness = {
-          partial: true,
-          warnings: dedupeWarnings([...warnings, ...report.dataCompleteness.warnings])
-        };
-      }
+      const spotNormalizerIssues = report.dataCompleteness.warnings.map((message) => buildSpotCostBasisIssue(message));
+      report.dataCompleteness = mergeDataCompleteness(
+        periodExecutions.dataCompleteness,
+        openingIssues.length > 0 ? degradedDataCompleteness(openingIssues) : completeDataCompleteness(),
+        spotNormalizerIssues.length > 0 ? degradedDataCompleteness(spotNormalizerIssues) : completeDataCompleteness()
+      );
       return report;
     }
 
     const events: Array<Record<string, unknown>> = [];
     const chunks = splitRangeByMaxWindow(context.from, context.to);
-    const warnings: string[] = [];
-    let partial = false;
+    const issues: DataCompleteness["issues"] = [];
+    let pagesFetchedTotal = 0;
 
     for (const chunk of chunks) {
       let cursor: string | undefined;
@@ -328,18 +373,39 @@ export class BybitExecutionService implements ExecutionDataService {
         }>(key);
 
         if (!payload) {
-          payload = (await this.client.getClosedPnl(
-            context.category,
-            chunk.from,
-            chunk.to,
-            cursor,
-            context.timeoutMs
-          )) as { list?: Array<Record<string, unknown>>; nextPageCursor?: string };
-          this.cache.set(key, payload, CLOSED_PNL_TTL_MS);
+          try {
+            payload = (await runWithRetries(
+              () =>
+                this.client.getClosedPnl(
+                  context.category,
+                  chunk.from,
+                  chunk.to,
+                  cursor,
+                  context.timeoutMs
+                ),
+              DEFAULT_PAGE_FETCH_ATTEMPTS
+            )) as { list?: Array<Record<string, unknown>>; nextPageCursor?: string };
+            this.cache.set(key, payload, CLOSED_PNL_TTL_MS);
+          } catch (error) {
+            const issue = buildPageFetchIssue({
+              scope: "closed_pnl",
+              criticality: BYBIT_PARTIAL_FAILURE_POLICY.closed_pnl.criticality,
+              page: pagesFetchedTotal + 1,
+              cursor,
+              retries: DEFAULT_PAGE_FETCH_ATTEMPTS,
+              error
+            });
+            if (pagesFetchedTotal === 0 && BYBIT_PARTIAL_FAILURE_POLICY.closed_pnl.partialOnFailure === "after_first_page") {
+              throw new Error(issue.message, { cause: error });
+            }
+            issues.push(issue);
+            break;
+          }
         }
 
         events.push(...(payload.list ?? []));
         pagesFetched += 1;
+        pagesFetchedTotal += 1;
         cursor = payload.nextPageCursor;
         if (!cursor) {
           break;
@@ -360,8 +426,13 @@ export class BybitExecutionService implements ExecutionDataService {
             throw error;
           }
 
-          partial = true;
-          warnings.push(buildPaginationLimitMessage(error.context));
+          issues.push(
+            buildPaginationIssue({
+              scope: "closed_pnl",
+              criticality: BYBIT_PARTIAL_FAILURE_POLICY.closed_pnl.criticality,
+              message: buildPaginationLimitMessage(error.context)
+            })
+          );
           break;
         }
       }
@@ -381,9 +452,7 @@ export class BybitExecutionService implements ExecutionDataService {
       equityStartUsd,
       equityEndUsd
     );
-    if (partial) {
-      report.dataCompleteness = { partial: true, warnings };
-    }
+    report.dataCompleteness = issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness();
     return report;
   }
 }

@@ -13,6 +13,16 @@ const COMMANDS: CommandName[] = [
   "config",
   "health"
 ];
+const ALLOW_INSECURE_SECRET_FLAGS_ENV = "BYBIT_ALLOW_INSECURE_CLI_SECRETS";
+
+function isTruthyEnvValue(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
 
 function isCommand(value: string): value is CommandName {
   return COMMANDS.includes(value as CommandName);
@@ -25,10 +35,14 @@ function parseIdList(value: string): string[] {
     .filter((item) => item.length > 0);
 }
 
-export function parseArgs(argv: string[]): ParsedCliArgs {
+export function parseArgs(
+  argv: string[],
+  env: Record<string, string | undefined> = Bun.env
+): ParsedCliArgs {
   const options: ParsedCliOptions = {};
   const errors: string[] = [];
   let command: CommandName | undefined;
+  const allowInsecureSecretFlags = isTruthyEnvValue(env[ALLOW_INSECURE_SECRET_FLAGS_ENV]);
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -62,12 +76,32 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     };
 
     switch (token) {
-      case "--api-key":
-        options.apiKey = consumeValue();
+      case "--api-key": {
+        const value = consumeValue();
+        if (value !== undefined) {
+          if (allowInsecureSecretFlags) {
+            options.apiKey = value;
+          } else {
+            errors.push(
+              "Option --api-key is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or a credential profile. If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
+            );
+          }
+        }
         break;
-      case "--api-secret":
-        options.apiSecret = consumeValue();
+      }
+      case "--api-secret": {
+        const value = consumeValue();
+        if (value !== undefined) {
+          if (allowInsecureSecretFlags) {
+            options.apiSecret = value;
+          } else {
+            errors.push(
+              "Option --api-secret is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or a credential profile. If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
+            );
+          }
+        }
         break;
+      }
       case "--profile":
         options.profile = consumeValue();
         break;
@@ -184,8 +218,8 @@ export function renderHelp(): string {
     "  health       API/connectivity/readiness checks",
     "",
     "Global options:",
-    "  --api-key <value>",
-    "  --api-secret <value>",
+    "  --api-key <value>  [deprecated, insecure; disabled by default]",
+    "  --api-secret <value>  [deprecated, insecure; disabled by default]",
     "  --profile <name>",
     "  --profiles-file <path>",
     "  --category <linear|spot|bot>",
@@ -201,6 +235,13 @@ export function renderHelp(): string {
     "  --executions-max-pages-per-chunk <number>",
     "  --pagination-limit-mode <error|partial>",
     "  --help, -h",
+    "",
+    "Credential input (recommended):",
+    "  1) Environment variables or .env: BYBIT_API_KEY + BYBIT_SECRET (or BYBIT_API_SECRET).",
+    "  2) Credential profiles: --profile <name> with --profiles-file.",
+    "",
+    "Legacy insecure flags (deprecated):",
+    "  To temporarily allow --api-key/--api-secret, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1.",
     "",
     "Credential profiles:",
     "  --profile <name> picks keys from profile file before env fallback.",
