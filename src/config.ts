@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import type { ParsedCliOptions, TimeRange } from "./types/command.types";
-import type { IntegrationMode, MarketCategory } from "./types/domain.types";
+import type { ExchangeId, IntegrationMode, MarketCategory } from "./types/domain.types";
 import type {
   AmbientEnvResolution,
   ConfigReportMode,
@@ -14,6 +14,7 @@ import { redactSecretValue } from "./security/redaction";
 import { ENV_VARS } from "./configEnv";
 import { buildBybitProviderContext, describeBybitProviderContext } from "./services/bybit/bybitProviderContext";
 
+const DEFAULT_EXCHANGE_PROVIDER: ExchangeId = "bybit";
 const DEFAULT_CATEGORY: MarketCategory = "linear";
 const DEFAULT_SOURCE_MODE: IntegrationMode = "market";
 const DEFAULT_FORMAT = "md" as const;
@@ -79,6 +80,7 @@ function asNonEmptyString(input: unknown): string | undefined {
 interface ProfileConfig {
   apiKey?: string;
   apiSecret?: string;
+  exchangeProvider?: ExchangeId;
   category?: MarketCategory;
   sourceMode?: IntegrationMode;
   futuresGridBotIds?: string[];
@@ -91,6 +93,8 @@ function parseProfileEntry(profileName: string, value: unknown): ProfileConfig {
   }
 
   const raw = value as Record<string, unknown>;
+  const exchangeProviderValue = asNonEmptyString(raw.exchangeProvider ?? raw.BYBIT_EXCHANGE_PROVIDER);
+  const exchangeProvider = exchangeProviderValue as ExchangeId | undefined;
   const categoryValue = asNonEmptyString(raw.category);
   const category = categoryValue as MarketCategory | undefined;
   const sourceModeValue = asNonEmptyString(raw.sourceMode ?? raw.BYBIT_SOURCE_MODE);
@@ -99,6 +103,7 @@ function parseProfileEntry(profileName: string, value: unknown): ProfileConfig {
   return {
     apiKey: asNonEmptyString(raw.apiKey ?? raw.BYBIT_API_KEY),
     apiSecret: asNonEmptyString(raw.apiSecret ?? raw.secret ?? raw.BYBIT_SECRET ?? raw.BYBIT_API_SECRET),
+    exchangeProvider,
     category,
     sourceMode,
     futuresGridBotIds: parseIdList(raw.futuresGridBotIds ?? raw.BYBIT_FGRID_BOT_IDS),
@@ -264,6 +269,9 @@ function resolveUsedEnvVars(
   if (sources.apiSecret === "env") {
     usedVars.add(env[ENV_VARS.secret] ? ENV_VARS.secret : ENV_VARS.apiSecret);
   }
+  if (sources.exchangeProvider === "env") {
+    usedVars.add(ENV_VARS.exchangeProvider);
+  }
   if (sources.category === "env") {
     usedVars.add(ENV_VARS.category);
   }
@@ -323,6 +331,11 @@ export function resolveRuntimeConfig(
 
   const apiKey = profile?.apiKey ?? env[ENV_VARS.apiKey] ?? legacyCliApiKey ?? "";
   const apiSecret = profile?.apiSecret ?? env[ENV_VARS.secret] ?? env[ENV_VARS.apiSecret] ?? legacyCliApiSecret ?? "";
+  const exchangeProvider =
+    (options.exchangeProvider ??
+      profile?.exchangeProvider ??
+      env[ENV_VARS.exchangeProvider] ??
+      DEFAULT_EXCHANGE_PROVIDER) as ExchangeId;
   const category = (options.category ?? profile?.category ?? env[ENV_VARS.category] ?? DEFAULT_CATEGORY) as MarketCategory;
   const sourceMode = (options.sourceMode ??
     profile?.sourceMode ??
@@ -361,6 +374,9 @@ export function resolveRuntimeConfig(
   );
   const configReportMode = resolveConfigReportMode(options, env);
 
+  if (exchangeProvider !== "bybit") {
+    throw new Error(`Invalid exchange provider: ${exchangeProvider}. Expected bybit`);
+  }
   if (category !== "linear" && category !== "spot") {
     throw new Error(`Invalid category: ${category}. Expected linear|spot`);
   }
@@ -387,6 +403,13 @@ export function resolveRuntimeConfig(
         ? "env"
         : legacyCliApiSecret
           ? "cli"
+          : "default",
+    exchangeProvider: options.exchangeProvider
+      ? "cli"
+      : profile?.exchangeProvider
+        ? "profile"
+        : env[ENV_VARS.exchangeProvider]
+          ? "env"
           : "default",
     category: options.category ? "cli" : profile?.category ? "profile" : env[ENV_VARS.category] ? "env" : "default",
     sourceMode: options.sourceMode
@@ -429,6 +452,7 @@ export function resolveRuntimeConfig(
     profilesFile: resolvedProfile ? profilesFile : undefined,
     apiKey,
     apiSecret,
+    exchangeProvider,
     category,
     sourceMode,
     providerContext,
@@ -467,6 +491,7 @@ export function toRedactedConfigView(
   return {
     profile: config.profile,
     profilesFile: config.profilesFile,
+    exchangeProvider: config.exchangeProvider,
     category: config.category,
     sourceMode: config.sourceMode,
     providerContext: describeBybitProviderContext(config.providerContext, diagnostic),

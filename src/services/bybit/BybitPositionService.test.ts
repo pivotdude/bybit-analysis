@@ -50,6 +50,16 @@ function createClient(totalPages: number): { client: BybitReadonlyClient; getCal
 }
 
 describe("BybitPositionService pagination", () => {
+  it("reports cache hit on repeated positions fetch", async () => {
+    const { client } = createClient(1);
+    const cache = new MemoryCacheStore();
+    const service = new BybitPositionService(client, cache);
+    await service.getOpenPositions(context);
+    const result = await service.getOpenPositions(context);
+
+    expect(result.cacheStatus).toBe("hit");
+  });
+
   it("reads all pages when no safety limit is configured", async () => {
     const { client, getCalls } = createClient(12);
     const service = new BybitPositionService(client, new MemoryCacheStore());
@@ -57,6 +67,7 @@ describe("BybitPositionService pagination", () => {
     const result = await service.getOpenPositions(context);
 
     expect(result.positions).toHaveLength(12);
+    expect(result.cacheStatus).toBe("mixed");
     expect(result.dataCompleteness.partial).toBe(false);
     expect(getCalls()).toBe(12);
   });
@@ -198,6 +209,7 @@ describe("BybitPositionService pagination", () => {
     const service = new BybitPositionService(client, new MemoryCacheStore());
     const result = await service.getOpenPositions(context);
 
+    expect(result.cacheStatus).toBe("miss");
     expect(result.dataCompleteness.partial).toBe(false);
     expect(result.positions.map((position) => position.symbol).sort()).toEqual(["BTCUSDT", "ETHUSDC"]);
     expect(result.positions.find((position) => position.symbol === "ETHUSDC")?.quoteAsset).toBe("USDC");
@@ -254,6 +266,7 @@ describe("BybitPositionService pagination", () => {
     });
 
     expect(calls).toBe(0);
+    expect(result.cacheStatus).toBe("unknown");
     expect(result.positions).toHaveLength(0);
     expect(result.dataCompleteness.state).toBe("unsupported");
     expect(result.dataCompleteness.partial).toBe(true);
@@ -283,6 +296,7 @@ describe("BybitPositionService pagination", () => {
     });
 
     expect(calls).toBe(0);
+    expect(result.cacheStatus).toBe("unknown");
     expect(result.positions).toHaveLength(0);
     expect(result.dataCompleteness.issues[0]?.code).toBe("unsupported_feature");
   });

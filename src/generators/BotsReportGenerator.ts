@@ -107,7 +107,8 @@ export class BotsReportGenerator {
           sourceMode: context.sourceMode,
           fetchedAt: report.generatedAt,
           periodFrom: context.from,
-          periodTo: context.to
+          periodTo: context.to,
+          cacheStatus: report.cacheStatus
         })
       ],
       data: analysis

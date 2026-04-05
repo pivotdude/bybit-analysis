@@ -1,4 +1,4 @@
-import type { IntegrationMode, LiveAccountSnapshot, MarketCategory } from "../../types/domain.types";
+import type { IntegrationMode, LiveAccountSnapshot, MarketCategory, SourceCacheStatus } from "../../types/domain.types";
 
 export interface ServiceRequestContext {
   category: MarketCategory;
@@ -16,9 +16,11 @@ export interface HealthCheckResult {
   serverTime?: string;
   timeDriftMs?: number;
   diagnostics: string[];
+  cacheStatus?: SourceCacheStatus;
 }
 
 export interface ApiKeyPermissionInfo {
+  cacheStatus?: SourceCacheStatus;
   apiKeyStatus: "present" | "missing";
   apiKeyDisplay: string;
   note?: string;

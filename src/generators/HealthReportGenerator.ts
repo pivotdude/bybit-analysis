@@ -47,11 +47,13 @@ export class HealthReportGenerator {
           id: "health_check",
           kind: "health_check",
           provider: "bybit",
+          exchange: "bybit",
           category: context.category,
           sourceMode: context.sourceMode,
           fetchedAt: generatedAt,
           capturedAt: health.serverTime,
-          exchangeServerTime: health.serverTime
+          exchangeServerTime: health.serverTime,
+          cacheStatus: health.cacheStatus
         })
       ],
       data: health,

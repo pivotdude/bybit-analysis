@@ -10,6 +10,13 @@ function createMemoryCache(): CacheStore {
     get<T>(key: string): T | undefined {
       return store.get(key) as T | undefined;
     },
+    getWithStatus<T>(key: string) {
+      const value = store.get(key) as T | undefined;
+      return {
+        value,
+        status: value === undefined ? "miss" : "hit"
+      } as const;
+    },
     set<T>(key: string, value: T): void {
       store.set(key, value);
     },
@@ -32,6 +39,23 @@ const requestContext: ServiceRequestContext = {
 };
 
 describe("BybitAccountService#getApiKeyPermissionInfo", () => {
+  it("reports cache hit on repeated api key info fetch", async () => {
+    const client = {
+      getApiKeyInfo: async () => ({
+        apiKey: "live_super_secret_api_key",
+        readOnly: "1",
+        permissions: {}
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const cache = createMemoryCache();
+    const service = new BybitAccountService(client, cache);
+    await service.getApiKeyPermissionInfo(requestContext);
+    const info = await service.getApiKeyPermissionInfo(requestContext);
+
+    expect(info.cacheStatus).toBe("hit");
+  });
+
   it("returns sanitized credential-adjacent fields", async () => {
     const client = {
       getApiKeyInfo: async () => ({
@@ -58,13 +82,54 @@ describe("BybitAccountService#getApiKeyPermissionInfo", () => {
     expect(info.ipWhitelistCount).toBe(2);
     expect(info.ipWhitelistDisplay).toBe("configured (2 entries)");
 
+    expect(info.cacheStatus).toBe("miss");
     expect(serialized).not.toContain("live_super_secret_api_key");
     expect(serialized).not.toContain("203.0.113.10");
     expect(serialized).not.toContain("203.0.113.11");
   });
 });
 
+describe("BybitAccountService#checkHealth", () => {
+  it("reports cache miss then hit for server time health source", async () => {
+    const client = {
+      getServerTime: async () => ({ timeNano: "0", timeSecond: "1706659200" }),
+      getWalletBalance: async () => ({ list: [{ totalPerpUPL: "0" }] })
+    } as unknown as BybitReadonlyClient;
+
+    const cache = createMemoryCache();
+    const service = new BybitAccountService(client, cache);
+    const first = await service.checkHealth(requestContext);
+    const second = await service.checkHealth(requestContext);
+
+    expect(first.cacheStatus).toBe("miss");
+    expect(second.cacheStatus).toBe("hit");
+  });
+});
+
 describe("BybitAccountService#getWalletSnapshot", () => {
+  it("reports cache hit on repeated wallet snapshot fetch", async () => {
+    const client = {
+      getWalletBalance: async () => ({
+        list: [
+          {
+            accountType: "UNIFIED",
+            totalEquity: "1500",
+            totalWalletBalance: "1400",
+            totalAvailableBalance: "1200",
+            totalPerpUPL: "100"
+          }
+        ]
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const cache = createMemoryCache();
+    const service = new BybitAccountService(client, cache);
+    await service.getWalletSnapshot(requestContext);
+    const snapshot = await service.getWalletSnapshot(requestContext);
+
+    expect(snapshot.cacheStatus).toBe("hit");
+  });
+
   it("marks ROI/capital efficiency as unsupported when historical equity source is unavailable", async () => {
     const client = {
       getWalletBalance: async () => ({
@@ -92,6 +157,7 @@ describe("BybitAccountService#getWalletSnapshot", () => {
     const snapshot = await service.getWalletSnapshot(requestContext);
 
     expect(snapshot.equityHistory).toBeUndefined();
+    expect(snapshot.cacheStatus).toBe("miss");
     expect(snapshot.dataCompleteness.state).toBe("unsupported");
     expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
     expect(snapshot.dataCompleteness.warnings.some((warning) => warning.includes("historical equity source is unavailable"))).toBe(
@@ -122,6 +188,7 @@ describe("BybitAccountService#getWalletSnapshot", () => {
     });
 
     expect(snapshot.walletBalanceUsd).toBe(1400);
+    expect(snapshot.cacheStatus).toBe("miss");
     expect(snapshot.totalEquityUsd).toBe(1500);
     expect(snapshot.availableBalanceUsd).toBe(1200);
     expect(snapshot.balances).toEqual([]);

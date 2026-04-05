@@ -43,7 +43,8 @@ export class ConfigReportGenerator {
         createSourceMetadata({
           id: "runtime_config",
           kind: "runtime_config",
-          provider: "bybit",
+          provider: view.exchangeProvider,
+          exchange: view.exchangeProvider,
           category: view.category,
           sourceMode: view.sourceMode,
           fetchedAt: generatedAt
@@ -60,6 +61,7 @@ export class ConfigReportGenerator {
               ["profile", view.profile ?? "<none>"],
               ["profilesFile", view.profilesFile ?? "<none>"],
               ["configReportMode", view.configReportMode],
+              ["exchangeProvider", view.exchangeProvider],
               ["category", view.category],
               ["sourceMode", view.sourceMode],
               ["providerContext", view.providerContext],

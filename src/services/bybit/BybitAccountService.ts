@@ -50,25 +50,26 @@ export class BybitAccountService implements AccountDataService {
 
   async getWalletSnapshot(context: ServiceRequestContext): Promise<LiveAccountSnapshot> {
     const key = cacheKeys.walletBalance(context.category);
-    const cached = this.cache.get<unknown>(key);
+    const cached = this.cache.getWithStatus<unknown>(key);
 
     const walletPayload =
-      cached ??
+      cached.value ??
       (await this.client.getWalletBalance(
         context.category,
         context.timeoutMs
       ));
 
-    if (!cached) {
+    if (!cached.value) {
       this.cache.set(key, walletPayload, WALLET_TTL_MS);
     }
 
-    return withExplicitRoiUnsupported(
-      normalizeAccountSnapshot(
+    return withExplicitRoiUnsupported({
+      ...normalizeAccountSnapshot(
         walletPayload,
         context.category
-      )
-    );
+      ),
+      cacheStatus: cached.status
+    });
   }
 
   async checkHealth(context: ServiceRequestContext): Promise<HealthCheckResult> {
@@ -78,10 +79,13 @@ export class BybitAccountService implements AccountDataService {
     const startedAt = Date.now();
 
     let serverTime: { timeNano: string; timeSecond: string } | undefined;
+    let cacheStatus: HealthCheckResult["cacheStatus"] = "unknown";
 
     try {
       const key = cacheKeys.serverTime();
-      serverTime = this.cache.get<{ timeNano: string; timeSecond: string }>(key);
+      const cachedServerTime = this.cache.getWithStatus<{ timeNano: string; timeSecond: string }>(key);
+      serverTime = cachedServerTime.value;
+      cacheStatus = cachedServerTime.status;
       if (!serverTime) {
         serverTime = await this.client.getServerTime(context.timeoutMs);
         this.cache.set(key, serverTime, SERVER_TIME_TTL_MS);
@@ -115,15 +119,19 @@ export class BybitAccountService implements AccountDataService {
       latencyMs,
       serverTime: serverTimeIso,
       timeDriftMs,
-      diagnostics
+      diagnostics,
+      cacheStatus
     };
   }
 
   async getApiKeyPermissionInfo(context: ServiceRequestContext): Promise<ApiKeyPermissionInfo> {
     const key = cacheKeys.apiKeyInfo();
-    const cached = this.cache.get<ApiKeyPermissionInfo>(key);
-    if (cached) {
-      return cached;
+    const cached = this.cache.getWithStatus<ApiKeyPermissionInfo>(key);
+    if (cached.value) {
+      return {
+        ...cached.value,
+        cacheStatus: "hit"
+      };
     }
 
     const raw = (await this.client.getApiKeyInfo(context.timeoutMs)) as Record<string, unknown>;
@@ -153,7 +161,8 @@ export class BybitAccountService implements AccountDataService {
       ipWhitelistRestricted: ipWhitelistRedaction.restricted,
       ipWhitelistCount: ipWhitelistRedaction.count,
       ipWhitelistDisplay: ipWhitelistRedaction.display,
-      permissions
+      permissions,
+      cacheStatus: "miss"
     };
 
     this.cache.set(key, normalized, API_KEY_INFO_TTL_MS);

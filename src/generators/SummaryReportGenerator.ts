@@ -323,7 +323,8 @@ export class SummaryReportGenerator {
           category: account.category,
           sourceMode: context.sourceMode,
           fetchedAt: account.capturedAt,
-          capturedAt: account.capturedAt
+          capturedAt: account.capturedAt,
+          cacheStatus: account.cacheStatus
         }),
         createSourceMetadata({
           id: "positions_snapshot",
@@ -333,7 +334,8 @@ export class SummaryReportGenerator {
           category: context.category,
           sourceMode: context.sourceMode,
           fetchedAt: positionsResult.capturedAt,
-          capturedAt: positionsResult.capturedAt
+          capturedAt: positionsResult.capturedAt,
+          cacheStatus: positionsResult.cacheStatus
         }),
         createSourceMetadata({
           id: "period_pnl",
@@ -343,7 +345,8 @@ export class SummaryReportGenerator {
           sourceMode: context.sourceMode,
           fetchedAt: pnl.generatedAt,
           periodFrom: pnl.periodFrom,
-          periodTo: pnl.periodTo
+          periodTo: pnl.periodTo,
+          cacheStatus: pnl.cacheStatus
         }),
         ...(botReport
           ? [
@@ -355,7 +358,8 @@ export class SummaryReportGenerator {
                 sourceMode: context.sourceMode,
                 fetchedAt: botReport.generatedAt,
                 periodFrom: context.from,
-                periodTo: context.to
+                periodTo: context.to,
+                cacheStatus: botReport.cacheStatus
               })
             ]
           : [])

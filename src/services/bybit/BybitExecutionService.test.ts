@@ -59,6 +59,32 @@ function spotTrade(args: {
 }
 
 describe("BybitExecutionService pagination", () => {
+  it("reports cache hit on repeated closed pnl fetch", async () => {
+    const client = {
+      getClosedPnl: async () => ({
+        list: [
+          {
+            symbol: "BTCUSDT",
+            closedPnl: "10",
+            openFee: "1",
+            closeFee: "1"
+          }
+        ],
+        nextPageCursor: undefined
+      }),
+      getWalletBalance: async () => ({
+        list: [{ totalPerpUPL: "0" }]
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const cache = new MemoryCacheStore();
+    const service = new BybitExecutionService(client, botService, cache);
+    await service.getPnlReport({ context: linearContext });
+    const report = await service.getPnlReport({ context: linearContext });
+
+    expect(report.cacheStatus).toBe("hit");
+  });
+
   it("requests required bot data in bot source mode", async () => {
     let requirement: string | undefined;
     const service = new BybitExecutionService(
@@ -102,6 +128,7 @@ describe("BybitExecutionService pagination", () => {
     });
 
     expect(requirement).toBe("required");
+    expect(report.cacheStatus).toBeUndefined();
     expect(report.netPnlUsd).toBe(35);
   });
 
@@ -188,6 +215,7 @@ describe("BybitExecutionService pagination", () => {
     const report = await service.getPnlReport({ context: spotContext });
 
     expect(calls).toBe(25);
+    expect(report.cacheStatus).toBe("mixed");
     expect(report.dataCompleteness.partial).toBe(false);
     expect(report.bySymbol[0]?.tradesCount).toBe(25);
   });
@@ -241,6 +269,7 @@ describe("BybitExecutionService pagination", () => {
 
     expect(windowCalls).toBe(1);
     expect(openingCalls).toBeGreaterThan(0);
+    expect(report.cacheStatus).toBe("mixed");
     expect(report.realizedPnlUsd).toBeCloseTo(50);
     expect(report.bySymbol[0]?.realizedPnlUsd).toBeCloseTo(50);
     expect(report.dataCompleteness.partial).toBe(false);

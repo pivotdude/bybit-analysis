@@ -13,7 +13,7 @@ const providers: Record<string, ExchangeServiceProviderFactory> = {
 export function createServiceBundle(
   config: RuntimeConfig,
   cache: CacheStore,
-  exchangeProviderId: ExchangeId = DEFAULT_EXCHANGE_PROVIDER_ID
+  exchangeProviderId: ExchangeId = config.exchangeProvider ?? DEFAULT_EXCHANGE_PROVIDER_ID
 ): ServiceBundle {
   const provider = providers[exchangeProviderId];
   if (!provider) {

@@ -42,6 +42,7 @@ export class BybitPositionService implements PositionDataService {
         exchange: "bybit",
         capturedAt: new Date().toISOString(),
         positions: [],
+        cacheStatus: "unknown",
         dataCompleteness: degradedDataCompleteness([
           buildUnsupportedFeatureIssue({
             scope: "positions",
@@ -52,10 +53,15 @@ export class BybitPositionService implements PositionDataService {
     }
 
     const key = cacheKeys.positions(context.category);
-    const cached = this.cache.get<PositionDataResult>(key);
-    if (cached) {
-      return cached;
+    const cached = this.cache.getWithStatus<PositionDataResult>(key);
+    if (cached.value) {
+      return {
+        ...cached.value,
+        cacheStatus: "hit"
+      };
     }
+
+    let cacheStatus: PositionDataResult["cacheStatus"] = "miss";
 
     const allRows: Array<Record<string, unknown>> = [];
     let cursor: string | undefined;
@@ -73,6 +79,9 @@ export class BybitPositionService implements PositionDataService {
           list?: Array<Record<string, unknown>>;
           nextPageCursor?: string;
         };
+        if (pagesFetched > 0) {
+          cacheStatus = "mixed";
+        }
       } catch (error) {
         const issue = buildPageFetchIssue({
           scope: "positions",
@@ -130,7 +139,8 @@ export class BybitPositionService implements PositionDataService {
       dataCompleteness:
         issues.length > 0 || normalized.issues.length > 0
           ? degradedDataCompleteness([...issues, ...normalized.issues])
-          : completeDataCompleteness()
+          : completeDataCompleteness(),
+      cacheStatus
     };
 
     this.cache.set(key, result, POSITIONS_TTL_MS);

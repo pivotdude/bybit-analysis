@@ -119,7 +119,7 @@ describe("MarkdownRenderer", () => {
           fetchedAt: "2026-01-31T00:00:00.000Z",
           capturedAt: "2026-01-31T00:00:10.000Z",
           exchangeServerTime: "2026-01-31T00:00:10.000Z",
-          cacheStatus: "unknown"
+          cacheStatus: "hit"
         }
       ],
       sections: [
@@ -145,6 +145,7 @@ describe("MarkdownRenderer", () => {
     expect(markdown).toContain("Health Status: failed");
     expect(markdown).toContain("Source Freshness: 1 source(s)");
     expect(markdown).toContain("Source: health_check:");
+    expect(markdown).toContain("cache=hit");
     expect(markdown).toContain("| <empty> | <empty> |");
   });
 });

@@ -159,6 +159,9 @@ export function parseArgs(
         case "--profiles-file":
           options.profilesFile = consumeValue();
           break;
+        case "--exchange-provider":
+          options.exchangeProvider = consumeValue() as ParsedCliOptions["exchangeProvider"];
+          break;
         case "--category":
           options.category = consumeValue() as ParsedCliOptions["category"];
           break;
@@ -282,6 +285,7 @@ function renderOptionsSection(): string[] {
     "  --no-env  disable ambient BYBIT_* env resolution for deterministic runs",
     "  --profile <name>",
     "  --profiles-file <path>",
+    "  --exchange-provider <bybit>",
     "  --category <linear|spot>",
     "  --source <market|bot>",
     "  --fgrid-bot-ids <id1,id2,...>",
@@ -343,6 +347,7 @@ function renderGlobalHelp(): string {
     `  ${ENV_VARS.allowInsecureCliSecrets}=<1|true|yes|on>`,
     `  ${ENV_VARS.profile}=<name>`,
     `  ${ENV_VARS.profilesFile}=<path>`,
+    `  ${ENV_VARS.exchangeProvider}=<bybit>`,
     `  ${ENV_VARS.category}=<linear|spot>`,
     `  ${ENV_VARS.sourceMode}=<market|bot>`,
     `  ${ENV_VARS.futuresGridBotIds}=<id1,id2,...>`,

@@ -214,6 +214,7 @@ const botService: BotDataService = {
 const runtimeConfig: RuntimeConfig = {
   apiKey: "test-key",
   apiSecret: "test-secret",
+  exchangeProvider: "bybit",
   category: "linear",
   sourceMode: "market",
   providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: [], spotGridBotIds: [] } } },
@@ -231,6 +232,7 @@ const runtimeConfig: RuntimeConfig = {
     profilesFile: "default",
     apiKey: "cli",
     apiSecret: "cli",
+    exchangeProvider: "default",
     category: "cli",
     sourceMode: "cli",
     providerContext: "cli",
@@ -357,6 +359,9 @@ describe("All report schema contracts", () => {
       expect(Array.isArray(payload.sources)).toBe(true);
       expect(typeof payload.data).toBe("object");
       expect((payload.sources as Array<unknown>).length).toBeGreaterThan(0);
+      expect(
+        (payload.sources as Array<{ cacheStatus?: string }>).every((source) => typeof source.cacheStatus === "string")
+      ).toBe(true);
     }
   });
 });

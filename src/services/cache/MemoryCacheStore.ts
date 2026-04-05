@@ -9,15 +9,19 @@ export class MemoryCacheStore implements CacheStore {
   private readonly store = new Map<string, CacheEntry<unknown>>();
 
   get<T>(key: string): T | undefined {
+    return this.getWithStatus<T>(key).value;
+  }
+
+  getWithStatus<T>(key: string): { value: T | undefined; status: "hit" | "miss" } {
     const entry = this.store.get(key);
     if (!entry) {
-      return undefined;
+      return { value: undefined, status: "miss" };
     }
     if (entry.expiresAt < Date.now()) {
       this.store.delete(key);
-      return undefined;
+      return { value: undefined, status: "miss" };
     }
-    return entry.value as T;
+    return { value: entry.value as T, status: "hit" };
   }
 
   set<T>(key: string, value: T, ttlMs: number): void {

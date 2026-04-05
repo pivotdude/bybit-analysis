@@ -31,12 +31,12 @@ Use Markdown checkboxes directly:
 - [x] Workstream 7: Tighten CLI Semantics Around Time Flags
 - [x] Workstream 8: Improve Bybit Retry and Failure Classification
 - [x] Workstream 9: Replace Read-Only Endpoint Blocklist with Allowlist
-- [ ] Workstream 10: Add Source Freshness and Provenance to the Data Model
-- [ ] Workstream 11: Rationalize Domain Types for Multi-Exchange Readiness
+- [x] Workstream 10: Add Source Freshness and Provenance to the Data Model
+- [x] Workstream 11: Rationalize Domain Types for Multi-Exchange Readiness
 - [x] Workstream 12: Expand Test Matrix Around Unsafe Semantics
 - [x] Phase 1 complete
-- [ ] Phase 2 complete
-- [ ] Phase 3 complete
+- [x] Phase 2 complete
+- [x] Phase 3 complete
 
 ## Scope
 
@@ -335,8 +335,7 @@ Reports expose render time, not source capture provenance.
 - [x] Add exchange server time if available
 - [x] Add source fetched at
 - [x] Add source captured at
-- [ ] Add cache hit or miss if useful
-- [x] Surface these fields in JSON and Markdown
+- [x] Add cache hit or miss if useful- [x] Surface these fields in JSON and Markdown
 
 ### Target changes
 
@@ -357,9 +356,9 @@ The provider boundary exists, but the domain and config still assume Bybit too d
 
 ### Checklist
 
-- [ ] introduce explicit exchange or provider selection in runtime config
-- [ ] move provider-specific context into provider-specific config types
-- [ ] audit core types for Bybit-only assumptions such as category and source semantics
+- [x] introduce explicit exchange or provider selection in runtime config
+- [x] move provider-specific context into provider-specific config types
+- [x] audit core types for Bybit-only assumptions such as category and source semantics
 
 ### Target changes
 
@@ -369,8 +368,8 @@ The provider boundary exists, but the domain and config still assume Bybit too d
 
 ### Acceptance criteria
 
-- [ ] the shared layer no longer requires `bybit`-named context to exist
-- [ ] adding a second provider does not require rewriting report generators
+- [x] the shared layer no longer requires `bybit`-named context to exist
+- [x] adding a second provider does not require rewriting report generators
 
 ## 12. Expand Test Matrix Around Unsafe Semantics
 
@@ -397,7 +396,7 @@ The current suite is strong on contract stability but weak on semantic safety.
 
 ## Phase 1: Safety Corrections
 
-- [ ] Workstreams 1, 2, 3, 4, 5, 7 complete
+- [x] Workstreams 1, 2, 3, 4, 5, 7 complete
 
 Outcome:
 
@@ -406,7 +405,7 @@ Outcome:
 
 ## Phase 2: Machine Contract
 
-- [ ] Workstreams 6 and 10 complete
+- [x] Workstreams 6 and 10 complete
 
 Outcome:
 
@@ -415,7 +414,7 @@ Outcome:
 
 ## Phase 3: Resilience and Extensibility
 
-- [ ] Workstreams 8, 9, 11, 12 complete
+- [x] Workstreams 8, 9, 11, 12 complete
 
 Outcome:
 
@@ -433,8 +432,8 @@ Outcome:
 - [x] Add JSON output
 - [x] Improve retry classification
 - [x] Replace endpoint blocklist with allowlist
-- [ ] Refine provider-neutral architecture
-- [ ] Backfill regression tests for all of the above
+- [x] Refine provider-neutral architecture
+- [x] Backfill regression tests for all of the above
 
 ## Definition of Done
 

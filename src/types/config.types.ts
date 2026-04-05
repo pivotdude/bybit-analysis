@@ -1,4 +1,4 @@
-import type { IntegrationMode, MarketCategory } from "./domain.types";
+import type { ExchangeId, IntegrationMode, MarketCategory } from "./domain.types";
 import type { OutputFormat, TimeRange } from "./command.types";
 
 export type ConfigSource = "cli" | "profile" | "env" | "default";
@@ -23,6 +23,7 @@ export interface ResolvedConfigSources {
   profilesFile: "cli" | "env" | "default";
   apiKey: ConfigSource;
   apiSecret: ConfigSource;
+  exchangeProvider: ConfigSource;
   category: ConfigSource;
   sourceMode: ConfigSource;
   providerContext: ConfigSource;
@@ -39,6 +40,7 @@ export interface RuntimeConfig {
   profilesFile?: string;
   apiKey: string;
   apiSecret: string;
+  exchangeProvider: ExchangeId;
   category: MarketCategory;
   sourceMode: IntegrationMode;
   providerContext: Record<string, unknown>;
@@ -54,6 +56,7 @@ export interface RuntimeConfig {
 export interface RedactedConfigView {
   profile?: string;
   profilesFile?: string;
+  exchangeProvider: ExchangeId;
   category: MarketCategory;
   sourceMode: IntegrationMode;
   providerContext: string;

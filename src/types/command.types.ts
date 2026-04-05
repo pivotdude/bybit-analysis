@@ -1,4 +1,4 @@
-import type { IntegrationMode, MarketCategory } from "./domain.types";
+import type { ExchangeId, IntegrationMode, MarketCategory } from "./domain.types";
 
 export type CommandName =
   | "summary"
@@ -26,6 +26,7 @@ export interface ParsedCliOptions {
   apiSecret?: string;
   profile?: string;
   profilesFile?: string;
+  exchangeProvider?: ExchangeId;
   category?: MarketCategory;
   sourceMode?: IntegrationMode;
   futuresGridBotIds?: string[];
