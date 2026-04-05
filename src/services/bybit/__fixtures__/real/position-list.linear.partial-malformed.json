@@ -1,0 +1,25 @@
+{
+  "list": [
+    {
+      "symbol": null,
+      "size": "2",
+      "side": "Sell",
+      "markPrice": "invalid",
+      "lastPrice": "0.9",
+      "avgPrice": "",
+      "positionValue": "",
+      "tradeMode": "unexpected",
+      "leverage": "0",
+      "unrealisedPnl": "oops",
+      "createdTime": "bad",
+      "updatedTime": "bad"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "size": null,
+      "side": "Buy",
+      "markPrice": "0.62"
+    }
+  ],
+  "nextPageCursor": null
+}

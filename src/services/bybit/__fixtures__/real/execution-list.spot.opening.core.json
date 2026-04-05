@@ -1,0 +1,27 @@
+{
+  "list": [
+    {
+      "symbol": "BTCUSDT",
+      "side": "Buy",
+      "execQty": "1",
+      "execValue": "100",
+      "execPrice": "100",
+      "execFee": "0",
+      "feeCurrency": "USDT",
+      "execType": "Trade",
+      "execTime": "1714521590000"
+    },
+    {
+      "symbol": "ETHUSDC",
+      "side": "Buy",
+      "execQty": "1",
+      "execValue": "200",
+      "execPrice": "200",
+      "execFee": "0",
+      "feeCurrency": "USDC",
+      "execType": "Trade",
+      "execTime": "1714521595000"
+    }
+  ],
+  "nextPageCursor": null
+}

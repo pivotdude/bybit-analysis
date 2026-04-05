@@ -1,0 +1,38 @@
+{
+  "list": [
+    {
+      "symbol": "ADAUSDT",
+      "side": "Sell",
+      "execQty": "2",
+      "execValue": "200",
+      "execPrice": "100",
+      "execFee": "0",
+      "feeCurrency": "USDT",
+      "execType": "Trade",
+      "execTime": "1714521601000"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "side": "Buy",
+      "execQty": "0",
+      "execValue": "0",
+      "execPrice": "0",
+      "execFee": "0",
+      "feeCurrency": "USDT",
+      "execType": "Trade",
+      "execTime": "1714521602000"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "side": "Buy",
+      "execQty": "1",
+      "execValue": "90",
+      "execPrice": "90",
+      "execFee": "0.1",
+      "feeCurrency": "XYZ",
+      "execType": "Funding",
+      "execTime": "1714521603000"
+    }
+  ],
+  "nextPageCursor": null
+}

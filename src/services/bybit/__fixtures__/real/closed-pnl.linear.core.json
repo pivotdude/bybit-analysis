@@ -1,0 +1,23 @@
+{
+  "list": [
+    {
+      "symbol": "BTCUSDT",
+      "closedPnl": "120.50",
+      "openFee": "-3.10",
+      "closeFee": "-3.20"
+    },
+    {
+      "symbol": "ETHUSDC",
+      "closedPnl": "-20.00",
+      "openFee": "-1.00",
+      "closeFee": "-1.25"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "closedPnl": "14.20",
+      "openFee": "-0.80",
+      "closeFee": "-0.70"
+    }
+  ],
+  "nextPageCursor": null
+}

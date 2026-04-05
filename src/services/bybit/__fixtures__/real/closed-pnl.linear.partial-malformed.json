@@ -1,0 +1,23 @@
+{
+  "list": [
+    {
+      "symbol": "SOLUSDT",
+      "closedPnl": "12.3",
+      "openFee": "-0.4",
+      "closeFee": "-0.3"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "closedPnl": "N/A",
+      "openFee": "",
+      "closeFee": null
+    },
+    {
+      "symbol": null,
+      "closedPnl": "-2",
+      "openFee": "-0.1",
+      "closeFee": "-0.1"
+    }
+  ],
+  "nextPageCursor": null
+}
