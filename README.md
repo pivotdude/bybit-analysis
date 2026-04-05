@@ -78,9 +78,10 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 All commands now expose schema-stable Markdown contracts:
 
 - Report-level `Schema: <command>-markdown-v1` is present for every command.
+- Report metadata lines are fixed and ordered: `Generated at`, `Schema`, `Command`, `Outcome`, `Exit Code`, `Data Completeness`, `Partial Data`, `Health Status`.
 - Every section has a fixed `id` and is rendered as `## [section.id] Title`.
 - Section order and section type are fixed per command contract.
-- Sections are never removed because of missing data; reports use empty rows, `N/A`, `0`, `unsupported`, or info alerts.
+- Sections are never removed because of missing data; reports use deterministic placeholders (`<empty>` table rows), `N/A`, `0`, `unsupported`, or info alerts.
 - `Data Completeness` is a fixed section in every command contract:
   - Data-backed commands render merged completeness issues in that section.
   - Non data-backed commands (for example `config`, `health`, `permissions`) render explicit `unsupported` completeness status.
@@ -129,6 +130,7 @@ Fixed section order:
 - ROI is `supported` only when both start and end equity are available.
 - Start equity is resolved from `account.equityHistory` using the latest sample at or before `--from`.
 - If start equity is unavailable, ROI KPI is rendered as `unsupported`, and the report includes an explicit reason in `ROI Status`.
+- In the current Bybit account snapshot flow, historical equity is not fetched from a dedicated endpoint, so ROI/capital efficiency are explicitly marked `unsupported`.
 
 Example (`pnl` section):
 

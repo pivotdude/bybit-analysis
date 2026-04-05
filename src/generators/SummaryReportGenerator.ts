@@ -11,7 +11,8 @@ import {
   mergeDataCompleteness
 } from "../services/reliability/dataCompleteness";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
-import { createSectionBuilder } from "./reportContract";
+import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { resolveRoiContract } from "./roiContractResolver";
 
 export const SUMMARY_SCHEMA_VERSION = "summary-markdown-v1";
 
@@ -95,10 +96,7 @@ export class SummaryReportGenerator {
     const winners = pnl.bySymbol.filter((item) => item.netPnlUsd > 0).length;
     const losers = pnl.bySymbol.filter((item) => item.netPnlUsd < 0).length;
     const winRate = tradedSymbols > 0 ? (winners / tradedSymbols) * 100 : 0;
-    const holdings: HoldingSnapshot[] =
-      account.balances.length > 0
-        ? account.balances.map((balance) => ({ asset: balance.asset, usdValue: balance.usdValue }))
-        : (account.botCapital ?? []).map((capital) => ({ asset: capital.asset, usdValue: capital.equityUsd }));
+    const holdings: HoldingSnapshot[] = account.balances.map((balance) => ({ asset: balance.asset, usdValue: balance.usdValue }));
 
     const stableValueUsd = holdings
       .filter((balance) => STABLE_ASSETS.has(balance.asset.toUpperCase()))
@@ -116,10 +114,7 @@ export class SummaryReportGenerator {
       typeof summary.performance.capitalEfficiencyPct === "number"
         ? fmtPct(summary.performance.capitalEfficiencyPct)
         : "unsupported";
-    const roi =
-      summary.performance.roiStatus === "supported" && typeof summary.performance.roiPct === "number"
-        ? fmtPct(summary.performance.roiPct)
-        : "unsupported";
+    const roi = resolveRoiContract(summary.performance);
 
     const positionsRows = summary.positions.largestPositions.map((position) => [
       position.symbol,
@@ -182,13 +177,7 @@ export class SummaryReportGenerator {
     }
 
     const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness, bot.dataCompleteness);
-    const dataCompletenessAlerts: MarkdownAlert[] =
-      dataCompleteness.issues.length > 0
-        ? dataCompleteness.issues.map((issue) => ({
-            severity: issue.severity,
-            message: `${issue.code} (${issue.scope}): ${issue.message}`
-          }))
-        : [{ severity: "info", message: "No data completeness warnings." }];
+    const dataCompletenessAlerts = buildDataCompletenessAlerts(dataCompleteness);
 
     const sections: ReportSection[] = [
       section("contract", {
@@ -197,15 +186,9 @@ export class SummaryReportGenerator {
           `Category: ${context.category}`,
           `Source mode: ${context.sourceMode}`,
           `Period: ${pnl.periodFrom} -> ${pnl.periodTo}`,
-          `ROI status: ${summary.performance.roiStatus}`,
+          ...roi.narrativeLines,
           ...(unsupportedExposureRiskReason
             ? [`Exposure/risk status: unsupported (${unsupportedExposureRiskReason})`]
-            : []),
-          ...(summary.performance.roiStatus === "unsupported"
-            ? [
-                `ROI unsupported code: ${summary.performance.roiUnsupportedReasonCode ?? "unknown"}`,
-                `ROI unsupported reason: ${summary.performance.roiUnsupportedReason ?? "starting equity is unavailable"}`
-              ]
             : []),
           "All summary section IDs, order, and section types are stable across categories."
         ]
@@ -214,7 +197,7 @@ export class SummaryReportGenerator {
         kpis: [
           { label: "Total Equity", value: fmtUsd(summary.balance.snapshot.totalEquityUsd) },
           { label: "Net PnL", value: fmtUsd(summary.pnl.netPnlUsd) },
-          { label: "ROI", value: roi },
+          { label: "ROI", value: roi.roiKpiValue },
           {
             label: "Gross Exposure",
             value: unsupportedExposureRiskReason ? "unsupported" : fmtUsd(summary.exposure.grossExposureUsd)

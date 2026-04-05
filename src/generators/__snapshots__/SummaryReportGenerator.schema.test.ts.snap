@@ -323,7 +323,15 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
   {
     "alerts": [
       {
-        "message": "No data completeness warnings.",
+        "message": "State: complete",
+        "severity": "info",
+      },
+      {
+        "message": "Issues: 0",
+        "severity": "info",
+      },
+      {
+        "message": "No data completeness issues.",
         "severity": "info",
       },
     ],
@@ -577,7 +585,15 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "alerts": [
       {
-        "message": "unsupported_feature (positions): Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
+        "message": "State: degraded",
+        "severity": "warning",
+      },
+      {
+        "message": "Issues: 1",
+        "severity": "info",
+      },
+      {
+        "message": "unsupported_feature (positions, critical): Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
         "severity": "critical",
       },
     ],
@@ -841,7 +857,15 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "alerts": [
       {
-        "message": "optional_item_failed (unknown): Bot equity source lagged by one polling interval",
+        "message": "State: degraded",
+        "severity": "warning",
+      },
+      {
+        "message": "Issues: 1",
+        "severity": "info",
+      },
+      {
+        "message": "optional_item_failed (unknown, optional): Bot equity source lagged by one polling interval",
         "severity": "warning",
       },
     ],

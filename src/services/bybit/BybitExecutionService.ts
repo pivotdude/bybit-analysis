@@ -139,7 +139,7 @@ function toBotPnlReport(
         realizedPnlUsd,
         unrealizedPnlUsd,
         netPnlUsd: realizedPnlUsd + unrealizedPnlUsd,
-        tradesCount: bot.openPositions
+        tradesCount: bot.activePositionCount
       };
     })
     .sort((left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol));

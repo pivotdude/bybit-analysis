@@ -1,6 +1,7 @@
 import type { OutputFormat } from "../types/command.types";
 import type { ReportDocument } from "../types/report.types";
 import type { ReportRenderer } from "./ReportRenderer";
+import { classifyReportOutcome } from "../cli/exitCodes";
 import { renderAlerts } from "./sections/alerts.section";
 import { renderKpis } from "./sections/kpi.section";
 import { renderTable } from "./sections/table.section";
@@ -9,6 +10,7 @@ export class MarkdownRenderer implements ReportRenderer {
   render(report: ReportDocument, format: OutputFormat): string {
     const compact = format === "compact";
     const sectionHeadingPrefix = compact ? "###" : "##";
+    const outcome = classifyReportOutcome(report);
     const lines: string[] = [];
 
     lines.push(`# ${report.title}`);
@@ -18,6 +20,12 @@ export class MarkdownRenderer implements ReportRenderer {
 
     lines.push(`Generated at: ${new Date(report.generatedAt).toISOString()}`);
     lines.push(`Schema: ${report.schemaVersion}`);
+    lines.push(`Command: ${report.command}`);
+    lines.push(`Outcome: ${outcome.status}`);
+    lines.push(`Exit Code: ${outcome.exitCode} (${outcome.exitCodeLabel})`);
+    lines.push(`Data Completeness: ${outcome.dataCompletenessState}`);
+    lines.push(`Partial Data: ${String(outcome.partialData)}`);
+    lines.push(`Health Status: ${outcome.healthStatus}`);
 
     for (const section of report.sections) {
       if (!compact) {

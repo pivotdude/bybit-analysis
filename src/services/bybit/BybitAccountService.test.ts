@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { BybitAccountService } from "./BybitAccountService";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
-import type { BotDataService } from "../contracts/BotDataService";
 import type { PositionDataService } from "../contracts/PositionDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
@@ -50,8 +49,7 @@ describe("BybitAccountService#getApiKeyPermissionInfo", () => {
     } as unknown as BybitReadonlyClient;
 
     const positionsService = {} as PositionDataService;
-    const botService = {} as BotDataService;
-    const service = new BybitAccountService(client, positionsService, botService, createMemoryCache());
+    const service = new BybitAccountService(client, positionsService, createMemoryCache());
 
     const info = await service.getApiKeyPermissionInfo(requestContext);
     const serialized = JSON.stringify(info);
@@ -69,7 +67,7 @@ describe("BybitAccountService#getApiKeyPermissionInfo", () => {
 });
 
 describe("BybitAccountService#getAccountSnapshot", () => {
-  it("propagates equity history through normalizer into the domain snapshot", async () => {
+  it("marks ROI/capital efficiency as unsupported when historical equity source is unavailable", async () => {
     const client = {
       getWalletBalance: async () => ({
         list: [
@@ -87,12 +85,6 @@ describe("BybitAccountService#getAccountSnapshot", () => {
             totalEquityUsd: "1450",
             grossExposureUsd: "2400",
             netExposureUsd: "1000"
-          },
-          {
-            timestamp: "2026-01-01T00:00:00.000Z",
-            totalEquityUsd: "1400",
-            grossExposureUsd: "2000",
-            netExposureUsd: "900"
           }
         ]
       })
@@ -112,21 +104,31 @@ describe("BybitAccountService#getAccountSnapshot", () => {
       })
     };
 
-    const botService = {} as BotDataService;
-    const service = new BybitAccountService(client, positionsService, botService, createMemoryCache());
+    const service = new BybitAccountService(client, positionsService, createMemoryCache());
     const snapshot = await service.getAccountSnapshot(requestContext);
 
-    expect(snapshot.equityHistory?.map((item) => item.timestamp)).toEqual([
-      "2026-01-01T00:00:00.000Z",
-      "2026-01-02T00:00:00.000Z"
-    ]);
-    expect(snapshot.equityHistory?.[0]?.grossExposureUsd).toBe(2000);
-    expect(snapshot.equityHistory?.[1]?.grossExposureUsd).toBe(2400);
+    expect(snapshot.equityHistory).toBeUndefined();
+    expect(snapshot.dataCompleteness.state).toBe("degraded");
+    expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
+    expect(snapshot.dataCompleteness.warnings.some((warning) => warning.includes("historical equity source is unavailable"))).toBe(
+      true
+    );
   });
 
-  it("requests required bot data in bot source mode", async () => {
-    let requirement: string | undefined;
-    const client = {} as BybitReadonlyClient;
+  it("keeps account balance semantics unchanged in bot source mode", async () => {
+    const client = {
+      getWalletBalance: async () => ({
+        list: [
+          {
+            accountType: "UNIFIED",
+            totalEquity: "1500",
+            totalWalletBalance: "1400",
+            totalAvailableBalance: "1200",
+            totalPerpUPL: "100"
+          }
+        ]
+      })
+    } as unknown as BybitReadonlyClient;
 
     const positionsService: PositionDataService = {
       getOpenPositions: async () => ({
@@ -142,54 +144,19 @@ describe("BybitAccountService#getAccountSnapshot", () => {
       })
     };
 
-    const botService: BotDataService = {
-      getBotReport: async (_context, options) => {
-        requirement = options?.requirement;
-        return {
-          source: "bybit",
-          generatedAt: new Date().toISOString(),
-          availability: "available",
-          bots: [
-            {
-              botId: "fgrid-1",
-              name: "BTC Grid",
-              status: "running",
-              quoteAsset: "USDT",
-              allocatedCapitalUsd: 100,
-              availableBalanceUsd: 80,
-              equityUsd: 110,
-              unrealizedPnlUsd: 10
-            }
-          ],
-          totalAllocatedUsd: 100,
-          dataCompleteness: {
-            state: "complete",
-            partial: false,
-            warnings: [],
-            issues: []
-          }
-        };
-      }
-    };
-
-    const service = new BybitAccountService(client, positionsService, botService, createMemoryCache());
+    const service = new BybitAccountService(client, positionsService, createMemoryCache());
     const snapshot = await service.getAccountSnapshot({
       ...requestContext,
       sourceMode: "bot",
       providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["fgrid-1"], spotGridBotIds: [] } } }
     });
 
-    expect(requirement).toBe("required");
-    expect(snapshot.walletBalanceUsd).toBe(100);
-    expect(snapshot.totalEquityUsd).toBe(110);
+    expect(snapshot.walletBalanceUsd).toBe(1400);
+    expect(snapshot.totalEquityUsd).toBe(1500);
+    expect(snapshot.availableBalanceUsd).toBe(1200);
     expect(snapshot.balances).toEqual([]);
-    expect(snapshot.botCapital).toEqual([
-      {
-        asset: "USDT",
-        allocatedCapitalUsd: 100,
-        availableBalanceUsd: 80,
-        equityUsd: 110
-      }
-    ]);
+    expect(snapshot.equityHistory).toBeUndefined();
+    expect(snapshot.dataCompleteness.state).toBe("degraded");
+    expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
   });
 });

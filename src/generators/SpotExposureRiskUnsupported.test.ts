@@ -169,6 +169,55 @@ describe("Spot exposure/risk fail-closed reports", () => {
     expect(report.dataCompleteness?.issues[0]?.code).toBe("unsupported_feature");
   });
 
+  it("does not propagate ROI-only equity-history unsupported issue into risk data completeness", async () => {
+    const roiOnlyAccountService: AccountDataService = {
+      getAccountSnapshot: async () => ({
+        source: "bybit",
+        exchange: "bybit",
+        category: "linear",
+        capturedAt: new Date().toISOString(),
+        totalEquityUsd: 8_000,
+        walletBalanceUsd: 8_000,
+        availableBalanceUsd: 8_000,
+        unrealizedPnlUsd: 0,
+        positions: [],
+        balances: [{ asset: "USDT", walletBalance: 8_000, availableBalance: 8_000, usdValue: 8_000 }],
+        dataCompleteness: degradedDataCompleteness([
+          buildUnsupportedFeatureIssue({
+            scope: "equity_history",
+            message: "ROI and capital efficiency are unsupported: historical equity source is unavailable."
+          })
+        ])
+      }),
+      checkHealth: async () => ({
+        connectivity: "ok",
+        auth: "ok",
+        latencyMs: 1,
+        diagnostics: []
+      }),
+      getApiKeyPermissionInfo: async () => ({
+        apiKeyStatus: "present",
+        apiKeyDisplay: "<redacted>",
+        readOnly: true,
+        ipWhitelistRestricted: false,
+        ipWhitelistCount: 0,
+        ipWhitelistDisplay: "not configured",
+        permissions: {}
+      })
+    };
+
+    const report = await new RiskReportGenerator(roiOnlyAccountService).generate({
+      ...context,
+      category: "linear"
+    });
+
+    const overview = getSection(report, "risk.overview");
+    expect(overview.type).toBe("kpi");
+    expect(overview.type === "kpi" ? overview.kpis[0]?.value : undefined).not.toBe("unsupported");
+    expect(report.dataCompleteness?.state).toBe("complete");
+    expect(report.dataCompleteness?.issues).toHaveLength(0);
+  });
+
   it("renders summary report with unsupported exposure/risk instead of zero metrics", async () => {
     const report = await new SummaryReportGenerator(accountService, executionService, botService).generate(context);
 

@@ -58,7 +58,7 @@ export class BotsReportGenerator {
             fmtUsd(bot.realizedPnlUsd ?? 0),
             fmtUsd(bot.unrealizedPnlUsd ?? 0),
             typeof bot.roiPct === "number" ? fmtPct(bot.roiPct) : "N/A",
-            String(bot.openPositions ?? 0)
+            String(bot.activePositionCount ?? 0)
           ])
         }
       }),
@@ -67,13 +67,13 @@ export class BotsReportGenerator {
           headers: ["Bot ID", "Type", "Symbol", "Side", "Leverage", "Grid Profit", "Close Reason", "Close Code"],
           rows: analysis.bots.map((bot) => [
             bot.botId,
-            bot.botType ?? "unknown",
+            bot.strategyType ?? "unknown",
             bot.symbol ?? "-",
             bot.side ?? "unknown",
             typeof bot.leverage === "number" ? `${bot.leverage.toFixed(2)}x` : "-",
-            fmtUsd(bot.gridProfitUsd ?? 0),
+            fmtUsd(bot.strategyProfitUsd ?? 0),
             bot.closeReason ?? "-",
-            bot.botCloseCode ?? "-"
+            bot.closeCode ?? "-"
           ])
         }
       }),

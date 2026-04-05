@@ -96,4 +96,35 @@ describe("MarkdownRenderer", () => {
     expect(markdown).toContain("| Key | Value |");
     expect(compact).toContain("|Key|Value|");
   });
+
+  it("renders fixed execution metadata and deterministic empty table state", () => {
+    const report: ReportDocument = {
+      command: "health",
+      title: "Health Status",
+      generatedAt: "2026-01-31T00:00:00.000Z",
+      schemaVersion: "health-markdown-v1",
+      healthStatus: "failed",
+      sections: [
+        {
+          id: "health.checks",
+          title: "Checks",
+          type: "table",
+          table: {
+            headers: ["Check", "Status"],
+            rows: []
+          }
+        }
+      ]
+    };
+
+    const markdown = new MarkdownRenderer().render(report, "md");
+
+    expect(markdown).toContain("Command: health");
+    expect(markdown).toContain("Outcome: failed");
+    expect(markdown).toContain("Exit Code: 4 (health_check_failed)");
+    expect(markdown).toContain("Data Completeness: unsupported");
+    expect(markdown).toContain("Partial Data: unsupported");
+    expect(markdown).toContain("Health Status: failed");
+    expect(markdown).toContain("| <empty> | <empty> |");
+  });
 });

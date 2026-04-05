@@ -269,6 +269,7 @@ const executionService: ExecutionDataService = {
       netPnlUsd: 115,
       roiStatus: "unsupported",
       roiUnsupportedReason: "starting equity is unavailable for the requested period window",
+      roiUnsupportedReasonCode: "starting_equity_unavailable",
       roiStartEquityUsd: undefined,
       roiEndEquityUsd: 12_000,
       bySymbol: [],
@@ -318,7 +319,7 @@ const botService: BotDataService = {
         {
           botId: "612330315406398322",
           name: "BTC Grid",
-          botType: "futures_grid",
+          strategyType: "futures_grid",
           symbol: "BTCUSDT",
           status: "running",
           side: "long",

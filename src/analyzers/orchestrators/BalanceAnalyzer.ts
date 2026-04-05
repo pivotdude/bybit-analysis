@@ -13,7 +13,6 @@ export interface BalanceAnalysis {
     marginBalanceUsd: number;
   };
   balances: AccountSnapshot["balances"];
-  botCapital: AccountSnapshot["botCapital"];
 }
 
 export class BalanceAnalyzer {
@@ -30,8 +29,7 @@ export class BalanceAnalyzer {
         maintenanceMarginUsd: account.totalMaintenanceMarginUsd ?? 0,
         marginBalanceUsd: account.marginBalanceUsd ?? 0
       },
-      balances: account.balances,
-      botCapital: account.botCapital
+      balances: account.balances
     };
   }
 }
