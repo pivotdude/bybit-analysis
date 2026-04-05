@@ -42,7 +42,7 @@ function toErrorMessage(error: unknown): string {
   return String(error);
 }
 
-function getRetryAttempts(error: unknown): number {
+export function getRetryAttempts(error: unknown): number {
   if (!error || typeof error !== "object") {
     return 1;
   }
