@@ -269,9 +269,7 @@ export class SummaryReportGenerator {
       section("positions", {
         table: {
           headers: ["Symbol", "Side", "Notional", "UPnL", "Leverage", "Price Source"],
-          rows: unsupportedExposureRiskReason
-            ? [["unsupported", "unsupported", "unsupported", "unsupported", "unsupported", "unsupported"]]
-            : positionsRows
+          rows: unsupportedExposureRiskReason ? [] : positionsRows
         }
       }),
       section("holdings", {

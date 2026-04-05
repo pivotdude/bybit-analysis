@@ -51,6 +51,17 @@ export function getUnsupportedFeatureIssueMessage(
   )?.message;
 }
 
+export function filterDataCompletenessIssues(
+  dataCompleteness: DataCompleteness,
+  predicate: (issue: DataCompletenessIssue) => boolean
+): DataCompleteness {
+  const filteredIssues = dataCompleteness.issues.filter(predicate);
+  if (filteredIssues.length === 0) {
+    return completeDataCompleteness();
+  }
+  return degradedDataCompleteness(filteredIssues);
+}
+
 export function mergeDataCompleteness(...items: DataCompleteness[]): DataCompleteness {
   const issues = items.flatMap((item) => {
     if (item.issues.length > 0) {

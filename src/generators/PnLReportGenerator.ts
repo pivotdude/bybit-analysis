@@ -4,7 +4,7 @@ import type { AccountDataService, ServiceRequestContext } from "../services/cont
 import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
 import { fmtIso, fmtPct, fmtUsd } from "./formatters";
-import { mergeDataCompleteness } from "../services/reliability/dataCompleteness";
+import { filterDataCompletenessIssues, mergeDataCompleteness } from "../services/reliability/dataCompleteness";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
 
@@ -110,7 +110,11 @@ export class PnLReportGenerator {
       })
     ];
 
-    const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness);
+    const accountCompleteness = filterDataCompletenessIssues(
+      account.dataCompleteness,
+      (issue) => !(issue.code === "unsupported_feature" && issue.scope === "positions")
+    );
+    const dataCompleteness = mergeDataCompleteness(accountCompleteness, pnl.dataCompleteness);
     sections.push(
       section("dataCompleteness", {
         alerts: buildDataCompletenessAlerts(dataCompleteness)

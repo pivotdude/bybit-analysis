@@ -175,6 +175,7 @@ describe("Spot exposure/risk fail-closed reports", () => {
     const overview = getSection(report, "summary.overview");
     const risk = getSection(report, "summary.risk");
     const alerts = getSection(report, "summary.alerts");
+    const openPositions = getSection(report, "summary.open_positions");
 
     expect(overview.type).toBe("kpi");
     expect(overview.type === "kpi" ? overview.kpis[3]?.value : undefined).toBe("unsupported");
@@ -184,6 +185,8 @@ describe("Spot exposure/risk fail-closed reports", () => {
     expect(alerts.type === "alerts" ? alerts.alerts.some((item) => item.message.includes("unsupported")) : false).toBe(
       true
     );
+    expect(openPositions.type).toBe("table");
+    expect(openPositions.type === "table" ? openPositions.table.rows : []).toHaveLength(0);
     expect(report.dataCompleteness?.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
   });
 });

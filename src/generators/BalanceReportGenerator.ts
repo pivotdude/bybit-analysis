@@ -5,6 +5,7 @@ import type { ReportSectionType } from "../types/report.types";
 import type { ServiceRequestContext } from "../services/contracts/AccountDataService";
 import { fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { filterDataCompletenessIssues } from "../services/reliability/dataCompleteness";
 
 export const BALANCE_SCHEMA_VERSION = "balance-markdown-v1";
 
@@ -31,6 +32,10 @@ export class BalanceReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const snapshot = await this.accountService.getAccountSnapshot(context);
+    const dataCompleteness = filterDataCompletenessIssues(
+      snapshot.dataCompleteness,
+      (issue) => !(issue.code === "unsupported_feature" && issue.scope === "positions")
+    );
     const analysis = this.analyzer.analyze(snapshot);
     const sections: ReportDocument["sections"] = [
       section("snapshot", {
@@ -60,7 +65,7 @@ export class BalanceReportGenerator {
         ]
       }),
       section("dataCompleteness", {
-        alerts: buildDataCompletenessAlerts(snapshot.dataCompleteness)
+        alerts: buildDataCompletenessAlerts(dataCompleteness)
       })
     ];
 
@@ -70,7 +75,7 @@ export class BalanceReportGenerator {
       schemaVersion: BALANCE_SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
       sections,
-      dataCompleteness: snapshot.dataCompleteness
+      dataCompleteness
     };
   }
 }

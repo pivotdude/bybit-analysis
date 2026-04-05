@@ -496,16 +496,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
         "Leverage",
         "Price Source",
       ],
-      "rows": [
-        [
-          "unsupported",
-          "unsupported",
-          "unsupported",
-          "unsupported",
-          "unsupported",
-          "unsupported",
-        ],
-      ],
+      "rows": [],
     },
     "title": "Open Positions",
     "type": "table",

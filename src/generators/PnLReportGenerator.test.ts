@@ -181,4 +181,61 @@ describe("PnLReportGenerator", () => {
     expect(roiStatus && roiStatus.type === "text" ? roiStatus.text[1] : undefined).toBe("Code: equity_history_unavailable");
     expect(roiStatus && roiStatus.type === "text" ? roiStatus.text[2] : undefined).toContain("equity history is unavailable");
   });
+
+  it("does not propagate spot exposure/risk unsupported issue into pnl data completeness", async () => {
+    const executionService: ExecutionDataService = {
+      getPnlReport: async () => ({
+        source: "bybit",
+        generatedAt: new Date().toISOString(),
+        periodFrom: context.from,
+        periodTo: context.to,
+        realizedPnlUsd: 100,
+        unrealizedPnlUsd: 0,
+        fees: {
+          tradingFeesUsd: 0,
+          fundingFeesUsd: 0
+        },
+        netPnlUsd: 100,
+        ...normalizeRoi({
+          equityStartUsd: 1_000,
+          equityEndUsd: 1_100
+        }),
+        bySymbol: [],
+        bestSymbols: [],
+        worstSymbols: [],
+        dataCompleteness: {
+          state: "complete",
+          partial: false,
+          warnings: [],
+          issues: []
+        }
+      })
+    };
+
+    const accountService = createAccountService({
+      category: "spot",
+      dataCompleteness: {
+        state: "degraded",
+        partial: true,
+        warnings: ["Spot market exposure/risk is unsupported."],
+        issues: [
+          {
+            code: "unsupported_feature",
+            scope: "positions",
+            severity: "critical",
+            criticality: "critical",
+            message: "Spot market exposure/risk is unsupported."
+          }
+        ]
+      }
+    });
+
+    const report = await new PnLReportGenerator(executionService, accountService).generate({
+      ...context,
+      category: "spot"
+    });
+
+    expect(report.dataCompleteness?.state).toBe("complete");
+    expect(report.dataCompleteness?.issues).toHaveLength(0);
+  });
 });
