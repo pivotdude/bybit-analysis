@@ -78,7 +78,7 @@ describe("BybitExecutionService pagination", () => {
                 symbol: "BTCUSDT",
                 realizedPnlUsd: 30,
                 unrealizedPnlUsd: 5,
-                openPositions: 1
+                activePositionCount: 1
               }
             ],
             dataCompleteness: {

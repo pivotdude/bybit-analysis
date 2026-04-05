@@ -41,23 +41,12 @@ export class BalanceReportGenerator {
         )
     );
     const analysis = this.analyzer.analyze(snapshot);
-    const hasBotCapital = (analysis.botCapital?.length ?? 0) > 0;
-    const assetBalanceHeaders = hasBotCapital
-      ? ["Asset", "Allocated Capital (USD)", "Available Capital (USD)", "Equity (USD)"]
-      : ["Asset", "Wallet", "Available", "USD Value"];
-    const assetBalanceRows = hasBotCapital
-      ? (analysis.botCapital ?? []).map((capital) => [
-          capital.asset,
-          fmtUsd(capital.allocatedCapitalUsd),
-          fmtUsd(capital.availableBalanceUsd),
-          fmtUsd(capital.equityUsd)
-        ])
-      : analysis.balances.map((balance) => [
-          balance.asset,
-          balance.walletBalance.toFixed(6),
-          balance.availableBalance.toFixed(6),
-          fmtUsd(balance.usdValue)
-        ]);
+    const assetBalanceRows = analysis.balances.map((balance) => [
+      balance.asset,
+      balance.walletBalance.toFixed(6),
+      balance.availableBalance.toFixed(6),
+      fmtUsd(balance.usdValue)
+    ]);
 
     const sections: ReportDocument["sections"] = [
       section("snapshot", {
@@ -70,7 +59,7 @@ export class BalanceReportGenerator {
       }),
       section("assets", {
         table: {
-          headers: assetBalanceHeaders,
+          headers: ["Asset", "Wallet", "Available", "USD Value"],
           rows: assetBalanceRows
         }
       }),

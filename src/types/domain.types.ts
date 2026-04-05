@@ -23,7 +23,6 @@ export interface AccountSnapshot {
   equityHistory?: EquitySnapshot[];
   positions: Position[];
   balances: AssetBalance[];
-  botCapital?: BotCapitalBalance[];
   dataCompleteness: DataCompleteness;
 }
 
@@ -40,13 +39,6 @@ export interface AssetBalance {
   walletBalance: number;
   availableBalance: number;
   usdValue: number;
-}
-
-export interface BotCapitalBalance {
-  asset: string;
-  allocatedCapitalUsd: number;
-  availableBalanceUsd: number;
-  equityUsd: number;
 }
 
 export interface Position {
@@ -229,7 +221,7 @@ export interface AlertRule<TData = unknown> {
 export interface BotSummary {
   botId: string;
   name: string;
-  botType?: "futures_grid" | "spot_grid" | "unknown";
+  strategyType?: string;
   symbol?: string;
   baseAsset?: string;
   quoteAsset?: string;
@@ -244,13 +236,13 @@ export interface BotSummary {
   exposureUsd?: number;
   realizedPnlUsd?: number;
   unrealizedPnlUsd?: number;
-  gridProfitUsd?: number;
-  availableBalanceUsd?: number;
+  strategyProfitUsd?: number;
+  availableCapitalUsd?: number;
   equityUsd?: number;
   closeReason?: string;
-  botCloseCode?: string;
+  closeCode?: string;
   roiPct?: number;
-  openPositions?: number;
+  activePositionCount?: number;
 }
 
 export interface BotReport {

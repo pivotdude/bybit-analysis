@@ -11,11 +11,11 @@ export const bybitServiceProviderFactory: ExchangeServiceProviderFactory = {
   create(config, cache) {
     const client = createBybitClient(config);
     const botService = new BybitBotService(client, cache);
-    const positionService = new BybitPositionService(client, botService, cache, {
+    const positionService = new BybitPositionService(client, cache, {
       maxPages: config.pagination.positionsMaxPages,
       limitMode: config.pagination.limitMode
     });
-    const accountService = new BybitAccountService(client, positionService, botService, cache);
+    const accountService = new BybitAccountService(client, positionService, cache);
     const executionService = new BybitExecutionService(client, botService, cache, {
       maxPagesPerChunk: config.pagination.executionsMaxPagesPerChunk,
       limitMode: config.pagination.limitMode
