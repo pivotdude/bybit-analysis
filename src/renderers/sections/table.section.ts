@@ -1,5 +1,7 @@
 import type { MarkdownTable } from "../../types/report.types";
 
+const EMPTY_ROW_PLACEHOLDER = "<empty>";
+
 function sanitizeMarkdownTableCell(cell: string): string {
   return (
     cell
@@ -22,7 +24,8 @@ export function renderTable(table: MarkdownTable, compact = false): string[] {
   lines.push(renderRow(table.headers));
   lines.push(renderRow(table.headers.map(() => "---")));
 
-  for (const row of table.rows) {
+  const rows = table.rows.length > 0 ? table.rows : [table.headers.map(() => EMPTY_ROW_PLACEHOLDER)];
+  for (const row of rows) {
     lines.push(renderRow(row));
   }
 

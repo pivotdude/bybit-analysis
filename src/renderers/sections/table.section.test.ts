@@ -59,4 +59,13 @@ describe("renderTable", () => {
     expect(lines[2]).toContain(longText);
     expect(lines[2]!.includes("...")).toBe(false);
   });
+
+  it("renders a deterministic placeholder row when table has no data rows", () => {
+    const lines = renderTable({
+      headers: ["Field", "Value"],
+      rows: []
+    });
+
+    expect(lines[2]).toBe("| <empty> | <empty> |");
+  });
 });

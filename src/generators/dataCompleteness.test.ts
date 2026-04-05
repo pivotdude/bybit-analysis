@@ -173,6 +173,9 @@ describe("Data completeness sections", () => {
         ? section.alerts.some((alert) => alert.message.includes("pagination_limit_reached"))
         : false
     ).toBe(true);
+    expect(
+      section && section.type === "alerts" ? section.alerts.some((alert) => alert.message === "State: degraded") : false
+    ).toBe(true);
     expect(report.dataCompleteness?.state).toBe("degraded");
   });
 });

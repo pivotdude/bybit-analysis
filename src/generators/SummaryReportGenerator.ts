@@ -11,7 +11,7 @@ import {
   mergeDataCompleteness
 } from "../services/reliability/dataCompleteness";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
-import { createSectionBuilder } from "./reportContract";
+import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveRoiContract } from "./roiContractResolver";
 
 export const SUMMARY_SCHEMA_VERSION = "summary-markdown-v1";
@@ -176,13 +176,7 @@ export class SummaryReportGenerator {
     }
 
     const dataCompleteness = mergeDataCompleteness(account.dataCompleteness, pnl.dataCompleteness, bot.dataCompleteness);
-    const dataCompletenessAlerts: MarkdownAlert[] =
-      dataCompleteness.issues.length > 0
-        ? dataCompleteness.issues.map((issue) => ({
-            severity: issue.severity,
-            message: `${issue.code} (${issue.scope}): ${issue.message}`
-          }))
-        : [{ severity: "info", message: "No data completeness warnings." }];
+    const dataCompletenessAlerts = buildDataCompletenessAlerts(dataCompleteness);
 
     const sections: ReportSection[] = [
       section("contract", {
