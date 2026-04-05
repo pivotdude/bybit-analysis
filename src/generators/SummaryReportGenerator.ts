@@ -59,6 +59,11 @@ interface BotLoadResult {
   failureReason?: string;
 }
 
+interface HoldingSnapshot {
+  asset: string;
+  usdValue: number;
+}
+
 export class SummaryReportGenerator {
   private readonly analyzer = new SummaryAnalyzer();
 
@@ -88,15 +93,19 @@ export class SummaryReportGenerator {
     const winners = pnl.bySymbol.filter((item) => item.netPnlUsd > 0).length;
     const losers = pnl.bySymbol.filter((item) => item.netPnlUsd < 0).length;
     const winRate = tradedSymbols > 0 ? (winners / tradedSymbols) * 100 : 0;
+    const holdings: HoldingSnapshot[] =
+      account.balances.length > 0
+        ? account.balances.map((balance) => ({ asset: balance.asset, usdValue: balance.usdValue }))
+        : (account.botCapital ?? []).map((capital) => ({ asset: capital.asset, usdValue: capital.equityUsd }));
 
-    const stableValueUsd = account.balances
+    const stableValueUsd = holdings
       .filter((balance) => STABLE_ASSETS.has(balance.asset.toUpperCase()))
       .reduce((sum, balance) => sum + balance.usdValue, 0);
     const nonStableValueUsd = Math.max(0, account.totalEquityUsd - stableValueUsd);
     const stableSharePct = account.totalEquityUsd > 0 ? (stableValueUsd / account.totalEquityUsd) * 100 : 0;
     const nonStableSharePct = account.totalEquityUsd > 0 ? (nonStableValueUsd / account.totalEquityUsd) * 100 : 0;
 
-    const largestHolding = account.balances[0];
+    const largestHolding = holdings[0];
     const largestHoldingSharePct =
       largestHolding && account.totalEquityUsd > 0 ? (largestHolding.usdValue / account.totalEquityUsd) * 100 : 0;
 
@@ -119,7 +128,7 @@ export class SummaryReportGenerator {
       position.priceSource
     ]);
 
-    const holdingsRows = account.balances.slice(0, 10).map((balance) => [
+    const holdingsRows = holdings.slice(0, 10).map((balance) => [
       balance.asset,
       fmtUsd(balance.usdValue),
       fmtPct(account.totalEquityUsd > 0 ? (balance.usdValue / account.totalEquityUsd) * 100 : 0)

@@ -423,7 +423,7 @@ describe("BybitExecutionService pagination", () => {
           maxDelayMs: 1_000,
           jitterRatio: 0
         },
-        fetchFn: async (url: string | URL | Request) => {
+        fetchFn: (async (url: string | URL | Request) => {
           const urlText = typeof url === "string" ? url : url.toString();
 
           if (urlText.includes("/v5/position/closed-pnl")) {
@@ -447,7 +447,7 @@ describe("BybitExecutionService pagination", () => {
           }
 
           throw new Error(`unexpected endpoint in test: ${urlText}`);
-        }
+        }) as typeof fetch
       }
     );
 

@@ -182,5 +182,14 @@ describe("BybitAccountService#getAccountSnapshot", () => {
     expect(requirement).toBe("required");
     expect(snapshot.walletBalanceUsd).toBe(100);
     expect(snapshot.totalEquityUsd).toBe(110);
+    expect(snapshot.balances).toEqual([]);
+    expect(snapshot.botCapital).toEqual([
+      {
+        asset: "USDT",
+        allocatedCapitalUsd: 100,
+        availableBalanceUsd: 80,
+        equityUsd: 110
+      }
+    ]);
   });
 });
