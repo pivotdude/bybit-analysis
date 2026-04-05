@@ -7,6 +7,7 @@ import { fmtIso, fmtPct, fmtUsd } from "./formatters";
 import { filterDataCompletenessIssues, mergeDataCompleteness } from "../services/reliability/dataCompleteness";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
+import { resolveRoiContract } from "./roiContractResolver";
 
 export const PERFORMANCE_SCHEMA_VERSION = "performance-markdown-v1";
 
@@ -48,8 +49,7 @@ export class PerformanceReportGenerator {
       accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
     });
     const analysis = this.analyzer.analyze(account, pnl);
-    const roi =
-      analysis.roiStatus === "supported" && typeof analysis.roiPct === "number" ? fmtPct(analysis.roiPct) : "unsupported";
+    const roi = resolveRoiContract(analysis);
     const capitalEfficiency =
       analysis.capitalEfficiencyStatus === "supported" && typeof analysis.capitalEfficiencyPct === "number"
         ? fmtPct(analysis.capitalEfficiencyPct)
@@ -65,7 +65,7 @@ export class PerformanceReportGenerator {
       section("roi", {
         kpis: [
           { label: "Period Net PnL", value: fmtUsd(analysis.periodNetPnlUsd) },
-          { label: "ROI", value: roi }
+          { label: "ROI", value: roi.roiKpiValue }
         ]
       }),
       section("capitalEfficiency", {
@@ -76,13 +76,7 @@ export class PerformanceReportGenerator {
       }),
       section("interpretation", {
         text: [
-          `ROI status: ${analysis.roiStatus}`,
-          ...(analysis.roiStatus === "unsupported"
-            ? [
-                `ROI unsupported code: ${analysis.roiUnsupportedReasonCode ?? "unknown"}`,
-                `ROI unsupported reason: ${analysis.roiUnsupportedReason ?? "starting equity is unavailable"}`
-              ]
-            : []),
+          ...roi.narrativeLines,
           `Interpretation: ${analysis.interpretation}`,
           analysis.capitalEfficiencyStatus === "unsupported"
             ? `Capital efficiency status: unsupported (${analysis.capitalEfficiencyReason ?? "equity history is unavailable"})`

@@ -4,7 +4,10 @@ import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
 import { fmtPct, fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
-import { getUnsupportedFeatureIssueMessage } from "../services/reliability/dataCompleteness";
+import {
+  filterDataCompletenessIssues,
+  getUnsupportedFeatureIssueMessage
+} from "../services/reliability/dataCompleteness";
 
 export const RISK_SCHEMA_VERSION = "risk-markdown-v1";
 
@@ -33,7 +36,11 @@ export class RiskReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const account = await this.accountService.getAccountSnapshot(context);
-    const unsupportedMessage = getUnsupportedFeatureIssueMessage(account.dataCompleteness, "positions");
+    const dataCompleteness = filterDataCompletenessIssues(
+      account.dataCompleteness,
+      (issue) => !(issue.code === "unsupported_feature" && issue.scope === "equity_history")
+    );
+    const unsupportedMessage = getUnsupportedFeatureIssueMessage(dataCompleteness, "positions");
     if (unsupportedMessage) {
       const sections: ReportDocument["sections"] = [
         section("overview", {
@@ -62,7 +69,7 @@ export class RiskReportGenerator {
           alerts: [{ severity: "critical", message: unsupportedMessage }]
         }),
         section("dataCompleteness", {
-          alerts: buildDataCompletenessAlerts(account.dataCompleteness)
+          alerts: buildDataCompletenessAlerts(dataCompleteness)
         })
       ];
 
@@ -72,7 +79,7 @@ export class RiskReportGenerator {
         schemaVersion: RISK_SCHEMA_VERSION,
         generatedAt: new Date().toISOString(),
         sections,
-        dataCompleteness: account.dataCompleteness
+        dataCompleteness
       };
     }
 
@@ -107,7 +114,7 @@ export class RiskReportGenerator {
             : [{ severity: "info", message: "No active risk alerts" }]
       }),
       section("dataCompleteness", {
-        alerts: buildDataCompletenessAlerts(account.dataCompleteness)
+        alerts: buildDataCompletenessAlerts(dataCompleteness)
       })
     ];
 
@@ -117,7 +124,7 @@ export class RiskReportGenerator {
       schemaVersion: RISK_SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
       sections,
-      dataCompleteness: account.dataCompleteness
+      dataCompleteness
     };
   }
 }

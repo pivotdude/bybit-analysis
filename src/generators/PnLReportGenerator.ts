@@ -3,10 +3,11 @@ import type { ExecutionDataService } from "../services/contracts/ExecutionDataSe
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
-import { fmtIso, fmtPct, fmtUsd } from "./formatters";
+import { fmtIso, fmtUsd } from "./formatters";
 import { filterDataCompletenessIssues, mergeDataCompleteness } from "../services/reliability/dataCompleteness";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
+import { resolveRoiContract } from "./roiContractResolver";
 
 export const PNL_SCHEMA_VERSION = "pnl-markdown-v1";
 
@@ -50,22 +51,8 @@ export class PnLReportGenerator {
       accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
     });
     const analysis = this.analyzer.analyze(pnl);
+    const roi = resolveRoiContract(analysis);
 
-    const roi = analysis.roiStatus === "supported" && typeof analysis.roiPct === "number" ? fmtPct(analysis.roiPct) : "unsupported";
-    const roiStatusLines =
-      analysis.roiStatus === "supported"
-        ? [
-            "Status: supported",
-            ...(typeof analysis.roiStartEquityUsd === "number"
-              ? [`Start equity: ${fmtUsd(analysis.roiStartEquityUsd)}`]
-              : []),
-            ...(typeof analysis.roiEndEquityUsd === "number" ? [`End equity: ${fmtUsd(analysis.roiEndEquityUsd)}`] : [])
-          ]
-        : [
-            "Status: unsupported",
-            `Code: ${analysis.roiUnsupportedReasonCode ?? startingEquity.missingStartReasonCode ?? "unknown"}`,
-            `Reason: ${analysis.roiUnsupportedReason ?? startingEquity.missingStartReason ?? "starting equity is unavailable"}`
-          ];
     const winnerRows = analysis.bestSymbols.map((item) => ["Winner", item.symbol, fmtUsd(item.netPnlUsd)]);
     const winnerSymbols = new Set(analysis.bestSymbols.map((item) => item.symbol));
     const loserRows = analysis.worstSymbols
@@ -81,11 +68,11 @@ export class PnLReportGenerator {
           { label: "Unrealized PnL", value: fmtUsd(analysis.unrealizedPnlUsd) },
           { label: "Fees", value: fmtUsd(analysis.totalFeesUsd) },
           { label: "Net PnL", value: fmtUsd(analysis.netPnlUsd) },
-          { label: "ROI", value: roi }
+          { label: "ROI", value: roi.roiKpiValue }
         ]
       }),
       section("roiStatus", {
-        text: roiStatusLines
+        text: roi.pnlStatusLines
       }),
       section("symbolBreakdown", {
         table: {

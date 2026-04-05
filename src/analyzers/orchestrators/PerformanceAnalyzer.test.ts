@@ -35,6 +35,7 @@ const basePnl: PnLReport = {
   netPnlUsd: 200,
   roiStatus: "unsupported",
   roiUnsupportedReason: "starting equity is unavailable for the requested period window",
+  roiUnsupportedReasonCode: "starting_equity_unavailable",
   roiStartEquityUsd: undefined,
   roiEndEquityUsd: 1_200,
   bySymbol: [],
