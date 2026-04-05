@@ -1,5 +1,11 @@
 # bybit-analysis
 
+> **PRIVATE REPOSITORY — DO NOT MAKE PUBLIC**
+>
+> This repository previously contained API credentials in `.openclaude-profile.json` which were committed and pushed to GitHub. The file has been removed from the local git history, but **GitHub's server still retains the original commit refs** (`refs/pull/*`) that contain the secrets.
+>
+> **Never switch this repository to public visibility.** If public access is ever needed, create a completely new repository and clean-push the current working tree into it (no history).
+
 Read-only analytics CLI for Bybit accounts. Outputs schema-stable Markdown for operators and versioned JSON for automation and agent consumption.
 
 ## Exchange Readiness Status
