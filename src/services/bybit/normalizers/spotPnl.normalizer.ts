@@ -45,7 +45,7 @@ function toTimestamp(input: unknown): number {
 }
 
 function inferSymbolParts(symbol: string): SymbolParts {
-  const quoteCandidates = ["USDT", "USDC", "USD", "BTC", "ETH", "EUR", "BRL"];
+  const quoteCandidates = ["FDUSD", "USDT", "USDC", "USDE", "USDD", "TUSD", "DAI", "USD", "BTC", "ETH", "EUR", "BRL"];
   for (const quote of quoteCandidates) {
     if (symbol.endsWith(quote) && symbol.length > quote.length) {
       return {
@@ -57,18 +57,22 @@ function inferSymbolParts(symbol: string): SymbolParts {
 
   return {
     baseAsset: symbol,
-    quoteAsset: "USD"
+    quoteAsset: "UNKNOWN"
   };
 }
 
-function estimateFeeUsd(
+function isStableQuotedSymbol(parts: SymbolParts): boolean {
+  return STABLE_QUOTES.has(parts.quoteAsset.toUpperCase());
+}
+
+function estimateFeeUsdForStableQuote(
   fee: number,
   feeCurrencyRaw: string,
   symbolParts: SymbolParts,
   execPrice: number
-): number {
+): { feeUsd: number; unsupported: boolean } {
   if (fee <= 0) {
-    return 0;
+    return { feeUsd: 0, unsupported: false };
   }
 
   const feeCurrency = feeCurrencyRaw.toUpperCase();
@@ -76,18 +80,18 @@ function estimateFeeUsd(
   const base = symbolParts.baseAsset.toUpperCase();
 
   if (feeCurrency === quote) {
-    return fee;
+    return { feeUsd: fee, unsupported: false };
   }
 
   if (feeCurrency === base) {
-    return fee * execPrice;
+    return { feeUsd: fee * execPrice, unsupported: false };
   }
 
   if (STABLE_QUOTES.has(feeCurrency) && STABLE_QUOTES.has(quote)) {
-    return fee;
+    return { feeUsd: fee, unsupported: false };
   }
 
-  return 0;
+  return { feeUsd: 0, unsupported: true };
 }
 
 function createDefaultSymbolPnL(symbol: string): SymbolPnL {
@@ -162,6 +166,8 @@ export function normalizeSpotPnlReport(
   const bySymbolMap = new Map<string, SymbolPnL>();
   const feesBySymbol = new Map<string, number>();
   const uncoveredSellQtyBySymbol = new Map<string, number>();
+  const unsupportedQuoteSymbols = new Map<string, string>();
+  const unsupportedFeePairs = new Map<string, { symbol: string; feeCurrency: string; quoteAsset: string }>();
 
   let realizedPnlUsd = 0;
   let tradingFeesUsd = 0;
@@ -177,6 +183,11 @@ export function normalizeSpotPnlReport(
     }
 
     const state = inventoryBySymbol.get(symbol) ?? { quantity: 0, costUsd: 0 };
+    const parts = inferSymbolParts(symbol);
+    if (!isStableQuotedSymbol(parts)) {
+      continue;
+    }
+
     if (side === "buy") {
       applyBuy(state, qty, execValue);
     } else {
@@ -199,10 +210,24 @@ export function normalizeSpotPnlReport(
     }
 
     const parts = inferSymbolParts(symbol);
-    const feeEstimate = estimateFeeUsd(fee, feeCurrency, parts, price);
+    if (!isStableQuotedSymbol(parts)) {
+      unsupportedQuoteSymbols.set(symbol, parts.quoteAsset.toUpperCase());
+      continue;
+    }
 
-    tradingFeesUsd += feeEstimate;
-    feesBySymbol.set(symbol, (feesBySymbol.get(symbol) ?? 0) + feeEstimate);
+    const feeEstimate = estimateFeeUsdForStableQuote(fee, feeCurrency, parts, price);
+    if (feeEstimate.unsupported && fee > 0) {
+      const feeCurrencyNormalized = feeCurrency.toUpperCase() || "UNKNOWN";
+      const key = `${symbol}|${feeCurrencyNormalized}`;
+      unsupportedFeePairs.set(key, {
+        symbol,
+        feeCurrency: feeCurrencyNormalized,
+        quoteAsset: parts.quoteAsset.toUpperCase()
+      });
+    }
+
+    tradingFeesUsd += feeEstimate.feeUsd;
+    feesBySymbol.set(symbol, (feesBySymbol.get(symbol) ?? 0) + feeEstimate.feeUsd);
 
     const symbolPnl = bySymbolMap.get(symbol) ?? createDefaultSymbolPnL(symbol);
     symbolPnl.tradesCount = (symbolPnl.tradesCount ?? 0) + 1;
@@ -256,13 +281,31 @@ export function normalizeSpotPnlReport(
     ([symbol, unmatchedQty]) =>
       `Unable to reconstruct full spot cost basis for ${symbol}: ${unmatchedQty.toFixed(8)} quantity sold in the period was unmatched by opening inventory. Realized PnL excludes unmatched quantity.`
   );
-  const issues = warnings.map((message) => ({
+  const costBasisIssues = warnings.map((message) => ({
     code: "spot_cost_basis_incomplete" as const,
     scope: "opening_inventory" as const,
     severity: "warning" as const,
     criticality: "optional" as const,
     message
   }));
+  const unsupportedQuoteIssues = Array.from(unsupportedQuoteSymbols.entries()).map(([symbol, quoteAsset]) => ({
+    code: "unsupported_feature" as const,
+    scope: "execution_window" as const,
+    severity: "critical" as const,
+    criticality: "critical" as const,
+    message:
+      quoteAsset === "UNKNOWN"
+        ? `Spot symbol ${symbol} uses an unrecognized quote asset. Quote-to-USD conversion is unsupported; symbol executions were excluded from USD PnL.`
+        : `Spot symbol ${symbol} is quoted in ${quoteAsset}. Quote-to-USD conversion is unsupported; symbol executions were excluded from USD PnL.`
+  }));
+  const unsupportedFeeIssues = Array.from(unsupportedFeePairs.values()).map((item) => ({
+    code: "unsupported_feature" as const,
+    scope: "execution_window" as const,
+    severity: "critical" as const,
+    criticality: "critical" as const,
+    message: `Spot fee conversion is unsupported for ${item.symbol}: fee currency ${item.feeCurrency} could not be normalized to USD for quote asset ${item.quoteAsset}. Fee was excluded from USD totals.`
+  }));
+  const issues = [...costBasisIssues, ...unsupportedQuoteIssues, ...unsupportedFeeIssues];
 
   return {
     source: "bybit",

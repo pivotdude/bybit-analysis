@@ -22,8 +22,7 @@ import {
   BYBIT_PARTIAL_FAILURE_POLICY,
   buildInvalidWindowIssue,
   buildPageFetchIssue,
-  buildPaginationIssue,
-  buildSpotCostBasisIssue
+  buildPaginationIssue
 } from "./partialFailurePolicy";
 import {
   completeDataCompleteness,
@@ -368,11 +367,10 @@ export class BybitExecutionService implements ExecutionDataService {
         roiMissingStartReasonCode
       );
 
-      const spotNormalizerIssues = report.dataCompleteness.warnings.map((message) => buildSpotCostBasisIssue(message));
       report.dataCompleteness = mergeDataCompleteness(
         periodExecutions.dataCompleteness,
         openingIssues.length > 0 ? degradedDataCompleteness(openingIssues) : completeDataCompleteness(),
-        spotNormalizerIssues.length > 0 ? degradedDataCompleteness(spotNormalizerIssues) : completeDataCompleteness()
+        report.dataCompleteness
       );
       return report;
     }
