@@ -23,7 +23,8 @@ import {
   buildInvalidWindowIssue,
   buildPageFetchIssue,
   buildPaginationIssue,
-  buildSpotCostBasisIssue
+  buildSpotCostBasisIssue,
+  getRetryAttempts
 } from "./partialFailurePolicy";
 import {
   completeDataCompleteness,
@@ -51,6 +52,7 @@ interface SpotExecutionRow {
 interface ExecutionHistoryFetchResult {
   rows: Array<Record<string, unknown>>;
   dataCompleteness: DataCompleteness;
+  haltedByRetriedFailure: boolean;
 }
 
 type SpotExecutionFetchPurpose = "window" | "opening_inventory";
@@ -197,8 +199,13 @@ export class BybitExecutionService implements ExecutionDataService {
     const issues: DataCompleteness["issues"] = [];
     const policyKey = options.purpose === "opening_inventory" ? "opening_inventory" : "execution_window";
     let pagesFetchedTotal = 0;
+    let haltedByRetriedFailure = false;
 
     for (const chunk of splitRangeByMaxWindow(range.from, range.to)) {
+      if (haltedByRetriedFailure) {
+        break;
+      }
+
       let cursor: string | undefined;
       let pagesFetched = 0;
 
@@ -245,6 +252,7 @@ export class BybitExecutionService implements ExecutionDataService {
             }
 
             issues.push(issue);
+            haltedByRetriedFailure = getRetryAttempts(error) > 1;
             break;
           }
         }
@@ -290,7 +298,8 @@ export class BybitExecutionService implements ExecutionDataService {
 
     return {
       rows,
-      dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
+      dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness(),
+      haltedByRetriedFailure
     };
   }
 
@@ -325,7 +334,7 @@ export class BybitExecutionService implements ExecutionDataService {
 
       const openingExecutions: Array<Record<string, unknown>> = [];
       const openingRange = toSpotOpeningInventoryRange(context.from);
-      const soldSymbols = extractSpotSellSymbols(periodExecutions.rows);
+      const soldSymbols = periodExecutions.haltedByRetriedFailure ? [] : extractSpotSellSymbols(periodExecutions.rows);
       const openingIssues: DataCompleteness["issues"] = [];
 
       if (soldSymbols.length > 0) {
@@ -350,6 +359,9 @@ export class BybitExecutionService implements ExecutionDataService {
             );
             openingExecutions.push(...openingHistory.rows);
             openingIssues.push(...openingHistory.dataCompleteness.issues);
+            if (openingHistory.haltedByRetriedFailure) {
+              break;
+            }
           }
         }
       }
@@ -381,8 +393,13 @@ export class BybitExecutionService implements ExecutionDataService {
     const chunks = splitRangeByMaxWindow(context.from, context.to);
     const issues: DataCompleteness["issues"] = [];
     let pagesFetchedTotal = 0;
+    let haltedByRetriedFailure = false;
 
     for (const chunk of chunks) {
+      if (haltedByRetriedFailure) {
+        break;
+      }
+
       let cursor: string | undefined;
       let pagesFetched = 0;
 
@@ -415,6 +432,7 @@ export class BybitExecutionService implements ExecutionDataService {
               throw new Error(issue.message, { cause: error });
             }
             issues.push(issue);
+            haltedByRetriedFailure = getRetryAttempts(error) > 1;
             break;
           }
         }
