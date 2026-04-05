@@ -274,6 +274,93 @@ describe("BybitExecutionService pagination", () => {
     expect(report.dataCompleteness.warnings.some((warning) => warning.includes("cost basis"))).toBe(true);
   });
 
+  it("surfaces unsupported non-stable quote conversion as unsupported_feature issue", async () => {
+    const periodFromMs = new Date(spotContext.from).getTime();
+    const periodToMs = new Date(spotContext.to).getTime();
+
+    const client = {
+      getExecutionList: async (_category: string, from: string, to: string) => {
+        const fromMs = new Date(from).getTime();
+        const toMs = new Date(to).getTime();
+        if (fromMs >= periodFromMs && toMs <= periodToMs) {
+          return {
+            list: [spotTrade({ side: "Sell", qty: 1, price: 0.06, timeMs: periodFromMs + 1, symbol: "ETHBTC" })],
+            nextPageCursor: undefined
+          };
+        }
+
+        return {
+          list: [],
+          nextPageCursor: undefined
+        };
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    const report = await service.getPnlReport({ context: spotContext });
+
+    expect(report.realizedPnlUsd).toBe(0);
+    expect(report.netPnlUsd).toBe(0);
+    expect(report.bySymbol).toEqual([]);
+    expect(
+      report.dataCompleteness.issues.some(
+        (issue) =>
+          issue.code === "unsupported_feature" &&
+          issue.scope === "execution_window" &&
+          issue.message.includes("ETHBTC")
+      )
+    ).toBe(true);
+  });
+
+  it("does not fetch opening inventory for non-stable quote sells, avoiding pagination abort", async () => {
+    const periodFromMs = new Date(spotContext.from).getTime();
+    const periodToMs = new Date(spotContext.to).getTime();
+    let openingFetchAttempts = 0;
+
+    const client = {
+      getExecutionList: async (_category: string, from: string, to: string, _cursor?: string, _timeoutMs?: number, symbol?: string) => {
+        const fromMs = new Date(from).getTime();
+        const toMs = new Date(to).getTime();
+        if (fromMs >= periodFromMs && toMs <= periodToMs) {
+          return {
+            list: [spotTrade({ side: "Sell", qty: 1, price: 0.06, timeMs: periodFromMs + 1, symbol: "ETHBTC" })],
+            nextPageCursor: undefined
+          };
+        }
+
+        if (symbol === "ETHBTC") {
+          openingFetchAttempts += 1;
+          return {
+            list: [spotTrade({ side: "Buy", qty: 1, price: 0.05, timeMs: periodFromMs - 1, symbol: "ETHBTC" })],
+            nextPageCursor: "c1"
+          };
+        }
+
+        return {
+          list: [],
+          nextPageCursor: undefined
+        };
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore(), {
+      maxPagesPerChunk: 1,
+      limitMode: "error"
+    });
+    const report = await service.getPnlReport({ context: spotContext });
+
+    expect(openingFetchAttempts).toBe(0);
+    expect(report.realizedPnlUsd).toBe(0);
+    expect(
+      report.dataCompleteness.issues.some(
+        (issue) =>
+          issue.code === "unsupported_feature" &&
+          issue.scope === "execution_window" &&
+          issue.message.includes("ETHBTC")
+      )
+    ).toBe(true);
+  });
+
   it("marks report partial when closed-pnl safety limit is reached in partial mode", async () => {
     let calls = 0;
 

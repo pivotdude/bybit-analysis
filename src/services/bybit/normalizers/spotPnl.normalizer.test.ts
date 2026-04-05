@@ -155,4 +155,58 @@ describe("normalizeSpotPnlReport", () => {
     expect(reportA.dataCompleteness.partial).toBe(false);
     expect(reportB.dataCompleteness.partial).toBe(true);
   });
+
+  it("excludes non-stable quoted symbols from USD pnl and marks conversion unsupported", () => {
+    const report = normalizeSpotPnlReport(
+      {
+        list: [
+          trade({ symbol: "ETHBTC", side: "Buy", qty: 1, price: 0.05, time: 1 }),
+          trade({ symbol: "ETHBTC", side: "Sell", qty: 1, price: 0.06, time: 2 })
+        ]
+      },
+      periodFrom,
+      periodTo
+    );
+
+    expect(report.realizedPnlUsd).toBe(0);
+    expect(report.netPnlUsd).toBe(0);
+    expect(report.fees.tradingFeesUsd).toBe(0);
+    expect(report.bySymbol).toEqual([]);
+    expect(report.dataCompleteness.partial).toBe(true);
+    expect(
+      report.dataCompleteness.issues.some(
+        (issue) =>
+          issue.code === "unsupported_feature" &&
+          issue.scope === "execution_window" &&
+          issue.message.includes("ETHBTC") &&
+          issue.message.includes("BTC")
+      )
+    ).toBe(true);
+  });
+
+  it("marks unsupported fee normalization when fee currency cannot be converted to USD", () => {
+    const report = normalizeSpotPnlReport(
+      {
+        list: [
+          trade({ symbol: "BTCUSDT", side: "Buy", qty: 1, price: 100, time: 1 }),
+          trade({ symbol: "BTCUSDT", side: "Sell", qty: 1, price: 120, time: 2, fee: 0.001, feeCurrency: "ETH" })
+        ]
+      },
+      periodFrom,
+      periodTo
+    );
+
+    expect(report.realizedPnlUsd).toBeCloseTo(20);
+    expect(report.fees.tradingFeesUsd).toBe(0);
+    expect(report.bySymbol[0]?.netPnlUsd).toBeCloseTo(20);
+    expect(report.dataCompleteness.partial).toBe(true);
+    expect(
+      report.dataCompleteness.issues.some(
+        (issue) =>
+          issue.code === "unsupported_feature" &&
+          issue.scope === "execution_window" &&
+          issue.message.includes("fee currency ETH")
+      )
+    ).toBe(true);
+  });
 });
