@@ -5,6 +5,7 @@ import type { ReportSectionType } from "../types/report.types";
 import type { ServiceRequestContext } from "../services/contracts/AccountDataService";
 import { fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { getUnsupportedFeatureIssueMessage } from "../services/reliability/dataCompleteness";
 
 export const POSITIONS_SCHEMA_VERSION = "positions-markdown-v1";
 
@@ -33,6 +34,47 @@ export class PositionsReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const positionsResult = await this.positionsService.getOpenPositions(context);
+    const unsupportedMessage = getUnsupportedFeatureIssueMessage(positionsResult.dataCompleteness, "positions");
+    if (unsupportedMessage) {
+      const sections: ReportDocument["sections"] = [
+        section("table", {
+          table: {
+            headers: ["Symbol", "Side", "Qty", "Entry", "Valuation", "Notional", "UPnL", "Leverage", "Price Source"],
+            rows: []
+          }
+        }),
+        section("sideSplit", {
+          kpis: [
+            { label: "Total Positions", value: "unsupported" },
+            { label: "Long Count", value: "unsupported" },
+            { label: "Short Count", value: "unsupported" },
+            { label: "Total Notional", value: "unsupported" }
+          ]
+        }),
+        section("largest", {
+          table: {
+            headers: ["Symbol", "Side", "Notional", "UPnL"],
+            rows: []
+          }
+        }),
+        section("alerts", {
+          alerts: [{ severity: "critical", message: unsupportedMessage }]
+        }),
+        section("dataCompleteness", {
+          alerts: buildDataCompletenessAlerts(positionsResult.dataCompleteness)
+        })
+      ];
+
+      return {
+        command: "positions",
+        title: "Positions Analytics",
+        schemaVersion: POSITIONS_SCHEMA_VERSION,
+        generatedAt: new Date().toISOString(),
+        sections,
+        dataCompleteness: positionsResult.dataCompleteness
+      };
+    }
+
     const analysis = this.analyzer.analyze(positionsResult.positions);
 
     const sections: ReportDocument["sections"] = [

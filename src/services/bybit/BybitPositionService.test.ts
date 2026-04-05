@@ -223,6 +223,32 @@ describe("BybitPositionService pagination", () => {
     expect(result.positions).toHaveLength(1);
   });
 
+  it("marks spot market positions as unsupported instead of complete", async () => {
+    let calls = 0;
+    const client = {
+      getPositions: async () => {
+        calls += 1;
+        return {
+          list: [],
+          nextPageCursor: undefined
+        };
+      }
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const result = await service.getOpenPositions({
+      ...context,
+      category: "spot"
+    });
+
+    expect(calls).toBe(0);
+    expect(result.positions).toHaveLength(0);
+    expect(result.dataCompleteness.state).toBe("degraded");
+    expect(result.dataCompleteness.partial).toBe(true);
+    expect(result.dataCompleteness.issues[0]?.code).toBe("unsupported_feature");
+    expect(result.dataCompleteness.issues[0]?.scope).toBe("positions");
+  });
+
   it("fails closed in bot mode even when category is spot", async () => {
     const client = {
       getPositions: async () => ({

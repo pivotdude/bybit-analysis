@@ -133,10 +133,18 @@ const accountService: AccountDataService = {
           { asset: "SOL", walletBalance: 30, availableBalance: 30, usdValue: 3_000 }
         ],
         dataCompleteness: {
-          state: "complete",
-          partial: false,
-          warnings: [],
-          issues: []
+          state: "degraded",
+          partial: true,
+          warnings: ["Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."],
+          issues: [
+            {
+              code: "unsupported_feature",
+              scope: "positions",
+              severity: "critical",
+              criticality: "critical",
+              message: "Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."
+            }
+          ]
         }
       };
     }
