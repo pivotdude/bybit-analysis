@@ -1,0 +1,34 @@
+{
+  "list": [
+    {
+      "accountType": "UNIFIED",
+      "totalEquity": "18452.6617",
+      "totalWalletBalance": "17391.3311",
+      "totalAvailableBalance": "16020.0023",
+      "totalMarginBalance": "18452.6617",
+      "totalInitialMargin": "1132.2200",
+      "totalMaintenanceMargin": "524.1100",
+      "totalPerpUPL": "1061.3306",
+      "coin": [
+        {
+          "coin": "USDT",
+          "walletBalance": "9610.2281",
+          "availableToWithdraw": "9430.2281",
+          "usdValue": "9610.2281"
+        },
+        {
+          "coin": "BTC",
+          "walletBalance": "0.21000000",
+          "availableToWithdraw": "0.17000000",
+          "usdValue": "8760.2100"
+        },
+        {
+          "coin": "USDC",
+          "walletBalance": "82.2230",
+          "availableToWithdraw": "82.2230",
+          "usdValue": "82.2230"
+        }
+      ]
+    }
+  ]
+}

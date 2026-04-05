@@ -1,0 +1,28 @@
+{
+  "list": [
+    {
+      "accountType": null,
+      "totalEquity": "nan",
+      "totalWalletBalance": "",
+      "totalAvailableBalance": "not-a-number",
+      "totalMarginBalance": "bad",
+      "totalInitialMargin": "N/A",
+      "totalMaintenanceMargin": {},
+      "totalPerpUPL": "unknown",
+      "coin": [
+        {
+          "coin": "USDT",
+          "walletBalance": "bad",
+          "free": "8.5",
+          "usdValue": ""
+        },
+        {
+          "coin": 77,
+          "walletBalance": null,
+          "availableToWithdraw": "nan",
+          "equity": "50.4"
+        }
+      ]
+    }
+  ]
+}

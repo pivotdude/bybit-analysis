@@ -1,0 +1,50 @@
+{
+  "list": [
+    {
+      "symbol": "BTCUSDT",
+      "size": "0.25",
+      "side": "Buy",
+      "markPrice": "63123.4",
+      "indexPrice": "63110.1",
+      "avgPrice": "62000",
+      "positionValue": "15780.85",
+      "tradeMode": "0",
+      "leverage": "3",
+      "liqPrice": "55200",
+      "unrealisedPnl": "280.20",
+      "positionIM": "5260",
+      "positionMM": "1900",
+      "createdTime": "1712000000000",
+      "updatedTime": "1712000600000"
+    },
+    {
+      "symbol": "ETHUSDC",
+      "size": "1.5",
+      "side": "Sell",
+      "lastPrice": "3320.0",
+      "avgPrice": "3380.0",
+      "positionValue": "4980",
+      "tradeMode": "1",
+      "leverage": "4",
+      "liqPrice": "4200",
+      "unrealisedPnl": "-90.5",
+      "positionIM": "1245",
+      "positionMM": "420",
+      "createdTime": "1712000100000",
+      "updatedTime": "1712000700000"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "size": "0",
+      "side": "Buy",
+      "markPrice": "180"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "size": "bad",
+      "side": "Buy",
+      "markPrice": "0.2"
+    }
+  ],
+  "nextPageCursor": null
+}
