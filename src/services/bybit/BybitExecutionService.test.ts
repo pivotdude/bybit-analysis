@@ -545,6 +545,80 @@ describe("BybitExecutionService pagination", () => {
     expect(retryDelays).toEqual([2_000]);
   });
 
+  it("stops further closed-pnl chunk fetches after a retried page failure", async () => {
+    let closedPnlCalls = 0;
+    const retryDelays: number[] = [];
+    const multiChunkContext: ServiceRequestContext = {
+      ...linearContext,
+      from: "2026-01-01T00:00:00.000Z",
+      to: "2026-02-20T00:00:00.000Z"
+    };
+
+    const client = createBybitClient(
+      {
+        apiKey: "test-api-key",
+        apiSecret: "test-api-secret",
+        timeoutMs: 5_000
+      } as RuntimeConfig,
+      {
+        sleep: async (delayMs) => {
+          retryDelays.push(delayMs);
+        },
+        random: () => 0,
+        retryPolicy: {
+          maxAttempts: 2,
+          baseDelayMs: 100,
+          maxDelayMs: 1_000,
+          jitterRatio: 0
+        },
+        fetchFn: (async (...args: Parameters<typeof fetch>) => {
+          const url = args[0];
+          const urlText = typeof url === "string" ? url : url.toString();
+
+          if (urlText.includes("/v5/position/closed-pnl")) {
+            closedPnlCalls += 1;
+            if (closedPnlCalls === 1) {
+              return new Response(
+                "{\"retCode\":0,\"retMsg\":\"OK\",\"result\":{\"list\":[{\"symbol\":\"BTCUSDT\",\"closedPnl\":\"10\",\"openFee\":\"1\",\"closeFee\":\"1\"}]},\"time\":1}",
+                {
+                  status: 200,
+                  statusText: "OK",
+                  headers: { "content-type": "application/json" }
+                }
+              );
+            }
+
+            return new Response("{\"retCode\":10006,\"retMsg\":\"too many requests\"}", {
+              status: 429,
+              statusText: "Too Many Requests",
+              headers: {
+                "content-type": "application/json",
+                "retry-after": "2"
+              }
+            });
+          }
+
+          if (urlText.includes("/v5/account/wallet-balance")) {
+            return new Response("{\"retCode\":0,\"retMsg\":\"OK\",\"result\":{\"list\":[{\"totalPerpUPL\":\"0\"}]},\"time\":1}", {
+              status: 200,
+              statusText: "OK",
+              headers: { "content-type": "application/json" }
+            });
+          }
+
+          throw new Error(`unexpected endpoint in test: ${urlText}`);
+        }) as unknown as typeof fetch
+      }
+    );
+
+    const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
+    const report = await service.getPnlReport({ context: multiChunkContext });
+
+    expect(report.dataCompleteness.partial).toBe(true);
+    expect(retryDelays).toEqual([2_000]);
+    expect(closedPnlCalls).toBe(3);
+  });
+
   it("degrades when subsequent closed-pnl page fails", async () => {
     const client = {
       getClosedPnl: async (_category: string, _from: string, _to: string, cursor?: string) => {

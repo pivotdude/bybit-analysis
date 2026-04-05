@@ -1,0 +1,23 @@
+{
+  "detail": {
+    "symbol": "BTCUSDT",
+    "base_token": "BTC",
+    "quote_token": "USDT",
+    "status": "RUNNING",
+    "grid_mode": "LONG",
+    "futures_pos_side": "LONG",
+    "entry_price": "61200",
+    "mark_price": "62350",
+    "current_position": "0.45",
+    "real_leverage": "4",
+    "liquidation_price": "54200",
+    "total_investment": "6800",
+    "total_value": "28057.5",
+    "realised_pnl": "190.2",
+    "unrealised_pnl": "518.1",
+    "grid_profit": "74.8",
+    "available_balance": "1400",
+    "equity": "7318.3",
+    "pnl_per": "0.1042"
+  }
+}

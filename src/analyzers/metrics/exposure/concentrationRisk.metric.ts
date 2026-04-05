@@ -1,4 +1,5 @@
 import type { AssetExposure, ConcentrationRisk, RiskBand } from "../../../types/domain.types";
+import { dec, toFiniteNumber } from "../../../services/math/decimal";
 
 function toBand(top1Pct: number, top3Pct: number, hhi: number): RiskBand {
   if (top1Pct >= 45 || top3Pct >= 80 || hhi >= 0.30) {
@@ -28,17 +29,20 @@ export function calculateConcentrationRisk(perAsset: AssetExposure[]): Concentra
     asset: "N/A",
     exposurePct: 0
   };
-  const top3Pct = sorted.slice(0, 3).reduce((sum, item) => sum + item.exposurePct, 0);
+  const top3Pct = sorted.slice(0, 3).reduce((sum, item) => sum.plus(dec(item.exposurePct)), dec(0));
   const hhi = sorted.reduce((sum, item) => {
-    const share = item.exposurePct / 100;
-    return sum + share * share;
-  }, 0);
+    const share = dec(item.exposurePct).div(100);
+    return sum.plus(share.mul(share));
+  }, dec(0));
+  const top1Pct = dec(top1.exposurePct);
+  const top3PctNumber = toFiniteNumber(top3Pct);
+  const hhiNumber = toFiniteNumber(hhi);
 
   return {
     top1Asset: top1.asset,
-    top1Pct: top1.exposurePct,
-    top3Pct,
-    hhi,
-    band: toBand(top1.exposurePct, top3Pct, hhi)
+    top1Pct: toFiniteNumber(top1Pct),
+    top3Pct: top3PctNumber,
+    hhi: hhiNumber,
+    band: toBand(toFiniteNumber(top1Pct), top3PctNumber, hhiNumber)
   };
 }

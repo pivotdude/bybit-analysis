@@ -1,4 +1,6 @@
+import type Decimal from "decimal.js";
 import type { BotSummary } from "../../../types/domain.types";
+import { dec, decUnknown, safePct, toFiniteNumber } from "../../math/decimal";
 
 interface FuturesGridDetailEnvelope {
   detail?: Record<string, unknown>;
@@ -8,13 +10,13 @@ interface SpotGridDetailEnvelope {
   detail?: Record<string, unknown>;
 }
 
-function toNumber(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function toString(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function toOptionalNumber(value: Decimal): number | undefined {
+  const numberValue = toFiniteNumber(value);
+  return numberValue !== 0 ? numberValue : undefined;
 }
 
 function normalizeStatus(value: string): BotSummary["status"] {
@@ -48,21 +50,19 @@ function normalizeSide(value: string): BotSummary["side"] {
   return "unknown";
 }
 
-function normalizeRatioToPct(value: number): number | undefined {
-  if (!Number.isFinite(value)) {
+function normalizeRatioToPct(value: Decimal): number | undefined {
+  if (!value.isFinite()) {
     return undefined;
   }
-  if (Math.abs(value) <= 1) {
-    return value * 100;
-  }
-  return value;
+
+  return value.abs().lte(1) ? toFiniteNumber(value.mul(100)) : toFiniteNumber(value);
 }
 
-function safeNet(realized: number, unrealized: number): number {
-  if (!Number.isFinite(realized) || !Number.isFinite(unrealized)) {
-    return 0;
+function safeNet(realized: Decimal, unrealized: Decimal): Decimal {
+  if (!realized.isFinite() || !unrealized.isFinite()) {
+    return dec(0);
   }
-  return realized + unrealized;
+  return realized.plus(unrealized);
 }
 
 export function normalizeFuturesGridBotSummary(botId: string, result: unknown): BotSummary {
@@ -70,18 +70,21 @@ export function normalizeFuturesGridBotSummary(botId: string, result: unknown): 
   const detail = payload?.detail ?? {};
 
   const symbol = toString(detail.symbol);
-  const quantity = Math.abs(toNumber(detail.current_position));
-  const markPrice = toNumber(detail.mark_price) || toNumber(detail.last_price);
-  const totalValue = Math.abs(toNumber(detail.total_value));
+  const quantity = decUnknown(detail.current_position).abs();
+  const markPriceRaw = decUnknown(detail.mark_price);
+  const markPrice = markPriceRaw.gt(0) ? markPriceRaw : decUnknown(detail.last_price);
+  const totalValue = decUnknown(detail.total_value).abs();
 
-  const unrealizedPnlUsd = toNumber(detail.unrealised_pnl);
-  const realizedPnlUsd = toNumber(detail.realised_pnl);
-  const allocatedCapitalUsd = toNumber(detail.total_investment);
-  const exposureFromQty = quantity > 0 && markPrice > 0 ? quantity * markPrice : 0;
-  const exposureUsd = totalValue > 0 ? totalValue : exposureFromQty;
-  const equityUsd = toNumber(detail.equity);
-  const availableBalanceUsd = toNumber(detail.available_balance);
-  const pnlPer = normalizeRatioToPct(toNumber(detail.pnl_per));
+  const unrealizedPnlUsd = decUnknown(detail.unrealised_pnl);
+  const realizedPnlUsd = decUnknown(detail.realised_pnl);
+  const allocatedCapitalUsd = decUnknown(detail.total_investment);
+  const exposureFromQty = quantity.gt(0) && markPrice.gt(0) ? quantity.mul(markPrice) : dec(0);
+  const exposureUsd = totalValue.gt(0) ? totalValue : exposureFromQty;
+  const equityUsd = decUnknown(detail.equity);
+  const availableBalanceUsd = decUnknown(detail.available_balance);
+  const pnlPer = normalizeRatioToPct(decUnknown(detail.pnl_per));
+  const realLeverage = decUnknown(detail.real_leverage);
+  const leverage = realLeverage.gt(0) ? realLeverage : decUnknown(detail.leverage);
 
   const side = normalizeSide(`${toString(detail.grid_mode)} ${toString(detail.futures_pos_side)}`);
 
@@ -94,22 +97,22 @@ export function normalizeFuturesGridBotSummary(botId: string, result: unknown): 
     quoteAsset: toString(detail.quote_token) || undefined,
     status: normalizeStatus(toString(detail.status)),
     side,
-    entryPrice: toNumber(detail.entry_price) || undefined,
-    markPrice: markPrice || undefined,
-    quantity: quantity || undefined,
-    leverage: toNumber(detail.real_leverage) || toNumber(detail.leverage) || undefined,
-    liquidationPrice: toNumber(detail.liquidation_price) || undefined,
-    allocatedCapitalUsd: allocatedCapitalUsd || undefined,
-    exposureUsd: exposureUsd || undefined,
-    realizedPnlUsd,
-    unrealizedPnlUsd,
-    strategyProfitUsd: toNumber(detail.grid_profit) || undefined,
-    availableCapitalUsd: availableBalanceUsd || undefined,
-    equityUsd: equityUsd || undefined,
+    entryPrice: toOptionalNumber(decUnknown(detail.entry_price)),
+    markPrice: toOptionalNumber(markPrice),
+    quantity: toOptionalNumber(quantity),
+    leverage: toOptionalNumber(leverage),
+    liquidationPrice: toOptionalNumber(decUnknown(detail.liquidation_price)),
+    allocatedCapitalUsd: toOptionalNumber(allocatedCapitalUsd),
+    exposureUsd: toOptionalNumber(exposureUsd),
+    realizedPnlUsd: toFiniteNumber(realizedPnlUsd),
+    unrealizedPnlUsd: toFiniteNumber(unrealizedPnlUsd),
+    strategyProfitUsd: toOptionalNumber(decUnknown(detail.grid_profit)),
+    availableCapitalUsd: toOptionalNumber(availableBalanceUsd),
+    equityUsd: toOptionalNumber(equityUsd),
     closeReason: toString(detail.close_reason) || undefined,
     closeCode: toString(detail.bot_close_code) || undefined,
     roiPct: pnlPer,
-    activePositionCount: quantity > 0 ? 1 : 0
+    activePositionCount: quantity.gt(0) ? 1 : 0
   };
 }
 
@@ -118,15 +121,16 @@ export function normalizeSpotGridBotSummary(botId: string, result: unknown): Bot
   const detail = payload?.detail ?? {};
 
   const symbol = toString(detail.symbol);
-  const allocatedCapitalUsd = toNumber(detail.total_investment);
-  const totalProfit = toNumber(detail.total_profit);
-  const currentProfit = toNumber(detail.current_profit);
-  const realizedPnlUsd = totalProfit - currentProfit;
+  const allocatedCapitalUsd = decUnknown(detail.total_investment);
+  const totalProfit = decUnknown(detail.total_profit);
+  const currentProfit = decUnknown(detail.current_profit);
+  const realizedPnlUsd = totalProfit.minus(currentProfit);
   const unrealizedPnlUsd = currentProfit;
-  const equityUsd = toNumber(detail.equity);
-  const roiFromCurrent = normalizeRatioToPct(toNumber(detail.current_per));
-  const roiFromProfit =
-    allocatedCapitalUsd > 0 ? ((safeNet(realizedPnlUsd, unrealizedPnlUsd) / allocatedCapitalUsd) * 100) : undefined;
+  const equityUsd = decUnknown(detail.equity);
+  const roiFromCurrent = normalizeRatioToPct(decUnknown(detail.current_per));
+  const roiFromProfit = allocatedCapitalUsd.gt(0)
+    ? toFiniteNumber(safePct(safeNet(realizedPnlUsd, unrealizedPnlUsd), allocatedCapitalUsd))
+    : undefined;
 
   return {
     botId,
@@ -137,18 +141,18 @@ export function normalizeSpotGridBotSummary(botId: string, result: unknown): Bot
     quoteAsset: toString(detail.quote_token) || undefined,
     status: normalizeStatus(toString(detail.status)),
     side: "long",
-    entryPrice: toNumber(detail.entry_price) || undefined,
-    markPrice: toNumber(detail.current_price) || undefined,
+    entryPrice: toOptionalNumber(decUnknown(detail.entry_price)),
+    markPrice: toOptionalNumber(decUnknown(detail.current_price)),
     quantity: undefined,
     leverage: 1,
     liquidationPrice: undefined,
-    allocatedCapitalUsd: allocatedCapitalUsd || undefined,
-    exposureUsd: equityUsd || allocatedCapitalUsd || undefined,
-    realizedPnlUsd,
-    unrealizedPnlUsd,
-    strategyProfitUsd: toNumber(detail.grid_profit) || undefined,
+    allocatedCapitalUsd: toOptionalNumber(allocatedCapitalUsd),
+    exposureUsd: toOptionalNumber(equityUsd) ?? toOptionalNumber(allocatedCapitalUsd),
+    realizedPnlUsd: toFiniteNumber(realizedPnlUsd),
+    unrealizedPnlUsd: toFiniteNumber(unrealizedPnlUsd),
+    strategyProfitUsd: toOptionalNumber(decUnknown(detail.grid_profit)),
     availableCapitalUsd: undefined,
-    equityUsd: equityUsd || undefined,
+    equityUsd: toOptionalNumber(equityUsd),
     closeReason: toString(detail.close_reason) || undefined,
     closeCode: toString(detail.bot_close_code) || undefined,
     roiPct: typeof roiFromCurrent === "number" ? roiFromCurrent : roiFromProfit,

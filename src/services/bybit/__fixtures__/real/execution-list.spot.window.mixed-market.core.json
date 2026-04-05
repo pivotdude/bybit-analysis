@@ -1,0 +1,49 @@
+{
+  "list": [
+    {
+      "symbol": "BTCUSDT",
+      "side": "Sell",
+      "execQty": "1",
+      "execValue": "150",
+      "execPrice": "150",
+      "execFee": "1",
+      "feeCurrency": "USDT",
+      "execType": "Trade",
+      "execTime": "1714521601000"
+    },
+    {
+      "symbol": "ETHUSDC",
+      "side": "Sell",
+      "execQty": "1",
+      "execValue": "260",
+      "execPrice": "260",
+      "execFee": "2",
+      "feeCurrency": "USDC",
+      "execType": "Trade",
+      "execTime": "1714521602000"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "side": "Buy",
+      "execQty": "0.1",
+      "execValue": "10",
+      "execPrice": "100",
+      "execFee": "0.01",
+      "feeCurrency": "USDT",
+      "execType": "Funding",
+      "execTime": "1714521602500"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "side": "Sell",
+      "execQty": "bad",
+      "execValue": "5",
+      "execPrice": "5",
+      "execFee": "0.01",
+      "feeCurrency": "USDT",
+      "execType": "Trade",
+      "execTime": "1714521603000"
+    }
+  ],
+  "nextPageCursor": null
+}

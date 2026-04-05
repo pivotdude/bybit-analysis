@@ -1,0 +1,16 @@
+{
+  "detail": {
+    "symbol": "",
+    "status": "PAUSED_UNKNOWN",
+    "grid_mode": "INVALID",
+    "futures_pos_side": "",
+    "current_position": "oops",
+    "mark_price": "",
+    "last_price": "0",
+    "total_value": "",
+    "realised_pnl": "bad",
+    "unrealised_pnl": null,
+    "total_investment": "",
+    "pnl_per": "bad"
+  }
+}

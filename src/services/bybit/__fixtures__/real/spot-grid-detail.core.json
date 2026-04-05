@@ -1,0 +1,16 @@
+{
+  "detail": {
+    "symbol": "ETHUSDC",
+    "base_token": "ETH",
+    "quote_token": "USDC",
+    "status": "STOPPED",
+    "entry_price": "2400",
+    "current_price": "2510",
+    "total_investment": "5000",
+    "equity": "5340",
+    "total_profit": "410",
+    "current_profit": "120",
+    "grid_profit": "88",
+    "current_per": "0.082"
+  }
+}

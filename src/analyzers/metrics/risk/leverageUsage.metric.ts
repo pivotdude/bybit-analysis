@@ -1,17 +1,18 @@
 import type { LeverageUsage, Position } from "../../../types/domain.types";
+import { dec, safePct, safeDiv, sumDecimals, toFiniteNumber } from "../../../services/math/decimal";
 
 export function calculateLeverageUsage(positions: Position[], totalEquityUsd: number): LeverageUsage {
-  const absoluteNotional = positions.map((position) => Math.abs(position.notionalUsd));
-  const grossExposureUsd = absoluteNotional.reduce((sum, value) => sum + value, 0);
+  const absoluteNotional = positions.map((position) => dec(position.notionalUsd).abs());
+  const grossExposureUsd = sumDecimals(absoluteNotional);
 
   const weightedLeverageNumerator = positions.reduce(
-    (sum, position) => sum + Math.abs(position.notionalUsd) * position.leverage,
-    0
+    (sum, position) => sum.plus(dec(position.notionalUsd).abs().mul(dec(position.leverage))),
+    dec(0)
   );
 
   return {
-    weightedAvgLeverage: grossExposureUsd > 0 ? weightedLeverageNumerator / grossExposureUsd : 0,
+    weightedAvgLeverage: toFiniteNumber(safeDiv(weightedLeverageNumerator, grossExposureUsd)),
     maxLeverageUsed: positions.reduce((max, position) => Math.max(max, position.leverage), 0),
-    notionalToEquityPct: totalEquityUsd > 0 ? (grossExposureUsd / totalEquityUsd) * 100 : 0
+    notionalToEquityPct: toFiniteNumber(safePct(grossExposureUsd, dec(totalEquityUsd)))
   };
 }

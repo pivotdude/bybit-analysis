@@ -22,13 +22,15 @@ import {
   BYBIT_PARTIAL_FAILURE_POLICY,
   buildInvalidWindowIssue,
   buildPageFetchIssue,
-  buildPaginationIssue
+  buildPaginationIssue,
+  getRetryAttempts
 } from "./partialFailurePolicy";
 import {
   completeDataCompleteness,
   degradedDataCompleteness,
   mergeDataCompleteness
 } from "../reliability/dataCompleteness";
+import { dec, decUnknown, sumDecimals, toFiniteNumber } from "../math/decimal";
 
 const CLOSED_PNL_TTL_MS = 20_000;
 const MAX_CLOSED_PNL_RANGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -50,6 +52,7 @@ interface SpotExecutionRow {
 interface ExecutionHistoryFetchResult {
   rows: Array<Record<string, unknown>>;
   dataCompleteness: DataCompleteness;
+  haltedByRetriedFailure: boolean;
 }
 
 type SpotExecutionFetchPurpose = "window" | "opening_inventory";
@@ -77,11 +80,6 @@ function splitRangeByMaxWindow(from: string, to: string): TimeChunk[] {
   return chunks;
 }
 
-function toNumber(input: unknown): number {
-  const value = Number(input);
-  return Number.isFinite(value) ? value : 0;
-}
-
 function extractSpotSellSymbols(rows: Array<Record<string, unknown>>): string[] {
   const symbols = new Set<string>();
 
@@ -92,8 +90,8 @@ function extractSpotSellSymbols(rows: Array<Record<string, unknown>>): string[] 
     }
 
     const side = String(row.side ?? "").toLowerCase();
-    const qty = toNumber(row.execQty);
-    if (side !== "sell" || qty <= 0) {
+    const qty = decUnknown(row.execQty);
+    if (side !== "sell" || qty.lte(0)) {
       continue;
     }
 
@@ -134,23 +132,35 @@ function toBotPnlReport(
   roiMissingStartReason?: string,
   roiMissingStartReasonCode?: RoiUnsupportedReasonCode
 ): PnLReport {
-  const bySymbol: SymbolPnL[] = report.bots
+  const symbolRows = report.bots
     .map((bot) => {
-      const realizedPnlUsd = bot.realizedPnlUsd ?? 0;
-      const unrealizedPnlUsd = bot.unrealizedPnlUsd ?? 0;
+      const realizedPnlUsd = dec(bot.realizedPnlUsd ?? 0);
+      const unrealizedPnlUsd = dec(bot.unrealizedPnlUsd ?? 0);
+      const netPnlUsd = realizedPnlUsd.plus(unrealizedPnlUsd);
+
       return {
         symbol: bot.symbol ?? bot.name,
         realizedPnlUsd,
         unrealizedPnlUsd,
-        netPnlUsd: realizedPnlUsd + unrealizedPnlUsd,
+        netPnlUsd,
         tradesCount: bot.activePositionCount
       };
     })
-    .sort((left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol));
+    .sort((left, right) => right.netPnlUsd.comparedTo(left.netPnlUsd) || left.symbol.localeCompare(right.symbol));
+  const bySymbol: SymbolPnL[] = symbolRows.map((row) => ({
+    symbol: row.symbol,
+    realizedPnlUsd: toFiniteNumber(row.realizedPnlUsd),
+    unrealizedPnlUsd: toFiniteNumber(row.unrealizedPnlUsd),
+    netPnlUsd: toFiniteNumber(row.netPnlUsd),
+    tradesCount: row.tradesCount
+  }));
 
-  const realizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.realizedPnlUsd, 0);
-  const unrealizedPnlUsd = bySymbol.reduce((sum, item) => sum + (item.unrealizedPnlUsd ?? 0), 0);
-  const netPnlUsd = realizedPnlUsd + unrealizedPnlUsd;
+  const realizedPnlUsdDecimal = sumDecimals(symbolRows.map((item) => item.realizedPnlUsd));
+  const unrealizedPnlUsdDecimal = sumDecimals(symbolRows.map((item) => item.unrealizedPnlUsd));
+  const netPnlUsdDecimal = realizedPnlUsdDecimal.plus(unrealizedPnlUsdDecimal);
+  const realizedPnlUsd = toFiniteNumber(realizedPnlUsdDecimal);
+  const unrealizedPnlUsd = toFiniteNumber(unrealizedPnlUsdDecimal);
+  const netPnlUsd = toFiniteNumber(netPnlUsdDecimal);
   const roi = normalizeRoi({
     equityStartUsd,
     equityEndUsd,
@@ -201,8 +211,13 @@ export class BybitExecutionService implements ExecutionDataService {
     const issues: DataCompleteness["issues"] = [];
     const policyKey = options.purpose === "opening_inventory" ? "opening_inventory" : "execution_window";
     let pagesFetchedTotal = 0;
+    let haltedByRetriedFailure = false;
 
     for (const chunk of splitRangeByMaxWindow(range.from, range.to)) {
+      if (haltedByRetriedFailure) {
+        break;
+      }
+
       let cursor: string | undefined;
       let pagesFetched = 0;
 
@@ -249,6 +264,7 @@ export class BybitExecutionService implements ExecutionDataService {
             }
 
             issues.push(issue);
+            haltedByRetriedFailure = getRetryAttempts(error) > 1;
             break;
           }
         }
@@ -294,7 +310,8 @@ export class BybitExecutionService implements ExecutionDataService {
 
     return {
       rows,
-      dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
+      dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness(),
+      haltedByRetriedFailure
     };
   }
 
@@ -329,7 +346,7 @@ export class BybitExecutionService implements ExecutionDataService {
 
       const openingExecutions: Array<Record<string, unknown>> = [];
       const openingRange = toSpotOpeningInventoryRange(context.from);
-      const soldSymbols = extractSpotSellSymbols(periodExecutions.rows);
+      const soldSymbols = periodExecutions.haltedByRetriedFailure ? [] : extractSpotSellSymbols(periodExecutions.rows);
       const openingIssues: DataCompleteness["issues"] = [];
 
       if (soldSymbols.length > 0) {
@@ -354,6 +371,9 @@ export class BybitExecutionService implements ExecutionDataService {
             );
             openingExecutions.push(...openingHistory.rows);
             openingIssues.push(...openingHistory.dataCompleteness.issues);
+            if (openingHistory.haltedByRetriedFailure) {
+              break;
+            }
           }
         }
       }
@@ -384,8 +404,13 @@ export class BybitExecutionService implements ExecutionDataService {
     const chunks = splitRangeByMaxWindow(context.from, context.to);
     const issues: DataCompleteness["issues"] = [];
     let pagesFetchedTotal = 0;
+    let haltedByRetriedFailure = false;
 
     for (const chunk of chunks) {
+      if (haltedByRetriedFailure) {
+        break;
+      }
+
       let cursor: string | undefined;
       let pagesFetched = 0;
 
@@ -418,6 +443,7 @@ export class BybitExecutionService implements ExecutionDataService {
               throw new Error(issue.message, { cause: error });
             }
             issues.push(issue);
+            haltedByRetriedFailure = getRetryAttempts(error) > 1;
             break;
           }
         }
@@ -460,16 +486,20 @@ export class BybitExecutionService implements ExecutionDataService {
     const unrealizedPnlUsdFromAccount = accountSnapshot?.unrealizedPnlUsd;
     const unrealizedPnlUsd =
       typeof unrealizedPnlUsdFromAccount === "number"
-        ? unrealizedPnlUsdFromAccount
-        : Number(((await this.client.getWalletBalance(context.category, context.timeoutMs)) as {
-            list?: Array<Record<string, unknown>>;
-          }).list?.[0]?.totalPerpUPL ?? 0);
+        ? toFiniteNumber(dec(unrealizedPnlUsdFromAccount))
+        : toFiniteNumber(
+            decUnknown(
+              ((await this.client.getWalletBalance(context.category, context.timeoutMs)) as {
+                list?: Array<Record<string, unknown>>;
+              }).list?.[0]?.totalPerpUPL
+            )
+          );
 
     const report = normalizePnlReport(
       { list: events },
       context.from,
       context.to,
-      Number.isFinite(unrealizedPnlUsd) ? unrealizedPnlUsd : 0,
+      unrealizedPnlUsd,
       equityStartUsd,
       equityEndUsd,
       roiMissingStartReason,

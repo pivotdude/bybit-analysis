@@ -1,8 +1,9 @@
 import type { Position, UnrealizedLossRisk } from "../../../types/domain.types";
+import { dec, safePct, sumDecimals, toFiniteNumber } from "../../../services/math/decimal";
 
 export function calculateUnrealizedLossRisk(positions: Position[], totalEquityUsd: number): UnrealizedLossRisk {
   const losses = positions.filter((position) => position.unrealizedPnlUsd < 0);
-  const unrealizedLossUsd = losses.reduce((sum, position) => sum + Math.abs(position.unrealizedPnlUsd), 0);
+  const unrealizedLossUsdDecimal = sumDecimals(losses.map((position) => dec(position.unrealizedPnlUsd).abs()));
   const worst = [...losses].sort(
     (left, right) =>
       left.unrealizedPnlUsd - right.unrealizedPnlUsd ||
@@ -13,9 +14,9 @@ export function calculateUnrealizedLossRisk(positions: Position[], totalEquityUs
   )[0];
 
   return {
-    unrealizedLossUsd,
-    unrealizedLossToEquityPct: totalEquityUsd > 0 ? (unrealizedLossUsd / totalEquityUsd) * 100 : 0,
+    unrealizedLossUsd: toFiniteNumber(unrealizedLossUsdDecimal),
+    unrealizedLossToEquityPct: toFiniteNumber(safePct(unrealizedLossUsdDecimal, dec(totalEquityUsd))),
     worstPositionSymbol: worst?.symbol,
-    worstPositionLossUsd: worst ? Math.abs(worst.unrealizedPnlUsd) : undefined
+    worstPositionLossUsd: worst ? toFiniteNumber(dec(worst.unrealizedPnlUsd).abs()) : undefined
   };
 }

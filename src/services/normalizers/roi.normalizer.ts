@@ -1,4 +1,5 @@
 import type { RoiContract, RoiUnsupportedReasonCode } from "../../types/domain.types";
+import { dec, safePct, toFiniteNumber } from "../math/decimal";
 
 export interface NormalizeRoiInput {
   equityStartUsd?: number;
@@ -64,6 +65,6 @@ export function normalizeRoi({
     roiUnsupportedReasonCode: undefined,
     roiStartEquityUsd,
     roiEndEquityUsd,
-    roiPct: ((equityEndUsd - equityStartUsd) / equityStartUsd) * 100
+    roiPct: toFiniteNumber(safePct(dec(equityEndUsd).minus(dec(equityStartUsd)), dec(equityStartUsd)))
   };
 }
