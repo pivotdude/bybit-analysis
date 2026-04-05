@@ -142,6 +142,7 @@ export class SummaryReportGenerator {
       fmtUsd(item.netPnlUsd),
       String(item.tradesCount ?? 0)
     ]);
+    const symbolPnlNetHeader = context.sourceMode === "market" ? "Realized Net" : "Net";
 
     const botRows = (botReport?.bots ?? []).map((botItem) => [
       botItem.name,
@@ -289,7 +290,7 @@ export class SummaryReportGenerator {
       }),
       section("symbolPnl", {
         table: {
-          headers: ["Symbol", "Realized", "Net", "Trades"],
+          headers: ["Symbol", "Realized", symbolPnlNetHeader, "Trades"],
           rows: symbolPnlRows
         }
       }),
