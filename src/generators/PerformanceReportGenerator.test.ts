@@ -32,6 +32,7 @@ describe("PerformanceReportGenerator", () => {
           netPnlUsd: 100,
           roiStatus: "unsupported",
           roiUnsupportedReason: "starting equity is unavailable for the requested period window",
+          roiUnsupportedReasonCode: "starting_equity_unavailable",
           roiStartEquityUsd: undefined,
           roiEndEquityUsd: 1_000,
           bySymbol: [],
