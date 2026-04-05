@@ -1,8 +1,8 @@
 import { ConfigReportGenerator } from "../../generators/ConfigReportGenerator";
+import type { ReportDocument } from "../../types/report.types";
 import type { HandlerDeps } from "./shared";
 
-export async function configHandler(deps: HandlerDeps): Promise<string> {
+export async function configHandler(deps: HandlerDeps): Promise<ReportDocument> {
   const generator = new ConfigReportGenerator();
-  const report = generator.generate(deps.config);
-  return deps.renderer.render(report, deps.config.format);
+  return generator.generate(deps.config);
 }
