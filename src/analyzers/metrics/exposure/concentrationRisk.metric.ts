@@ -21,7 +21,9 @@ export function calculateConcentrationRisk(perAsset: AssetExposure[]): Concentra
     };
   }
 
-  const sorted = [...perAsset].sort((left, right) => right.exposurePct - left.exposurePct);
+  const sorted = [...perAsset].sort(
+    (left, right) => right.exposurePct - left.exposurePct || left.asset.localeCompare(right.asset)
+  );
   const top1 = sorted[0] ?? {
     asset: "N/A",
     exposurePct: 0

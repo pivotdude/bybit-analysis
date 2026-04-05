@@ -49,7 +49,7 @@ function buildAlerts(account: AccountSnapshot, positions: Position[], report: Om
     alerts.push({
       id: "risk.price_source.mixed",
       severity: "warning",
-      message: `Mixed price sources detected in positions: ${Array.from(priceSources).join(", ")}`
+      message: `Mixed price sources detected in positions: ${Array.from(priceSources).sort((left, right) => left.localeCompare(right)).join(", ")}`
     });
   }
 

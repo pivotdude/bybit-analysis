@@ -1,8 +1,8 @@
 import { BalanceReportGenerator } from "../../generators/BalanceReportGenerator";
+import type { ReportDocument } from "../../types/report.types";
 import { toServiceContext, type HandlerDeps } from "./shared";
 
-export async function balanceHandler(deps: HandlerDeps): Promise<string> {
+export async function balanceHandler(deps: HandlerDeps): Promise<ReportDocument> {
   const generator = new BalanceReportGenerator(deps.accountService);
-  const report = await generator.generate(toServiceContext(deps.config));
-  return deps.renderer.render(report, deps.config.format);
+  return generator.generate(toServiceContext(deps.config));
 }

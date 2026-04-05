@@ -40,5 +40,5 @@ export function calculatePerAssetExposure(positions: Position[], grossExposureUs
       shortExposureUsd: aggregate.shortExposureUsd,
       symbols: Array.from(aggregate.symbols).sort((left, right) => left.localeCompare(right))
     }))
-    .sort((left, right) => right.exposureUsd - left.exposureUsd);
+    .sort((left, right) => right.exposureUsd - left.exposureUsd || left.asset.localeCompare(right.asset));
 }

@@ -48,4 +48,5 @@ export interface ReportDocument {
   schemaVersion: string;
   sections: ReportSection[];
   dataCompleteness?: DataCompleteness;
+  healthStatus?: "ok" | "failed";
 }
