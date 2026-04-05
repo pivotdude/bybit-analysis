@@ -131,7 +131,7 @@ describe("normalizeSpotPnlReport", () => {
     expect(report.dataCompleteness.warnings[0]).toContain("unmatched by opening inventory");
   });
 
-  it("uses deterministic tie-breakers for equal execution timestamps", () => {
+  it("preserves API order for equal-time opposite-side executions", () => {
     const rows = [
       trade({ symbol: "ETHUSDT", side: "Buy", qty: 1, price: 100, time: 10 }),
       trade({ symbol: "ETHUSDT", side: "Sell", qty: 1, price: 120, time: 10 })
@@ -149,10 +149,10 @@ describe("normalizeSpotPnlReport", () => {
     );
 
     expect(reportA.realizedPnlUsd).toBeCloseTo(20);
-    expect(reportB.realizedPnlUsd).toBeCloseTo(20);
+    expect(reportB.realizedPnlUsd).toBeCloseTo(0);
     expect(reportA.bySymbol.map((item) => item.symbol)).toEqual(["ETHUSDT"]);
     expect(reportB.bySymbol.map((item) => item.symbol)).toEqual(["ETHUSDT"]);
     expect(reportA.dataCompleteness.partial).toBe(false);
-    expect(reportB.dataCompleteness.partial).toBe(false);
+    expect(reportB.dataCompleteness.partial).toBe(true);
   });
 });

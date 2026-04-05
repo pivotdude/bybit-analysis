@@ -110,17 +110,15 @@ function normalizeExecutionRows(input: unknown): SpotExecutionRow[] {
 }
 
 function compareExecutionRows(left: SpotExecutionRow, right: SpotExecutionRow): number {
-  return (
-    toTimestamp(left.execTime) - toTimestamp(right.execTime) ||
-    String(left.symbol ?? "UNKNOWN").localeCompare(String(right.symbol ?? "UNKNOWN")) ||
-    String(left.side ?? "").localeCompare(String(right.side ?? "")) ||
-    String(left.execType ?? "Trade").localeCompare(String(right.execType ?? "Trade")) ||
-    toNumber(left.execQty) - toNumber(right.execQty) ||
-    toNumber(left.execValue) - toNumber(right.execValue) ||
-    toNumber(left.execPrice) - toNumber(right.execPrice) ||
-    toNumber(left.execFee) - toNumber(right.execFee) ||
-    String(left.feeCurrency ?? "").localeCompare(String(right.feeCurrency ?? ""))
-  );
+  const byTime = toTimestamp(left.execTime) - toTimestamp(right.execTime);
+  if (byTime !== 0) {
+    return byTime;
+  }
+
+  // Cost basis is order-sensitive within the same symbol+timestamp; preserve API order there.
+  const leftSymbol = String(left.symbol ?? "UNKNOWN");
+  const rightSymbol = String(right.symbol ?? "UNKNOWN");
+  return leftSymbol.localeCompare(rightSymbol);
 }
 
 function applyBuy(state: InventoryState, qty: number, execValue: number): void {
