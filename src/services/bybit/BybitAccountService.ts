@@ -65,7 +65,7 @@ function withExplicitRoiUnsupported(snapshot: AccountSnapshot): AccountSnapshot 
       snapshot.dataCompleteness,
       degradedDataCompleteness([
         buildUnsupportedFeatureIssue({
-          scope: "unknown",
+          scope: "equity_history",
           message: ROI_CAPITAL_EFFICIENCY_UNSUPPORTED_MESSAGE
         })
       ])

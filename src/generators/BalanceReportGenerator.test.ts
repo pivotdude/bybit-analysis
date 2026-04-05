@@ -133,4 +133,54 @@ describe("BalanceReportGenerator", () => {
     expect(report.dataCompleteness?.state).toBe("complete");
     expect(report.dataCompleteness?.issues).toHaveLength(0);
   });
+
+  it("does not propagate ROI-only equity-history unsupported issue into balance data completeness", async () => {
+    const accountService: AccountDataService = {
+      getAccountSnapshot: async () => ({
+        source: "bybit",
+        exchange: "bybit",
+        category: "linear",
+        capturedAt: new Date().toISOString(),
+        totalEquityUsd: 1_250,
+        walletBalanceUsd: 1_200,
+        availableBalanceUsd: 1_100,
+        unrealizedPnlUsd: 50,
+        positions: [],
+        balances: [{ asset: "USDT", walletBalance: 1_250, availableBalance: 1_100, usdValue: 1_250 }],
+        dataCompleteness: {
+          state: "degraded",
+          partial: true,
+          warnings: ["ROI and capital efficiency are unsupported: historical equity source is unavailable."],
+          issues: [
+            {
+              code: "unsupported_feature",
+              scope: "equity_history",
+              severity: "critical",
+              criticality: "critical",
+              message: "ROI and capital efficiency are unsupported: historical equity source is unavailable."
+            }
+          ]
+        }
+      }),
+      checkHealth: async () => ({
+        connectivity: "ok",
+        auth: "ok",
+        latencyMs: 1,
+        diagnostics: []
+      }),
+      getApiKeyPermissionInfo: async () => ({
+        apiKeyStatus: "present",
+        apiKeyDisplay: "<redacted>",
+        readOnly: true,
+        ipWhitelistRestricted: false,
+        ipWhitelistCount: 0,
+        ipWhitelistDisplay: "not configured",
+        permissions: {}
+      })
+    };
+
+    const report = await new BalanceReportGenerator(accountService).generate(botContext);
+    expect(report.dataCompleteness?.state).toBe("complete");
+    expect(report.dataCompleteness?.issues).toHaveLength(0);
+  });
 });
