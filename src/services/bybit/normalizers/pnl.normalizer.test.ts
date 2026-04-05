@@ -47,4 +47,25 @@ describe("normalizePnlReport", () => {
       tradesCount: 1
     });
   });
+
+  it("aggregates fractional pnl and fees without floating-point drift", () => {
+    const report = normalizePnlReport(
+      {
+        list: [
+          { symbol: "BTCUSDT", closedPnl: "0.1", openFee: "0.01", closeFee: "0.02" },
+          { symbol: "BTCUSDT", closedPnl: "0.1", openFee: "0.01", closeFee: "0.02" },
+          { symbol: "BTCUSDT", closedPnl: "0.1", openFee: "0.01", closeFee: "0.02" }
+        ]
+      },
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-02T00:00:00.000Z",
+      0
+    );
+
+    expect(report.realizedPnlUsd).toBe(0.3);
+    expect(report.fees.tradingFeesUsd).toBe(0.09);
+    expect(report.netPnlUsd).toBe(0.21);
+    expect(report.bySymbol[0]?.realizedPnlUsd).toBe(0.3);
+    expect(report.bySymbol[0]?.netPnlUsd).toBe(0.21);
+  });
 });

@@ -1,4 +1,5 @@
 import type { Position } from "../../types/domain.types";
+import { dec, sumDecimals, toFiniteNumber } from "../../services/math/decimal";
 
 export interface PositionsAnalysis {
   totalPositions: number;
@@ -38,7 +39,7 @@ export class PositionsAnalyzer {
       totalPositions: positions.length,
       longCount,
       shortCount,
-      totalNotionalUsd: positions.reduce((sum, position) => sum + Math.abs(position.notionalUsd), 0),
+      totalNotionalUsd: toFiniteNumber(sumDecimals(positions.map((position) => dec(position.notionalUsd).abs()))),
       positions: [...positions].sort(comparePositionsByAbsNotionalDesc),
       largestPositions: [...positions]
         .sort(comparePositionsByAbsNotionalDesc)

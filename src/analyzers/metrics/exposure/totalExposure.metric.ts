@@ -1,4 +1,5 @@
 import type { Position } from "../../../types/domain.types";
+import { dec, sumDecimals, toFiniteNumber } from "../../../services/math/decimal";
 
 export interface ExposureTotals {
   longExposureUsd: number;
@@ -9,16 +10,26 @@ export interface ExposureTotals {
 }
 
 export function calculateExposureTotals(positions: Position[]): ExposureTotals {
-  const longExposureUsd = positions
-    .map((position) => Math.max(position.notionalUsd, 0))
-    .reduce((sum, value) => sum + value, 0);
+  const longExposureUsdDecimal = sumDecimals(
+    positions.map((position) => {
+      const notional = dec(position.notionalUsd);
+      return notional.gt(0) ? notional : dec(0);
+    })
+  );
 
-  const shortExposureUsd = positions
-    .map((position) => Math.abs(Math.min(position.notionalUsd, 0)))
-    .reduce((sum, value) => sum + value, 0);
+  const shortExposureUsdDecimal = sumDecimals(
+    positions.map((position) => {
+      const notional = dec(position.notionalUsd);
+      return notional.lt(0) ? notional.abs() : dec(0);
+    })
+  );
 
-  const grossExposureUsd = longExposureUsd + shortExposureUsd;
-  const netExposureUsd = longExposureUsd - shortExposureUsd;
+  const grossExposureUsdDecimal = longExposureUsdDecimal.plus(shortExposureUsdDecimal);
+  const netExposureUsdDecimal = longExposureUsdDecimal.minus(shortExposureUsdDecimal);
+  const longExposureUsd = toFiniteNumber(longExposureUsdDecimal);
+  const shortExposureUsd = toFiniteNumber(shortExposureUsdDecimal);
+  const grossExposureUsd = toFiniteNumber(grossExposureUsdDecimal);
+  const netExposureUsd = toFiniteNumber(netExposureUsdDecimal);
 
   return {
     longExposureUsd,

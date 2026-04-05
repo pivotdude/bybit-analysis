@@ -1,4 +1,5 @@
 import type { PnLReport } from "../../types/domain.types";
+import { dec, toFiniteNumber } from "../../services/math/decimal";
 
 export interface PnLAnalysis {
   periodFrom: string;
@@ -25,7 +26,9 @@ export class PnLAnalyzer {
       periodTo: report.periodTo,
       realizedPnlUsd: report.realizedPnlUsd,
       unrealizedPnlUsd: report.unrealizedPnlUsd,
-      totalFeesUsd: report.fees.tradingFeesUsd + report.fees.fundingFeesUsd + (report.fees.otherFeesUsd ?? 0),
+      totalFeesUsd: toFiniteNumber(
+        dec(report.fees.tradingFeesUsd).plus(report.fees.fundingFeesUsd).plus(report.fees.otherFeesUsd ?? 0)
+      ),
       netPnlUsd: report.netPnlUsd,
       roiStatus: report.roiStatus,
       roiUnsupportedReason: report.roiUnsupportedReason,

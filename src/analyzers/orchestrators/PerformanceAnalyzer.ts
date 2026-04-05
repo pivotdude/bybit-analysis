@@ -1,5 +1,6 @@
 import { calculateCapitalEfficiency } from "../metrics/performance/capitalEfficiency.metric";
 import type { AccountSnapshot, PnLReport, RoiContract } from "../../types/domain.types";
+import { dec, toFiniteNumber } from "../../services/math/decimal";
 
 export interface PerformanceAnalysis {
   periodFrom: string;
@@ -20,8 +21,8 @@ export interface PerformanceAnalysis {
 
 export class PerformanceAnalyzer {
   analyze(account: AccountSnapshot, pnl: PnLReport): PerformanceAnalysis {
-    const totalFeesUsd = pnl.fees.tradingFeesUsd + pnl.fees.fundingFeesUsd + (pnl.fees.otherFeesUsd ?? 0);
-    const periodNetPnlUsd = pnl.realizedPnlUsd + pnl.unrealizedPnlUsd - totalFeesUsd;
+    const totalFeesUsd = dec(pnl.fees.tradingFeesUsd).plus(pnl.fees.fundingFeesUsd).plus(pnl.fees.otherFeesUsd ?? 0);
+    const periodNetPnlUsd = toFiniteNumber(dec(pnl.realizedPnlUsd).plus(pnl.unrealizedPnlUsd).minus(totalFeesUsd));
     const roiPct = pnl.roiStatus === "supported" && typeof pnl.roiPct === "number" ? pnl.roiPct : undefined;
 
     const efficiency = calculateCapitalEfficiency(pnl.realizedPnlUsd, account.equityHistory);
