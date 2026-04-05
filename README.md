@@ -31,6 +31,16 @@ Command-specific help:
 bun run src/index.ts <command> --help
 ```
 
+## Exit Codes (Automation Contract)
+
+- `0` complete success (and for `health`, connectivity/auth checks passed)
+- `3` degraded success (report generated, but `dataCompleteness.partial=true`)
+- `4` health-check failure (`health` command returned failed connectivity and/or auth)
+- `1` runtime failure (unexpected execution error)
+- `2` usage/config failure (invalid args or runtime validation error)
+
+Automation should branch on exit code only; no prose parsing is required.
+
 ## Testing
 
 ```bash

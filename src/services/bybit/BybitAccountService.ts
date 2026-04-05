@@ -10,7 +10,7 @@ import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeAccountSnapshot } from "./normalizers/accountSnapshot.normalizer";
-import type { AccountSnapshot, AssetBalance, BotReport } from "../../types/domain.types";
+import type { AccountSnapshot, BotCapitalBalance, BotReport } from "../../types/domain.types";
 import { redactIpWhitelist, redactSecretValue } from "../../security/redaction";
 import { mergeDataCompleteness } from "../reliability/dataCompleteness";
 
@@ -18,30 +18,32 @@ const WALLET_TTL_MS = 15_000;
 const SERVER_TIME_TTL_MS = 10_000;
 const API_KEY_INFO_TTL_MS = 15_000;
 
-function aggregateBotBalances(report: BotReport): AssetBalance[] {
-  const grouped = new Map<string, AssetBalance>();
+function aggregateBotCapital(report: BotReport): BotCapitalBalance[] {
+  const grouped = new Map<string, BotCapitalBalance>();
 
   for (const bot of report.bots) {
     const asset = (bot.quoteAsset ?? "USD").toUpperCase();
-    const walletBalance = bot.allocatedCapitalUsd ?? 0;
-    const availableBalance = bot.availableBalanceUsd ?? 0;
-    const usdValue = bot.equityUsd ?? walletBalance + (bot.unrealizedPnlUsd ?? 0);
+    const allocatedCapitalUsd = bot.allocatedCapitalUsd ?? 0;
+    const availableBalanceUsd = bot.availableBalanceUsd ?? 0;
+    const equityUsd = bot.equityUsd ?? allocatedCapitalUsd + (bot.unrealizedPnlUsd ?? 0);
 
     const current = grouped.get(asset) ?? {
       asset,
-      walletBalance: 0,
-      availableBalance: 0,
-      usdValue: 0
+      allocatedCapitalUsd: 0,
+      availableBalanceUsd: 0,
+      equityUsd: 0
     };
 
-    current.walletBalance += walletBalance;
-    current.availableBalance += availableBalance;
-    current.usdValue += usdValue;
+    current.allocatedCapitalUsd += allocatedCapitalUsd;
+    current.availableBalanceUsd += availableBalanceUsd;
+    current.equityUsd += equityUsd;
 
     grouped.set(asset, current);
   }
 
-  return Array.from(grouped.values()).sort((a, b) => b.usdValue - a.usdValue);
+  return Array.from(grouped.values()).sort(
+    (left, right) => right.equityUsd - left.equityUsd || left.asset.localeCompare(right.asset)
+  );
 }
 
 export class BybitAccountService implements AccountDataService {
@@ -56,7 +58,7 @@ export class BybitAccountService implements AccountDataService {
     if (context.sourceMode === "bot") {
       const botReport = await this.botService.getBotReport(context, { requirement: "required" });
       const positionsResult = await this.positionsService.getOpenPositions(context);
-      const balances = aggregateBotBalances(botReport);
+      const botCapital = aggregateBotCapital(botReport);
 
       const walletBalanceUsd = botReport.totalAllocatedUsd ?? 0;
       const unrealizedPnlUsd = botReport.bots.reduce((sum, bot) => sum + (bot.unrealizedPnlUsd ?? 0), 0);
@@ -76,7 +78,8 @@ export class BybitAccountService implements AccountDataService {
         availableBalanceUsd,
         unrealizedPnlUsd,
         positions: positionsResult.positions,
-        balances,
+        balances: [],
+        botCapital,
         dataCompleteness: mergeDataCompleteness(positionsResult.dataCompleteness, botReport.dataCompleteness)
       };
     }

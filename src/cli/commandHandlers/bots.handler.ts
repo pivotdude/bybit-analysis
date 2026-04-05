@@ -1,12 +1,12 @@
 import { BotsReportGenerator } from "../../generators/BotsReportGenerator";
+import type { ReportDocument } from "../../types/report.types";
 import { toServiceContext, type HandlerDeps } from "./shared";
 
-export async function botsHandler(deps: HandlerDeps): Promise<string> {
+export async function botsHandler(deps: HandlerDeps): Promise<ReportDocument> {
   if (!deps.botService) {
     throw new Error("Selected exchange provider does not support bot analytics");
   }
 
   const generator = new BotsReportGenerator(deps.botService);
-  const report = await generator.generate(toServiceContext(deps.config));
-  return deps.renderer.render(report, deps.config.format);
+  return generator.generate(toServiceContext(deps.config));
 }

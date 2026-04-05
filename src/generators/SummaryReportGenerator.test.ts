@@ -236,4 +236,46 @@ describe("SummaryReportGenerator", () => {
 
     await expect(generator.generate(botContext)).rejects.toThrow("bot endpoint unavailable");
   });
+
+  it("uses bot capital as holdings fallback when token balances are unavailable", async () => {
+    const accountServiceWithoutTokenBalances: AccountDataService = {
+      ...accountService,
+      getAccountSnapshot: async () => ({
+        source: "bybit",
+        exchange: "bybit",
+        category: "linear",
+        capturedAt: new Date().toISOString(),
+        totalEquityUsd: 12_000,
+        walletBalanceUsd: 12_000,
+        availableBalanceUsd: 9_500,
+        unrealizedPnlUsd: 0,
+        positions: [],
+        balances: [],
+        botCapital: [{ asset: "USDT", allocatedCapitalUsd: 12_000, availableBalanceUsd: 9_500, equityUsd: 12_000 }],
+        dataCompleteness: {
+          state: "complete",
+          partial: false,
+          warnings: [],
+          issues: []
+        }
+      })
+    };
+
+    const generator = new SummaryReportGenerator(accountServiceWithoutTokenBalances, executionService, availableBotService);
+    const report = await generator.generate(botContext);
+
+    const allocation = report.sections.find((section) => section.id === "summary.allocation");
+    const holdings = report.sections.find((section) => section.id === "summary.top_holdings");
+
+    expect(allocation?.type).toBe("kpi");
+    expect(allocation && allocation.type === "kpi" ? allocation.kpis[0]?.value : undefined).toBe("$12,000.00");
+    expect(allocation && allocation.type === "kpi" ? allocation.kpis[4]?.value : undefined).toBe("USDT (100.00%)");
+
+    expect(holdings?.type).toBe("table");
+    expect(holdings && holdings.type === "table" ? holdings.table.rows[0] : []).toEqual([
+      "USDT",
+      "$12,000.00",
+      "100.00%"
+    ]);
+  });
 });

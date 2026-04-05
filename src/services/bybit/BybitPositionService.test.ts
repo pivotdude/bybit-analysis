@@ -174,6 +174,43 @@ describe("BybitPositionService pagination", () => {
     expect(result.dataCompleteness.issues[0]?.code).toBe("page_fetch_failed");
   });
 
+  it("includes USDC-settled linear positions in market mode", async () => {
+    const client = {
+      getPositions: async () => ({
+        list: [
+          {
+            symbol: "BTCUSDT",
+            size: "1",
+            side: "Buy",
+            markPrice: "100",
+            avgPrice: "90",
+            positionValue: "100",
+            leverage: "2",
+            unrealisedPnl: "5"
+          },
+          {
+            symbol: "ETHUSDC",
+            size: "2",
+            side: "Sell",
+            markPrice: "200",
+            avgPrice: "210",
+            positionValue: "400",
+            leverage: "3",
+            unrealisedPnl: "-10"
+          }
+        ],
+        nextPageCursor: undefined
+      })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const result = await service.getOpenPositions(context);
+
+    expect(result.dataCompleteness.partial).toBe(false);
+    expect(result.positions.map((position) => position.symbol).sort()).toEqual(["BTCUSDT", "ETHUSDC"]);
+    expect(result.positions.find((position) => position.symbol === "ETHUSDC")?.quoteAsset).toBe("USDC");
+  });
+
   it("requests required bot data in bot source mode", async () => {
     let requirement: string | undefined;
     const client = {

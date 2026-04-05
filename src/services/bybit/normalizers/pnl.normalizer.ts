@@ -49,7 +49,9 @@ export function normalizePnlReport(
     bySymbolMap.set(symbol, current);
   }
 
-  const bySymbol = Array.from(bySymbolMap.values()).sort((left, right) => right.netPnlUsd - left.netPnlUsd);
+  const bySymbol = Array.from(bySymbolMap.values()).sort(
+    (left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol)
+  );
   const totalFeesUsd = tradingFeesUsd;
   const netPnlUsd = realizedPnlUsd + unrealizedPnlUsd - totalFeesUsd;
   const roi = normalizeRoi({

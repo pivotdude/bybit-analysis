@@ -23,6 +23,7 @@ export interface AccountSnapshot {
   equityHistory?: EquitySnapshot[];
   positions: Position[];
   balances: AssetBalance[];
+  botCapital?: BotCapitalBalance[];
   dataCompleteness: DataCompleteness;
 }
 
@@ -39,6 +40,13 @@ export interface AssetBalance {
   walletBalance: number;
   availableBalance: number;
   usdValue: number;
+}
+
+export interface BotCapitalBalance {
+  asset: string;
+  allocatedCapitalUsd: number;
+  availableBalanceUsd: number;
+  equityUsd: number;
 }
 
 export interface Position {

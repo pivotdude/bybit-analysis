@@ -25,7 +25,7 @@ function normalizeBalances(input: unknown): AssetBalance[] {
       availableBalance: toNumber(coin.availableToWithdraw ?? coin.free),
       usdValue: toNumber(coin.usdValue ?? coin.equity)
     }))
-    .sort((left, right) => right.usdValue - left.usdValue);
+    .sort((left, right) => right.usdValue - left.usdValue || left.asset.localeCompare(right.asset));
 }
 
 function normalizeTimestamp(input: unknown): string | undefined {
@@ -68,7 +68,14 @@ function normalizeEquityHistory(input: unknown): EquitySnapshot[] | undefined {
       };
     })
     .filter((item): item is EquitySnapshot => item !== undefined)
-    .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime());
+    .sort(
+      (left, right) =>
+        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime() ||
+        left.totalEquityUsd - right.totalEquityUsd ||
+        left.totalExposureUsd - right.totalExposureUsd ||
+        left.grossExposureUsd - right.grossExposureUsd ||
+        left.netExposureUsd - right.netExposureUsd
+    );
 
   return history.length > 0 ? history : undefined;
 }

@@ -27,7 +27,7 @@ export function resolveStartingEquity(account: Pick<AccountSnapshot, "equityHist
     return unsupported("invalid_period_start_boundary", "invalid period start boundary");
   }
 
-  let matchingSample: AccountSnapshot["equityHistory"][number] | undefined;
+  let matchingSample: NonNullable<AccountSnapshot["equityHistory"]>[number] | undefined;
   for (const sample of history) {
     const sampleTsMs = new Date(sample.timestamp).getTime();
     if (!Number.isFinite(sampleTsMs)) {

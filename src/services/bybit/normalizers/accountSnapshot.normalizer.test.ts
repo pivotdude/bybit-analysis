@@ -40,4 +40,78 @@ describe("normalizeAccountSnapshot", () => {
     expect(snapshot.equityHistory?.[0]?.grossExposureUsd).toBe(1000);
     expect(snapshot.equityHistory?.[1]?.grossExposureUsd).toBe(2000);
   });
+
+  it("uses deterministic tie-breakers for balances and equity history", () => {
+    const snapshotA = normalizeAccountSnapshot(
+      {
+        list: [
+          {
+            accountType: "UNIFIED",
+            totalEquity: "1500",
+            totalWalletBalance: "1400",
+            totalAvailableBalance: "1200",
+            totalPerpUPL: "100",
+            coin: [
+              { coin: "USDT", walletBalance: "1", availableToWithdraw: "1", usdValue: "100" },
+              { coin: "BTC", walletBalance: "0.001", availableToWithdraw: "0.001", usdValue: "100" }
+            ]
+          }
+        ],
+        equityHistory: [
+          {
+            timestamp: "2026-01-10T00:00:00.000Z",
+            totalEquityUsd: "1400",
+            grossExposureUsd: "2000",
+            netExposureUsd: "800"
+          },
+          {
+            timestamp: "2026-01-10T00:00:00.000Z",
+            totalEquityUsd: "1300",
+            grossExposureUsd: "1000",
+            netExposureUsd: "400"
+          }
+        ]
+      },
+      "linear",
+      []
+    );
+    const snapshotB = normalizeAccountSnapshot(
+      {
+        list: [
+          {
+            accountType: "UNIFIED",
+            totalEquity: "1500",
+            totalWalletBalance: "1400",
+            totalAvailableBalance: "1200",
+            totalPerpUPL: "100",
+            coin: [
+              { coin: "BTC", walletBalance: "0.001", availableToWithdraw: "0.001", usdValue: "100" },
+              { coin: "USDT", walletBalance: "1", availableToWithdraw: "1", usdValue: "100" }
+            ]
+          }
+        ],
+        equityHistory: [
+          {
+            timestamp: "2026-01-10T00:00:00.000Z",
+            totalEquityUsd: "1300",
+            grossExposureUsd: "1000",
+            netExposureUsd: "400"
+          },
+          {
+            timestamp: "2026-01-10T00:00:00.000Z",
+            totalEquityUsd: "1400",
+            grossExposureUsd: "2000",
+            netExposureUsd: "800"
+          }
+        ]
+      },
+      "linear",
+      []
+    );
+
+    expect(snapshotA.balances.map((item) => item.asset)).toEqual(["BTC", "USDT"]);
+    expect(snapshotB.balances.map((item) => item.asset)).toEqual(["BTC", "USDT"]);
+    expect(snapshotA.equityHistory?.map((item) => item.totalEquityUsd)).toEqual([1300, 1400]);
+    expect(snapshotB.equityHistory?.map((item) => item.totalEquityUsd)).toEqual([1300, 1400]);
+  });
 });
