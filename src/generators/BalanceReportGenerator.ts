@@ -94,7 +94,8 @@ export class BalanceReportGenerator {
           category: snapshot.category,
           sourceMode: context.sourceMode,
           fetchedAt: snapshot.capturedAt,
-          capturedAt: snapshot.capturedAt
+          capturedAt: snapshot.capturedAt,
+          cacheStatus: snapshot.cacheStatus
         })
       ],
       data: {

@@ -99,7 +99,8 @@ export class RiskReportGenerator {
             category: account.category,
             sourceMode: context.sourceMode,
             fetchedAt: account.capturedAt,
-            capturedAt: account.capturedAt
+            capturedAt: account.capturedAt,
+            cacheStatus: account.cacheStatus
           }),
           createSourceMetadata({
             id: "positions_snapshot",
@@ -109,7 +110,8 @@ export class RiskReportGenerator {
             category: context.category,
             sourceMode: context.sourceMode,
             fetchedAt: positionsResult.capturedAt,
-            capturedAt: positionsResult.capturedAt
+            capturedAt: positionsResult.capturedAt,
+            cacheStatus: positionsResult.cacheStatus
           })
         ],
         data: {

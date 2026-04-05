@@ -8,7 +8,7 @@ Read-only analytics CLI for Bybit accounts. Outputs schema-stable Markdown for o
 - Exchange-specific DTO mapping/normalization lives under `src/services/bybit/normalizers`.
 - Composition root is provider-based via `src/services/composition/createServiceBundle.ts`.
 - Provider contract is capability-based (`supportedMarketCategories`, `supportedSourceModes`, `botData`) and exposed in `ServiceBundle`.
-- Shared request/config contracts keep provider payloads in generic `providerContext`; Bybit bot strategy IDs live under `providerContext.bybit.botStrategyIds`.
+- Shared request/config contracts keep provider payloads in generic `providerContext`; runtime config now carries explicit `exchangeProvider`; Bybit bot strategy IDs live under `providerContext.bybit.botStrategyIds`.
 - `botService` is optional in `ServiceBundle` and only required by providers that expose bot capability.
 - Current implementation status: only the `bybit` provider is implemented and registered.
 - This is not full multi-exchange support yet; it is a structural split so new providers can be added without rewriting shared domain models.
@@ -146,6 +146,7 @@ Example (`pnl` section):
 
 - `--profile <name>`
 - `--profiles-file <path>`
+- `--exchange-provider <bybit>`
 - `--category <linear|spot>`
 - `--source <market|bot>`
 - `--fgrid-bot-ids <id1,id2,...>`
@@ -172,6 +173,7 @@ Supported env vars:
 - `BYBIT_DISABLE_ENV`
 - `BYBIT_PROFILE`
 - `BYBIT_PROFILES_FILE`
+- `BYBIT_EXCHANGE_PROVIDER`
 - `BYBIT_CATEGORY`
 - `BYBIT_SOURCE_MODE`
 - `BYBIT_FGRID_BOT_IDS`
@@ -187,6 +189,7 @@ Supported env vars:
 Precedence rules:
 
 - General runtime fields: `CLI args -> profile (if applicable) -> env -> defaults`
+- Exchange/provider selection is explicit via `--exchange-provider` / `BYBIT_EXCHANGE_PROVIDER` (currently only `bybit` is supported).
 - Credentials: `profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
 - Time range: `--from + --to -> --window -> BYBIT_WINDOW -> default 30d window`
 - Live snapshot commands reject explicit historical intent from `--from`, `--to`, `--window`, and `BYBIT_WINDOW`
@@ -296,7 +299,7 @@ You can run built-in reports against grid bots by setting:
 - `--fgrid-bot-ids <id1,id2,...>` for Futures Grid bots
 - `--spot-grid-ids <id1,id2,...>` for Spot Grid bots
 
-Those bot identifiers are resolved in the Bybit adapter layer and mapped into provider request context:
+Those bot identifiers are resolved in the Bybit adapter layer and mapped into provider request context. Provider selection is explicit via `--exchange-provider bybit` (or `BYBIT_EXCHANGE_PROVIDER=bybit`):
 
 - `providerContext.bybit.botStrategyIds.futuresGridBotIds`
 - `providerContext.bybit.botStrategyIds.spotGridBotIds`

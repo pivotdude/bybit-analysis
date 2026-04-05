@@ -56,6 +56,7 @@ interface ExecutionHistoryFetchResult {
   rows: Array<Record<string, unknown>>;
   dataCompleteness: DataCompleteness;
   haltedByRetriedFailure: boolean;
+  cacheStatus: "hit" | "miss" | "mixed";
 }
 
 type SpotExecutionFetchPurpose = "window" | "opening_inventory";
@@ -174,6 +175,7 @@ function toBotPnlReport(
   return {
     source: "bybit",
     generatedAt: new Date().toISOString(),
+    cacheStatus: report.cacheStatus,
     periodFrom: context.from,
     periodTo: context.to,
     realizedPnlUsd,
@@ -219,6 +221,7 @@ export class BybitExecutionService implements ExecutionDataService {
     const policyKey = options.purpose === "opening_inventory" ? "opening_inventory" : "execution_window";
     let pagesFetchedTotal = 0;
     let haltedByRetriedFailure = false;
+    let cacheStatus: ExecutionHistoryFetchResult["cacheStatus"] = "hit";
 
     for (const chunk of splitRangeByMaxWindow(range.from, range.to)) {
       if (haltedByRetriedFailure) {
@@ -230,10 +233,14 @@ export class BybitExecutionService implements ExecutionDataService {
 
       while (true) {
         const key = cacheKeys.executionHistory(context.category, chunk.from, chunk.to, cursor, options.symbol);
-        let payload = this.cache.get<{
+        const cachedPayload = this.cache.getWithStatus<{
           list?: Array<Record<string, unknown>>;
           nextPageCursor?: string;
         }>(key);
+        let payload = cachedPayload.value;
+        if (cachedPayload.status === "miss") {
+          cacheStatus = cacheStatus === "hit" ? "miss" : "mixed";
+        }
 
         if (!payload) {
           try {
@@ -318,7 +325,8 @@ export class BybitExecutionService implements ExecutionDataService {
     return {
       rows,
       dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness(),
-      haltedByRetriedFailure
+      haltedByRetriedFailure,
+      cacheStatus
     };
   }
 
@@ -354,6 +362,7 @@ export class BybitExecutionService implements ExecutionDataService {
       const openingRange = toSpotOpeningInventoryRange(context.from);
       const soldSymbols = periodExecutions.haltedByRetriedFailure ? [] : extractSpotSellSymbols(periodExecutions.rows);
       const openingIssues: DataCompleteness["issues"] = [];
+      const openingCacheStatuses: ExecutionHistoryFetchResult["cacheStatus"][] = [];
 
       if (soldSymbols.length > 0) {
         if (!openingRange) {
@@ -377,6 +386,7 @@ export class BybitExecutionService implements ExecutionDataService {
             );
             openingExecutions.push(...openingHistory.rows);
             openingIssues.push(...openingHistory.dataCompleteness.issues);
+            openingCacheStatuses.push(openingHistory.cacheStatus);
             if (openingHistory.haltedByRetriedFailure) {
               break;
             }
@@ -403,6 +413,15 @@ export class BybitExecutionService implements ExecutionDataService {
         openingIssues.length > 0 ? degradedDataCompleteness(openingIssues) : completeDataCompleteness(),
         report.dataCompleteness
       );
+      const combinedCacheStatuses = [periodExecutions.cacheStatus, ...openingCacheStatuses];
+      report.cacheStatus =
+        combinedCacheStatuses.length === 0
+          ? "unknown"
+          : combinedCacheStatuses.every((status) => status === "hit")
+            ? "hit"
+            : combinedCacheStatuses.every((status) => status === "miss")
+              ? "miss"
+              : "mixed";
       return report;
     }
 
@@ -411,6 +430,7 @@ export class BybitExecutionService implements ExecutionDataService {
     const issues: DataCompleteness["issues"] = [];
     let pagesFetchedTotal = 0;
     let haltedByRetriedFailure = false;
+    let cacheStatus: PnLReport["cacheStatus"] = "hit";
 
     for (const chunk of chunks) {
       if (haltedByRetriedFailure) {
@@ -422,10 +442,14 @@ export class BybitExecutionService implements ExecutionDataService {
 
       while (true) {
         const key = cacheKeys.closedPnl(context.category, chunk.from, chunk.to, cursor);
-        let payload = this.cache.get<{
+        const cachedPayload = this.cache.getWithStatus<{
           list?: Array<Record<string, unknown>>;
           nextPageCursor?: string;
         }>(key);
+        let payload = cachedPayload.value;
+        if (cachedPayload.status === "miss") {
+          cacheStatus = cacheStatus === "hit" ? "miss" : "mixed";
+        }
 
         if (!payload) {
           try {
@@ -516,6 +540,7 @@ export class BybitExecutionService implements ExecutionDataService {
             }
           ])
     );
+    report.cacheStatus = cacheStatus;
     return report;
   }
 }

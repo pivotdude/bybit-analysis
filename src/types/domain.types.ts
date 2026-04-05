@@ -6,12 +6,14 @@ export type RiskBand = "low" | "medium" | "high";
 export type DataSource = "bybit" | "freqtrade" | "portfolio";
 export type PriceSource = "mark" | "last" | "index";
 export type ExchangeId = "bybit" | (string & {});
+export type SourceCacheStatus = "hit" | "miss" | "mixed" | "unknown";
 
 export interface LiveAccountSnapshot {
   source: DataSource;
   exchange: ExchangeId;
   category: MarketCategory;
   capturedAt: string;
+  cacheStatus?: SourceCacheStatus;
   accountId?: string;
   totalEquityUsd: number;
   walletBalanceUsd: number;
@@ -161,6 +163,7 @@ export interface DataCompleteness {
 export interface PnLReport extends RoiContract, HistoricalBoundaryContract {
   source: DataSource;
   generatedAt: string;
+  cacheStatus?: SourceCacheStatus;
   periodFrom: string;
   periodTo: string;
   realizedPnlUsd: number;
@@ -275,6 +278,7 @@ export interface BotSummary {
 export interface BotReport {
   source: DataSource;
   generatedAt: string;
+  cacheStatus?: SourceCacheStatus;
   availability: "available" | "not_available" | "requires_scraping";
   availabilityReason?: string;
   bots: BotSummary[];

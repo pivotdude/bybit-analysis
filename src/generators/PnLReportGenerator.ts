@@ -151,7 +151,8 @@ export class PnLReportGenerator {
           category: walletSnapshot.category,
           sourceMode: context.sourceMode,
           fetchedAt: walletSnapshot.capturedAt,
-          capturedAt: walletSnapshot.capturedAt
+          capturedAt: walletSnapshot.capturedAt,
+          cacheStatus: walletSnapshot.cacheStatus
         }),
         createSourceMetadata({
           id: "period_pnl",
@@ -161,7 +162,8 @@ export class PnLReportGenerator {
           sourceMode: context.sourceMode,
           fetchedAt: pnl.generatedAt,
           periodFrom: pnl.periodFrom,
-          periodTo: pnl.periodTo
+          periodTo: pnl.periodTo,
+          cacheStatus: pnl.cacheStatus
         })
       ],
       data: {

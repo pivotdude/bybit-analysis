@@ -85,9 +85,11 @@ export class PermissionsReportGenerator {
           id: "api_key_permissions",
           kind: "api_key_permissions",
           provider: "bybit",
+          exchange: "bybit",
           category: context.category,
           sourceMode: context.sourceMode,
-          fetchedAt: generatedAt
+          fetchedAt: generatedAt,
+          cacheStatus: info.cacheStatus
         })
       ],
       data: {

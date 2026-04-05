@@ -3,7 +3,8 @@ import type {
   DataSource,
   ExchangeId,
   IntegrationMode,
-  MarketCategory
+  MarketCategory,
+  SourceCacheStatus
 } from "./domain.types";
 
 export type ReportSectionType = "kpi" | "table" | "alerts" | "text";
@@ -56,7 +57,7 @@ export type ReportSourceKind =
   | "api_key_permissions"
   | "runtime_config";
 
-export type ReportSourceCacheStatus = "hit" | "miss" | "mixed" | "unknown";
+export type ReportSourceCacheStatus = SourceCacheStatus;
 
 export interface ReportSourceMetadata {
   id: string;

@@ -53,6 +53,15 @@ describe("parseArgs CLI conventions", () => {
       }
     },
     {
+      name: "parses explicit exchange provider selection",
+      argv: ["summary", "--exchange-provider=bybit"],
+      assert: (parsed) => {
+        expect(parsed.command).toBe("summary");
+        expect(parsed.errors).toEqual([]);
+        expect(parsed.options.exchangeProvider).toBe("bybit");
+      }
+    },
+    {
       name: "supports option terminator -- and keeps remaining args positional",
       argv: ["summary", "--", "--format=compact"],
       assert: (parsed) => {
@@ -120,7 +129,9 @@ describe("renderHelp", () => {
     expect(help).toContain("--api-secret <value>  [deprecated, insecure; disabled by default]");
     expect(help).toContain("--no-env  disable ambient BYBIT_* env resolution for deterministic runs");
     expect(help).toContain("BYBIT_ALLOW_INSECURE_CLI_SECRETS=1");
+    expect(help).toContain("BYBIT_EXCHANGE_PROVIDER=<bybit>");
     expect(help).toContain("--config-diagnostics  show expanded config diagnostics (sensitive identifiers)");
+    expect(help).toContain("--exchange-provider <bybit>");
     expect(help).toContain("--format <md|compact|json>");
     expect(help).toContain("json emits a versioned machine-readable report document");
     expect(help).toContain("BYBIT_CONFIG_DIAGNOSTICS=1 enables expanded config details");

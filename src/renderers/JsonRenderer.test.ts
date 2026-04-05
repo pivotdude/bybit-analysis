@@ -25,7 +25,7 @@ const report: ReportDocument = {
       sourceMode: "market",
       fetchedAt: "2026-01-31T00:00:00.000Z",
       capturedAt: "2026-01-31T00:00:00.000Z",
-      cacheStatus: "unknown"
+      cacheStatus: "hit"
     }
   ],
   data: {

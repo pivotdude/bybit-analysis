@@ -10,6 +10,7 @@ describe("toRedactedConfigView", () => {
       profilesFile: "/tmp/.bybit-profiles.json",
       apiKey: "real_api_key_value",
       apiSecret: "real_api_secret_value",
+      exchangeProvider: "bybit",
       category: "linear",
       sourceMode: "market",
       providerContext: buildBybitProviderContext({
@@ -37,6 +38,7 @@ describe("toRedactedConfigView", () => {
         profilesFile: "cli",
         apiKey: "cli",
         apiSecret: "cli",
+        exchangeProvider: "default",
         category: "default",
         sourceMode: "default",
         providerContext: "default",
@@ -59,6 +61,7 @@ describe("toRedactedConfigView", () => {
     expect(view.apiSecret).not.toContain("real_api_secret_value");
     expect(view.providerContext).not.toContain("fgrid-id-1");
     expect(view.providerContext).not.toContain("spot-id-1");
+    expect(view.exchangeProvider).toBe("bybit");
     expect(view.configReportMode).toBe("safe");
     expect(view.ambientEnv).toEqual({
       enabled: true,
@@ -71,6 +74,7 @@ describe("toRedactedConfigView", () => {
     const config: RuntimeConfig = {
       apiKey: "real_api_key_value",
       apiSecret: "real_api_secret_value",
+      exchangeProvider: "bybit",
       category: "linear",
       sourceMode: "market",
       providerContext: buildBybitProviderContext({
@@ -96,6 +100,7 @@ describe("toRedactedConfigView", () => {
         profilesFile: "default",
         apiKey: "env",
         apiSecret: "env",
+        exchangeProvider: "default",
         category: "default",
         sourceMode: "default",
         providerContext: "env",
@@ -114,6 +119,7 @@ describe("toRedactedConfigView", () => {
     expect(view.apiSecret).toBe("<redacted>");
     expect(view.providerContext).toContain("fgrid-id-1");
     expect(view.providerContext).toContain("spot-id-1,spot-id-2");
+    expect(view.exchangeProvider).toBe("bybit");
     expect(view.configReportMode).toBe("diagnostic");
     expect(view.ambientEnv.usedVars).toEqual(["BYBIT_API_KEY", "BYBIT_API_SECRET"]);
   });

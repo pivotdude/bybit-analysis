@@ -57,6 +57,25 @@ const optionalSpotContext: ServiceRequestContext = {
 };
 
 describe("BybitBotService partial failures", () => {
+  it("reports cache hit on repeated bot report fetch", async () => {
+    const client = {
+      getFuturesGridBotDetail: async () => createFuturesGridDetail("BTCUSDT"),
+      getSpotGridBotDetail: async () => ({ detail: {} })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitBotService(client, new MemoryCacheStore());
+    await service.getBotReport({
+      ...context,
+      providerContext: buildBybitProviderContext({ futuresGridBotIds: ["f-ok"], spotGridBotIds: [] })
+    });
+    const report = await service.getBotReport({
+      ...context,
+      providerContext: buildBybitProviderContext({ futuresGridBotIds: ["f-ok"], spotGridBotIds: [] })
+    });
+
+    expect(report.cacheStatus).toBe("hit");
+  });
+
   it("degrades when one bot detail fails and keeps successful bots", async () => {
     const client = {
       getFuturesGridBotDetail: async (botId: string) => {
@@ -83,6 +102,7 @@ describe("BybitBotService partial failures", () => {
     const report = await service.getBotReport(context);
 
     expect(report.bots).toHaveLength(1);
+    expect(report.cacheStatus).toBe("miss");
     expect(report.dataCompleteness.partial).toBe(true);
     expect(report.dataCompleteness.issues[0]?.code).toBe("optional_item_failed");
     expect(report.availability).toBe("available");
@@ -141,6 +161,7 @@ describe("BybitBotService partial failures", () => {
     ]);
 
     expect(linearReport.availability).toBe("not_available");
+    expect(linearReport.cacheStatus).toBe("miss");
     expect(linearReport.bots).toHaveLength(0);
     expect(linearReport.dataCompleteness.partial).toBe(true);
 
@@ -162,6 +183,7 @@ describe("BybitBotService partial failures", () => {
     });
 
     expect(report.availability).toBe("not_available");
+    expect(report.cacheStatus).toBe("unknown");
     expect(report.bots).toHaveLength(0);
     expect(report.dataCompleteness.partial).toBe(false);
   });

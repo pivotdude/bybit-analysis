@@ -84,7 +84,8 @@ export class PositionsReportGenerator {
             category: context.category,
             sourceMode: context.sourceMode,
             fetchedAt: positionsResult.capturedAt,
-            capturedAt: positionsResult.capturedAt
+            capturedAt: positionsResult.capturedAt,
+            cacheStatus: positionsResult.cacheStatus
           })
         ],
         data: {

@@ -8,7 +8,7 @@ import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeFuturesGridBotSummary, normalizeSpotGridBotSummary } from "./normalizers/bot.normalizer";
-import type { BotReport, BotSummary } from "../../types/domain.types";
+import type { BotReport, BotSummary, SourceCacheStatus } from "../../types/domain.types";
 import { buildOptionalItemIssue } from "./partialFailurePolicy";
 import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
 import { getBybitBotStrategyIds } from "./bybitProviderContext";
@@ -27,9 +27,11 @@ interface BotFetchTask {
 type BotFetchOutcome =
   | {
       bot: BotSummary;
+      cacheStatus: Extract<SourceCacheStatus, "hit" | "miss">;
     }
   | {
       issueMessage: string;
+      cacheStatus: Extract<SourceCacheStatus, "hit" | "miss">;
     };
 
 async function mapWithConcurrency<TInput, TOutput>(
@@ -113,10 +115,14 @@ export class BybitBotService implements BotDataService {
     const requirement = resolveRequirement(context, options);
     const ids = getBybitBotStrategyIds(context.providerContext);
     const reportKey = cacheKeys.botReport(ids.futuresGridBotIds, ids.spotGridBotIds);
-    const cachedReport = this.cache.get<BotReport>(reportKey);
-    if (cachedReport) {
-      enforceRequiredMode(context, cachedReport, requirement);
-      return cachedReport;
+    const cachedReport = this.cache.getWithStatus<BotReport>(reportKey);
+    if (cachedReport.value) {
+      const report = {
+        ...cachedReport.value,
+        cacheStatus: "hit" as const
+      };
+      enforceRequiredMode(context, report, requirement);
+      return report;
     }
 
     if (!hasBotIds(context)) {
@@ -126,6 +132,7 @@ export class BybitBotService implements BotDataService {
         availability: "not_available",
         availabilityReason: availabilityReason(context),
         bots: [],
+        cacheStatus: "unknown",
         dataCompleteness: completeDataCompleteness()
       };
 
@@ -142,24 +149,29 @@ export class BybitBotService implements BotDataService {
         if (task.kind === "futures_grid") {
           const detail = await this.getFuturesGridDetail(task.botId, context.timeoutMs);
           return {
-            bot: normalizeFuturesGridBotSummary(task.botId, detail)
+            bot: normalizeFuturesGridBotSummary(task.botId, detail.value),
+            cacheStatus: detail.cacheStatus
           };
         }
 
         const detail = await this.getSpotGridDetail(task.botId, context.timeoutMs);
         return {
-          bot: normalizeSpotGridBotSummary(task.botId, detail)
+          bot: normalizeSpotGridBotSummary(task.botId, detail.value),
+          cacheStatus: detail.cacheStatus
         };
       } catch (error) {
         return {
-          issueMessage: `${task.kind}:${task.botId}:${error instanceof Error ? error.message : String(error)}`
+          issueMessage: `${task.kind}:${task.botId}:${error instanceof Error ? error.message : String(error)}`,
+          cacheStatus: "miss"
         };
       }
     });
 
     const bots: BotSummary[] = [];
     const issues: BotReport["dataCompleteness"]["issues"] = [];
+    const detailCacheStatuses: Array<Extract<SourceCacheStatus, "hit" | "miss">> = [];
     for (const outcome of outcomes) {
+      detailCacheStatuses.push(outcome.cacheStatus);
       if ("bot" in outcome) {
         bots.push(outcome.bot);
         continue;
@@ -179,6 +191,15 @@ export class BybitBotService implements BotDataService {
       sumDecimals(bots.map((bot) => dec(bot.realizedPnlUsd ?? 0).plus(dec(bot.unrealizedPnlUsd ?? 0))))
     );
 
+    const cacheStatus =
+      detailCacheStatuses.length === 0
+        ? "unknown"
+        : detailCacheStatuses.every((status) => status === "hit")
+          ? "hit"
+          : detailCacheStatuses.every((status) => status === "miss")
+            ? "miss"
+            : "mixed";
+
     const report: BotReport = {
       source: "bybit",
       generatedAt: new Date().toISOString(),
@@ -188,6 +209,7 @@ export class BybitBotService implements BotDataService {
       totalAllocatedUsd,
       totalBotExposureUsd,
       totalBotPnlUsd,
+      cacheStatus,
       dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
     };
 
@@ -196,27 +218,45 @@ export class BybitBotService implements BotDataService {
     return report;
   }
 
-  private async getFuturesGridDetail(botId: string, timeoutMs: number): Promise<unknown> {
+  private async getFuturesGridDetail(
+    botId: string,
+    timeoutMs: number
+  ): Promise<{ value: unknown; cacheStatus: Extract<SourceCacheStatus, "hit" | "miss"> }> {
     const key = cacheKeys.futuresGridBotDetail(botId);
-    const cached = this.cache.get<unknown>(key);
-    if (cached) {
-      return cached;
+    const cached = this.cache.getWithStatus<unknown>(key);
+    if (cached.value) {
+      return {
+        value: cached.value,
+        cacheStatus: "hit"
+      };
     }
 
     const result = await this.client.getFuturesGridBotDetail(botId, timeoutMs);
     this.cache.set(key, result, BOT_DETAIL_TTL_MS);
-    return result;
+    return {
+      value: result,
+      cacheStatus: "miss"
+    };
   }
 
-  private async getSpotGridDetail(botId: string, timeoutMs: number): Promise<unknown> {
+  private async getSpotGridDetail(
+    botId: string,
+    timeoutMs: number
+  ): Promise<{ value: unknown; cacheStatus: Extract<SourceCacheStatus, "hit" | "miss"> }> {
     const key = cacheKeys.spotGridBotDetail(botId);
-    const cached = this.cache.get<unknown>(key);
-    if (cached) {
-      return cached;
+    const cached = this.cache.getWithStatus<unknown>(key);
+    if (cached.value) {
+      return {
+        value: cached.value,
+        cacheStatus: "hit"
+      };
     }
 
     const result = await this.client.getSpotGridBotDetail(botId, timeoutMs);
     this.cache.set(key, result, BOT_DETAIL_TTL_MS);
-    return result;
+    return {
+      value: result,
+      cacheStatus: "miss"
+    };
   }
 }
