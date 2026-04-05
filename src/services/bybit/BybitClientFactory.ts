@@ -344,7 +344,6 @@ export class BybitReadonlyClient {
     return this.requestPrivate("GET", "/v5/position/list", {
       query: {
         category,
-        settleCoin: category === "linear" ? "USDT" : undefined,
         limit: 200,
         cursor
       },
