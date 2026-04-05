@@ -305,8 +305,9 @@ describe("BybitReadonlyClient positions query", () => {
   it("does not force settleCoin when fetching linear positions", async () => {
     let requestUrl = "";
 
-    globalThis.fetch = (async (input) => {
-      requestUrl = typeof input === "string" ? input : input.url;
+    globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+      const [input] = args;
+      requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       return new Response("{\"retCode\":0,\"retMsg\":\"OK\",\"result\":{\"list\":[]},\"time\":1}", {
         status: 200,
         statusText: "OK",
