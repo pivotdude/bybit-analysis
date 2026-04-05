@@ -269,6 +269,7 @@ const executionService: ExecutionDataService = {
       netPnlUsd: 115,
       roiStatus: "unsupported",
       roiUnsupportedReason: "starting equity is unavailable for the requested period window",
+      roiUnsupportedReasonCode: "starting_equity_unavailable",
       roiStartEquityUsd: undefined,
       roiEndEquityUsd: 12_000,
       bySymbol: [],
