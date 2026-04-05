@@ -3,7 +3,9 @@ import { resolveRuntimeConfig, validateCredentials } from "../config";
 import { MemoryCacheStore } from "../services/cache/MemoryCacheStore";
 import { createServiceBundle } from "../services/composition/createServiceBundle";
 import type { ParsedCliArgs } from "../types/command.types";
+import type { ReportDocument } from "../types/report.types";
 import { MarkdownRenderer } from "../renderers/MarkdownRenderer";
+import { classifyReportExitCode } from "./exitCodes";
 import { balanceHandler } from "./commandHandlers/balance.handler";
 import { botsHandler } from "./commandHandlers/bots.handler";
 import { configHandler } from "./commandHandlers/config.handler";
@@ -18,6 +20,10 @@ import { summaryHandler } from "./commandHandlers/summary.handler";
 import { toServiceContext, type HandlerDeps } from "./commandHandlers/shared";
 
 export class UsageError extends Error {}
+export interface CommandExecutionResult {
+  markdown: string;
+  exitCode: number;
+}
 
 function buildDeps(
   parsed: ParsedCliArgs,
@@ -56,6 +62,31 @@ export async function executeCommand(
     usedVars: []
   }
 ): Promise<string> {
+  const { report, deps } = await generateReport(parsed, env, ambientEnv);
+  return deps.renderer.render(report, deps.config.format);
+}
+
+export async function executeCommandWithOutcome(
+  parsed: ParsedCliArgs,
+  env: Record<string, string | undefined> = {},
+  ambientEnv: AmbientEnvResolution = {
+    enabled: true,
+    source: "default",
+    usedVars: []
+  }
+): Promise<CommandExecutionResult> {
+  const { report, deps } = await generateReport(parsed, env, ambientEnv);
+  return {
+    markdown: deps.renderer.render(report, deps.config.format),
+    exitCode: classifyReportExitCode(report)
+  };
+}
+
+async function generateReport(
+  parsed: ParsedCliArgs,
+  env: Record<string, string | undefined>,
+  ambientEnv: AmbientEnvResolution
+): Promise<{ report: ReportDocument; deps: HandlerDeps }> {
   if (parsed.errors.length > 0) {
     throw new UsageError(parsed.errors.join("; "));
   }
@@ -104,30 +135,44 @@ export async function executeCommand(
     }
   }
 
+  let report: ReportDocument;
   switch (parsed.command) {
     case "summary":
-      return summaryHandler(deps);
+      report = await summaryHandler(deps);
+      break;
     case "balance":
-      return balanceHandler(deps);
+      report = await balanceHandler(deps);
+      break;
     case "pnl":
-      return pnlHandler(deps);
+      report = await pnlHandler(deps);
+      break;
     case "positions":
-      return positionsHandler(deps);
+      report = await positionsHandler(deps);
+      break;
     case "exposure":
-      return exposureHandler(deps);
+      report = await exposureHandler(deps);
+      break;
     case "performance":
-      return performanceHandler(deps);
+      report = await performanceHandler(deps);
+      break;
     case "risk":
-      return riskHandler(deps);
+      report = await riskHandler(deps);
+      break;
     case "bots":
-      return botsHandler(deps);
+      report = await botsHandler(deps);
+      break;
     case "permissions":
-      return permissionsHandler(deps);
+      report = await permissionsHandler(deps);
+      break;
     case "config":
-      return configHandler(deps);
+      report = await configHandler(deps);
+      break;
     case "health":
-      return healthHandler(deps);
+      report = await healthHandler(deps);
+      break;
     default:
       throw new UsageError(`Unsupported command: ${parsed.command}`);
   }
+
+  return { report, deps };
 }

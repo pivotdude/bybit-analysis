@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { executeCommand, UsageError } from "./cli/commandRouter";
+import { executeCommandWithOutcome, UsageError } from "./cli/commandRouter";
+import { CLI_EXIT_CODE } from "./cli/exitCodes";
 import { parseArgs, renderHelp } from "./cli/parseArgs";
 import { resolveCliRuntimeEnv } from "./cli/runtimeEnv";
 
@@ -12,35 +13,36 @@ async function main(): Promise<void> {
 
   if (parsed.options.help && parsed.errors.length === 0) {
     process.stdout.write(`${renderHelp(parsed.command)}\n`);
-    process.exit(0);
+    process.exit(CLI_EXIT_CODE.SUCCESS);
   }
 
   if (parsed.errors.length > 0) {
     process.stderr.write(`${parsed.errors.join("\n")}\n`);
     process.stderr.write(`${USAGE_HINT}\n`);
-    process.exit(2);
+    process.exit(CLI_EXIT_CODE.USAGE_ERROR);
     return;
   }
 
   if (!parsed.command) {
     process.stderr.write("Command is required\n");
     process.stderr.write(`${USAGE_HINT}\n`);
-    process.exit(2);
+    process.exit(CLI_EXIT_CODE.USAGE_ERROR);
     return;
   }
 
   try {
-    const markdown = await executeCommand(parsed, runtimeEnv.values, runtimeEnv.ambientEnv);
-    process.stdout.write(markdown);
+    const outcome = await executeCommandWithOutcome(parsed, runtimeEnv.values, runtimeEnv.ambientEnv);
+    process.stdout.write(outcome.markdown);
+    process.exit(outcome.exitCode);
   } catch (error) {
     if (error instanceof UsageError) {
       process.stderr.write(`${error.message}\n`);
-      process.exit(2);
+      process.exit(CLI_EXIT_CODE.USAGE_ERROR);
       return;
     }
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`${message}\n`);
-    process.exit(1);
+    process.exit(CLI_EXIT_CODE.RUNTIME_ERROR);
   }
 }
 

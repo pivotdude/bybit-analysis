@@ -33,6 +33,7 @@ export class HealthReportGenerator {
       title: "Health Status",
       schemaVersion: HEALTH_SCHEMA_VERSION,
       generatedAt: new Date().toISOString(),
+      healthStatus: health.connectivity === "ok" && health.auth === "ok" ? "ok" : "failed",
       sections: [
         section("status", {
           kpis: [
