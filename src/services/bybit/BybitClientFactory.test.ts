@@ -300,3 +300,27 @@ describe("BybitReadonlyClient retry policy", () => {
     }
   });
 });
+
+describe("BybitReadonlyClient positions query", () => {
+  it("does not force settleCoin when fetching linear positions", async () => {
+    let requestUrl = "";
+
+    globalThis.fetch = (async (input) => {
+      requestUrl = typeof input === "string" ? input : input.url;
+      return new Response("{\"retCode\":0,\"retMsg\":\"OK\",\"result\":{\"list\":[]},\"time\":1}", {
+        status: 200,
+        statusText: "OK",
+        headers: { "content-type": "application/json" }
+      });
+    }) as unknown as typeof fetch;
+
+    const client = createTestClient();
+    await client.getPositions("linear");
+
+    const url = new URL(requestUrl);
+    expect(url.pathname).toBe("/v5/position/list");
+    expect(url.searchParams.get("category")).toBe("linear");
+    expect(url.searchParams.get("limit")).toBe("200");
+    expect(url.searchParams.has("settleCoin")).toBe(false);
+  });
+});
