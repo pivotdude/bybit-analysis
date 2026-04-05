@@ -88,7 +88,7 @@ export function normalizeFuturesGridBotSummary(botId: string, result: unknown): 
   return {
     botId,
     name: symbol ? `${symbol} futures-grid` : `futures-grid:${botId}`,
-    botType: "futures_grid",
+    strategyType: "futures_grid",
     symbol: symbol || undefined,
     baseAsset: toString(detail.base_token) || undefined,
     quoteAsset: toString(detail.quote_token) || undefined,
@@ -103,13 +103,13 @@ export function normalizeFuturesGridBotSummary(botId: string, result: unknown): 
     exposureUsd: exposureUsd || undefined,
     realizedPnlUsd,
     unrealizedPnlUsd,
-    gridProfitUsd: toNumber(detail.grid_profit) || undefined,
-    availableBalanceUsd: availableBalanceUsd || undefined,
+    strategyProfitUsd: toNumber(detail.grid_profit) || undefined,
+    availableCapitalUsd: availableBalanceUsd || undefined,
     equityUsd: equityUsd || undefined,
     closeReason: toString(detail.close_reason) || undefined,
-    botCloseCode: toString(detail.bot_close_code) || undefined,
+    closeCode: toString(detail.bot_close_code) || undefined,
     roiPct: pnlPer,
-    openPositions: quantity > 0 ? 1 : 0
+    activePositionCount: quantity > 0 ? 1 : 0
   };
 }
 
@@ -131,7 +131,7 @@ export function normalizeSpotGridBotSummary(botId: string, result: unknown): Bot
   return {
     botId,
     name: symbol ? `${symbol} spot-grid` : `spot-grid:${botId}`,
-    botType: "spot_grid",
+    strategyType: "spot_grid",
     symbol: symbol || undefined,
     baseAsset: toString(detail.base_token) || undefined,
     quoteAsset: toString(detail.quote_token) || undefined,
@@ -146,12 +146,12 @@ export function normalizeSpotGridBotSummary(botId: string, result: unknown): Bot
     exposureUsd: equityUsd || allocatedCapitalUsd || undefined,
     realizedPnlUsd,
     unrealizedPnlUsd,
-    gridProfitUsd: toNumber(detail.grid_profit) || undefined,
-    availableBalanceUsd: undefined,
+    strategyProfitUsd: toNumber(detail.grid_profit) || undefined,
+    availableCapitalUsd: undefined,
     equityUsd: equityUsd || undefined,
     closeReason: toString(detail.close_reason) || undefined,
-    botCloseCode: toString(detail.bot_close_code) || undefined,
+    closeCode: toString(detail.bot_close_code) || undefined,
     roiPct: typeof roiFromCurrent === "number" ? roiFromCurrent : roiFromProfit,
-    openPositions: 0
+    activePositionCount: 0
   };
 }

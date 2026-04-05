@@ -5,85 +5,25 @@ import type {
   ServiceRequestContext
 } from "../contracts/AccountDataService";
 import type { PositionDataService } from "../contracts/PositionDataService";
-import type { BotDataService } from "../contracts/BotDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeAccountSnapshot } from "./normalizers/accountSnapshot.normalizer";
-import type { AccountSnapshot, BotCapitalBalance, BotReport } from "../../types/domain.types";
+import type { AccountSnapshot } from "../../types/domain.types";
 import { redactIpWhitelist, redactSecretValue } from "../../security/redaction";
-import { mergeDataCompleteness } from "../reliability/dataCompleteness";
 
 const WALLET_TTL_MS = 15_000;
 const SERVER_TIME_TTL_MS = 10_000;
 const API_KEY_INFO_TTL_MS = 15_000;
 
-function aggregateBotCapital(report: BotReport): BotCapitalBalance[] {
-  const grouped = new Map<string, BotCapitalBalance>();
-
-  for (const bot of report.bots) {
-    const asset = (bot.quoteAsset ?? "USD").toUpperCase();
-    const allocatedCapitalUsd = bot.allocatedCapitalUsd ?? 0;
-    const availableBalanceUsd = bot.availableBalanceUsd ?? 0;
-    const equityUsd = bot.equityUsd ?? allocatedCapitalUsd + (bot.unrealizedPnlUsd ?? 0);
-
-    const current = grouped.get(asset) ?? {
-      asset,
-      allocatedCapitalUsd: 0,
-      availableBalanceUsd: 0,
-      equityUsd: 0
-    };
-
-    current.allocatedCapitalUsd += allocatedCapitalUsd;
-    current.availableBalanceUsd += availableBalanceUsd;
-    current.equityUsd += equityUsd;
-
-    grouped.set(asset, current);
-  }
-
-  return Array.from(grouped.values()).sort(
-    (left, right) => right.equityUsd - left.equityUsd || left.asset.localeCompare(right.asset)
-  );
-}
-
 export class BybitAccountService implements AccountDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
     private readonly positionsService: PositionDataService,
-    private readonly botService: BotDataService,
     private readonly cache: CacheStore
   ) {}
 
   async getAccountSnapshot(context: ServiceRequestContext): Promise<AccountSnapshot> {
-    if (context.sourceMode === "bot") {
-      const botReport = await this.botService.getBotReport(context, { requirement: "required" });
-      const positionsResult = await this.positionsService.getOpenPositions(context);
-      const botCapital = aggregateBotCapital(botReport);
-
-      const walletBalanceUsd = botReport.totalAllocatedUsd ?? 0;
-      const unrealizedPnlUsd = botReport.bots.reduce((sum, bot) => sum + (bot.unrealizedPnlUsd ?? 0), 0);
-      const availableBalanceUsd = botReport.bots.reduce((sum, bot) => sum + (bot.availableBalanceUsd ?? 0), 0);
-      const totalEquityUsd =
-        botReport.bots.reduce((sum, bot) => sum + (bot.equityUsd ?? 0), 0) ||
-        walletBalanceUsd + unrealizedPnlUsd;
-
-      return {
-        source: "bybit",
-        exchange: "bybit",
-        category: context.category,
-        capturedAt: new Date().toISOString(),
-        accountId: "BOT",
-        totalEquityUsd,
-        walletBalanceUsd,
-        availableBalanceUsd,
-        unrealizedPnlUsd,
-        positions: positionsResult.positions,
-        balances: [],
-        botCapital,
-        dataCompleteness: mergeDataCompleteness(positionsResult.dataCompleteness, botReport.dataCompleteness)
-      };
-    }
-
     const key = cacheKeys.walletBalance(context.category);
     const cached = this.cache.get<unknown>(key);
 

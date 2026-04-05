@@ -96,10 +96,7 @@ export class SummaryReportGenerator {
     const winners = pnl.bySymbol.filter((item) => item.netPnlUsd > 0).length;
     const losers = pnl.bySymbol.filter((item) => item.netPnlUsd < 0).length;
     const winRate = tradedSymbols > 0 ? (winners / tradedSymbols) * 100 : 0;
-    const holdings: HoldingSnapshot[] =
-      account.balances.length > 0
-        ? account.balances.map((balance) => ({ asset: balance.asset, usdValue: balance.usdValue }))
-        : (account.botCapital ?? []).map((capital) => ({ asset: capital.asset, usdValue: capital.equityUsd }));
+    const holdings: HoldingSnapshot[] = account.balances.map((balance) => ({ asset: balance.asset, usdValue: balance.usdValue }));
 
     const stableValueUsd = holdings
       .filter((balance) => STABLE_ASSETS.has(balance.asset.toUpperCase()))

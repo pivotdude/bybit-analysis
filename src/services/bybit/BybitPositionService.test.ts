@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryCacheStore } from "../cache/MemoryCacheStore";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
-import { RequiredBotDataUnavailableError } from "../contracts/BotDataService";
 import { BybitPositionService } from "./BybitPositionService";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { PaginationLimitReachedError } from "./pagination";
@@ -48,25 +47,10 @@ function createClient(totalPages: number): { client: BybitReadonlyClient; getCal
   };
 }
 
-const botService = {
-  getBotReport: async () => ({
-    source: "bybit" as const,
-    generatedAt: new Date().toISOString(),
-    availability: "available" as const,
-    bots: [],
-    dataCompleteness: {
-      state: "complete" as const,
-      partial: false,
-      warnings: [],
-      issues: []
-    }
-  })
-};
-
 describe("BybitPositionService pagination", () => {
   it("reads all pages when no safety limit is configured", async () => {
     const { client, getCalls } = createClient(12);
-    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const service = new BybitPositionService(client, new MemoryCacheStore());
 
     const result = await service.getOpenPositions(context);
 
@@ -77,7 +61,7 @@ describe("BybitPositionService pagination", () => {
 
   it("throws when safety limit is reached and nextPageCursor is still present", async () => {
     const { client } = createClient(3);
-    const service = new BybitPositionService(client, botService, new MemoryCacheStore(), { maxPages: 2 });
+    const service = new BybitPositionService(client, new MemoryCacheStore(), { maxPages: 2 });
 
     try {
       await service.getOpenPositions(context);
@@ -93,7 +77,7 @@ describe("BybitPositionService pagination", () => {
 
   it("returns partial result when safety limit is reached in partial mode", async () => {
     const { client } = createClient(3);
-    const service = new BybitPositionService(client, botService, new MemoryCacheStore(), {
+    const service = new BybitPositionService(client, new MemoryCacheStore(), {
       maxPages: 2,
       limitMode: "partial"
     });
@@ -115,7 +99,7 @@ describe("BybitPositionService pagination", () => {
       }
     } as unknown as BybitReadonlyClient;
 
-    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const service = new BybitPositionService(client, new MemoryCacheStore());
 
     await expect(service.getOpenPositions(context)).rejects.toThrow("Failed to fetch page 1");
     expect(calls).toBe(1);
@@ -136,7 +120,7 @@ describe("BybitPositionService pagination", () => {
       }
     } as unknown as BybitReadonlyClient;
 
-    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const service = new BybitPositionService(client, new MemoryCacheStore());
     await expect(service.getOpenPositions(context)).rejects.toThrow("after 4 attempts");
     expect(calls).toBe(1);
   });
@@ -166,7 +150,7 @@ describe("BybitPositionService pagination", () => {
       }
     } as unknown as BybitReadonlyClient;
 
-    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const service = new BybitPositionService(client, new MemoryCacheStore());
     const result = await service.getOpenPositions(context);
 
     expect(result.positions).toHaveLength(1);
@@ -203,7 +187,7 @@ describe("BybitPositionService pagination", () => {
       })
     } as unknown as BybitReadonlyClient;
 
-    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const service = new BybitPositionService(client, new MemoryCacheStore());
     const result = await service.getOpenPositions(context);
 
     expect(result.dataCompleteness.partial).toBe(false);
@@ -211,53 +195,34 @@ describe("BybitPositionService pagination", () => {
     expect(result.positions.find((position) => position.symbol === "ETHUSDC")?.quoteAsset).toBe("USDC");
   });
 
-  it("requests required bot data in bot source mode", async () => {
-    let requirement: string | undefined;
+  it("keeps position semantics unchanged in bot source mode", async () => {
     const client = {
       getPositions: async () => ({
-        list: [],
+        list: [
+          {
+            symbol: "BTCUSDT",
+            size: "1",
+            side: "Buy",
+            markPrice: "100",
+            avgPrice: "90",
+            positionValue: "100",
+            leverage: "2",
+            unrealisedPnl: "5"
+          }
+        ],
         nextPageCursor: undefined
       })
     } as unknown as BybitReadonlyClient;
 
-    const requiredBotService = {
-      getBotReport: async (_context: ServiceRequestContext, options?: { requirement?: string }) => {
-        requirement = options?.requirement;
-        return {
-          source: "bybit" as const,
-          generatedAt: new Date().toISOString(),
-          availability: "available" as const,
-          bots: [
-            {
-              botId: "fgrid-1",
-              name: "BTC Grid",
-              status: "running" as const,
-              symbol: "BTCUSDT",
-              quoteAsset: "USDT",
-              side: "long" as const,
-              exposureUsd: 150,
-              markPrice: 150
-            }
-          ],
-          dataCompleteness: {
-            state: "complete" as const,
-            partial: false,
-            warnings: [],
-            issues: []
-          }
-        };
-      }
-    };
-
-    const service = new BybitPositionService(client, requiredBotService, new MemoryCacheStore());
+    const service = new BybitPositionService(client, new MemoryCacheStore());
     const result = await service.getOpenPositions({
       ...context,
       sourceMode: "bot",
       providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["fgrid-1"], spotGridBotIds: [] } } }
     });
 
-    expect(requirement).toBe("required");
     expect(result.positions).toHaveLength(1);
+    expect(result.positions[0]?.symbol).toBe("BTCUSDT");
   });
 
   it("marks spot market positions as unsupported instead of complete", async () => {
@@ -272,7 +237,7 @@ describe("BybitPositionService pagination", () => {
       }
     } as unknown as BybitReadonlyClient;
 
-    const service = new BybitPositionService(client, botService, new MemoryCacheStore());
+    const service = new BybitPositionService(client, new MemoryCacheStore());
     const result = await service.getOpenPositions({
       ...context,
       category: "spot"
@@ -286,29 +251,29 @@ describe("BybitPositionService pagination", () => {
     expect(result.dataCompleteness.issues[0]?.scope).toBe("positions");
   });
 
-  it("fails closed in bot mode even when category is spot", async () => {
+  it("keeps spot mode unsupported in bot source mode", async () => {
+    let calls = 0;
     const client = {
-      getPositions: async () => ({
-        list: [],
-        nextPageCursor: undefined
-      })
+      getPositions: async () => {
+        calls += 1;
+        return {
+          list: [],
+          nextPageCursor: undefined
+        };
+      }
     } as unknown as BybitReadonlyClient;
 
-    const requiredBotService = {
-      getBotReport: async () => {
-        throw new RequiredBotDataUnavailableError("required-input-failed: mandatory bot data is unavailable.");
-      }
-    };
+    const service = new BybitPositionService(client, new MemoryCacheStore());
 
-    const service = new BybitPositionService(client, requiredBotService, new MemoryCacheStore());
+    const result = await service.getOpenPositions({
+      ...context,
+      category: "spot",
+      sourceMode: "bot",
+      providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["bot-id-1"], spotGridBotIds: [] } } }
+    });
 
-    await expect(
-      service.getOpenPositions({
-        ...context,
-        category: "spot",
-        sourceMode: "bot",
-        providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["bot-id-1"], spotGridBotIds: [] } } }
-      })
-    ).rejects.toBeInstanceOf(RequiredBotDataUnavailableError);
+    expect(calls).toBe(0);
+    expect(result.positions).toHaveLength(0);
+    expect(result.dataCompleteness.issues[0]?.code).toBe("unsupported_feature");
   });
 });
