@@ -78,9 +78,10 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 All commands now expose schema-stable Markdown contracts:
 
 - Report-level `Schema: <command>-markdown-v1` is present for every command.
+- Report metadata lines are fixed and ordered: `Generated at`, `Schema`, `Command`, `Outcome`, `Exit Code`, `Data Completeness`, `Partial Data`, `Health Status`.
 - Every section has a fixed `id` and is rendered as `## [section.id] Title`.
 - Section order and section type are fixed per command contract.
-- Sections are never removed because of missing data; reports use empty rows, `N/A`, `0`, `unsupported`, or info alerts.
+- Sections are never removed because of missing data; reports use deterministic placeholders (`<empty>` table rows), `N/A`, `0`, `unsupported`, or info alerts.
 - `Data Completeness` is a fixed section in every command contract:
   - Data-backed commands render merged completeness issues in that section.
   - Non data-backed commands (for example `config`, `health`, `permissions`) render explicit `unsupported` completeness status.
