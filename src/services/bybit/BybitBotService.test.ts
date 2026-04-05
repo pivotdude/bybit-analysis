@@ -103,6 +103,27 @@ describe("BybitBotService partial failures", () => {
     await expect(service.getBotReport(context)).rejects.toThrow("required-input-failed");
   });
 
+  it("fails closed in bot mode when no bot strategy ids are configured", async () => {
+    const client = {
+      getFuturesGridBotDetail: async () => createFuturesGridDetail("BTCUSDT"),
+      getSpotGridBotDetail: async () => ({ detail: {} })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitBotService(client, new MemoryCacheStore());
+    await expect(
+      service.getBotReport({
+        ...context,
+        providerContext: buildBybitProviderContext({ futuresGridBotIds: [], spotGridBotIds: [] })
+      })
+    ).rejects.toBeInstanceOf(RequiredBotDataUnavailableError);
+    await expect(
+      service.getBotReport({
+        ...context,
+        providerContext: buildBybitProviderContext({ futuresGridBotIds: [], spotGridBotIds: [] })
+      })
+    ).rejects.toThrow("required-input-failed");
+  });
+
   it("keeps full bot-detail failure optional for linear/spot market mode enrichment", async () => {
     const client = {
       getFuturesGridBotDetail: async () => {
@@ -126,6 +147,23 @@ describe("BybitBotService partial failures", () => {
     expect(spotReport.availability).toBe("not_available");
     expect(spotReport.bots).toHaveLength(0);
     expect(spotReport.dataCompleteness.partial).toBe(true);
+  });
+
+  it("keeps missing bot IDs optional for market mode enrichment", async () => {
+    const client = {
+      getFuturesGridBotDetail: async () => createFuturesGridDetail("BTCUSDT"),
+      getSpotGridBotDetail: async () => ({ detail: {} })
+    } as unknown as BybitReadonlyClient;
+
+    const service = new BybitBotService(client, new MemoryCacheStore());
+    const report = await service.getBotReport({
+      ...optionalLinearContext,
+      providerContext: buildBybitProviderContext({ futuresGridBotIds: [], spotGridBotIds: [] })
+    });
+
+    expect(report.availability).toBe("not_available");
+    expect(report.bots).toHaveLength(0);
+    expect(report.dataCompleteness.partial).toBe(false);
   });
 
   it("loads bot details with bounded concurrency instead of strict serial execution", async () => {

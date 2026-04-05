@@ -119,7 +119,7 @@ export class BybitBotService implements BotDataService {
     }
 
     if (!hasBotIds(context)) {
-      return {
+      const report: BotReport = {
         source: "bybit",
         generatedAt: new Date().toISOString(),
         availability: "not_available",
@@ -127,6 +127,9 @@ export class BybitBotService implements BotDataService {
         bots: [],
         dataCompleteness: completeDataCompleteness()
       };
+
+      enforceRequiredMode(context, report, requirement);
+      return report;
     }
 
     const tasks: BotFetchTask[] = [
