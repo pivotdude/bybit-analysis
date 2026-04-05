@@ -21,7 +21,7 @@ const spotContext: ServiceRequestContext = {
 };
 
 describe("BalanceReportGenerator", () => {
-  it("renders bot capital in USD fields instead of asset quantity fields", async () => {
+  it("renders neutral asset balance fields in bot source mode", async () => {
     const accountService: AccountDataService = {
       getAccountSnapshot: async () => ({
         source: "bybit",
@@ -33,15 +33,7 @@ describe("BalanceReportGenerator", () => {
         availableBalanceUsd: 2_100,
         unrealizedPnlUsd: 50,
         positions: [],
-        balances: [],
-        botCapital: [
-          {
-            asset: "USDT",
-            allocatedCapitalUsd: 2_400,
-            availableBalanceUsd: 2_100,
-            equityUsd: 2_450
-          }
-        ],
+        balances: [{ asset: "USDT", walletBalance: 2_400, availableBalance: 2_100, usdValue: 2_450 }],
         dataCompleteness: {
           state: "complete",
           partial: false,
@@ -72,14 +64,14 @@ describe("BalanceReportGenerator", () => {
     expect(assets?.type).toBe("table");
     expect(assets && assets.type === "table" ? assets.table.headers : []).toEqual([
       "Asset",
-      "Allocated Capital (USD)",
-      "Available Capital (USD)",
-      "Equity (USD)"
+      "Wallet",
+      "Available",
+      "USD Value"
     ]);
     expect(assets && assets.type === "table" ? assets.table.rows[0] : []).toEqual([
       "USDT",
-      "$2,400.00",
-      "$2,100.00",
+      "2400.000000",
+      "2100.000000",
       "$2,450.00"
     ]);
   });

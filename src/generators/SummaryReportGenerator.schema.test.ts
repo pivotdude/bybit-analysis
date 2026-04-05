@@ -318,7 +318,7 @@ const botService: BotDataService = {
         {
           botId: "612330315406398322",
           name: "BTC Grid",
-          botType: "futures_grid",
+          strategyType: "futures_grid",
           symbol: "BTCUSDT",
           status: "running",
           side: "long",
