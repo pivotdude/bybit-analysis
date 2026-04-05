@@ -1,4 +1,5 @@
 import type { MaxPositionSize, Position } from "../../../types/domain.types";
+import { dec, safePct, toFiniteNumber } from "../../../services/math/decimal";
 
 function comparePositionsByAbsNotionalDesc(left: Position, right: Position): number {
   return (
@@ -26,7 +27,7 @@ export function calculateMaxPositionSize(positions: Position[], totalEquityUsd: 
 
   return {
     symbol: largest.symbol,
-    notionalUsd: Math.abs(largest.notionalUsd),
-    pctOfEquity: totalEquityUsd > 0 ? (Math.abs(largest.notionalUsd) / totalEquityUsd) * 100 : 0
+    notionalUsd: toFiniteNumber(dec(largest.notionalUsd).abs()),
+    pctOfEquity: toFiniteNumber(safePct(dec(largest.notionalUsd).abs(), dec(totalEquityUsd)))
   };
 }

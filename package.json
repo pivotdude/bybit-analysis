@@ -17,5 +17,8 @@
   },
   "bin": {
     "bybit-analysis": "src/index.ts"
+  },
+  "dependencies": {
+    "decimal.js": "^10.6.0"
   }
 }

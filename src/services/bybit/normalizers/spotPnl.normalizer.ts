@@ -1,4 +1,6 @@
+import type Decimal from "decimal.js";
 import type { PnLReport, RoiUnsupportedReasonCode, SymbolPnL } from "../../../types/domain.types";
+import { dec, decUnknown, safeDiv, toFiniteNumber } from "../../math/decimal";
 import { completeDataCompleteness, degradedDataCompleteness } from "../../reliability/dataCompleteness";
 import { normalizeRoi } from "../../normalizers/roi.normalizer";
 
@@ -20,8 +22,14 @@ interface SpotExecutionRow {
 }
 
 interface InventoryState {
-  quantity: number;
-  costUsd: number;
+  quantity: Decimal;
+  costUsd: Decimal;
+}
+
+interface SymbolPnlAccumulator {
+  symbol: string;
+  realizedPnlUsd: Decimal;
+  tradesCount: number;
 }
 
 export type SpotInventoryCostMethod = "weighted_average";
@@ -33,11 +41,6 @@ export interface SpotPnlNormalizationOptions {
 
 const STABLE_QUOTES = new Set(["USD", "USDT", "USDC", "USDE", "FDUSD", "DAI", "TUSD", "USDD"]);
 const DEFAULT_INVENTORY_COST_METHOD: SpotInventoryCostMethod = "weighted_average";
-
-function toNumber(input: unknown): number {
-  const value = Number(input);
-  return Number.isFinite(value) ? value : 0;
-}
 
 function toTimestamp(input: unknown): number {
   const value = Number(input);
@@ -62,13 +65,13 @@ function inferSymbolParts(symbol: string): SymbolParts {
 }
 
 function estimateFeeUsd(
-  fee: number,
+  fee: Decimal,
   feeCurrencyRaw: string,
   symbolParts: SymbolParts,
-  execPrice: number
-): number {
-  if (fee <= 0) {
-    return 0;
+  execPrice: Decimal
+): Decimal {
+  if (fee.lte(0)) {
+    return dec(0);
   }
 
   const feeCurrency = feeCurrencyRaw.toUpperCase();
@@ -80,23 +83,14 @@ function estimateFeeUsd(
   }
 
   if (feeCurrency === base) {
-    return fee * execPrice;
+    return fee.mul(execPrice);
   }
 
   if (STABLE_QUOTES.has(feeCurrency) && STABLE_QUOTES.has(quote)) {
     return fee;
   }
 
-  return 0;
-}
-
-function createDefaultSymbolPnL(symbol: string): SymbolPnL {
-  return {
-    symbol,
-    realizedPnlUsd: 0,
-    netPnlUsd: 0,
-    tradesCount: 0
-  };
+  return dec(0);
 }
 
 function isTradeRow(row: SpotExecutionRow): boolean {
@@ -120,19 +114,26 @@ function compareExecutionRows(left: SpotExecutionRow, right: SpotExecutionRow): 
   return leftSymbol.localeCompare(rightSymbol);
 }
 
-function applyBuy(state: InventoryState, qty: number, execValue: number): void {
-  state.quantity += qty;
-  state.costUsd += execValue;
+function applyBuy(state: InventoryState, qty: Decimal, execValue: Decimal): void {
+  state.quantity = state.quantity.plus(qty);
+  state.costUsd = state.costUsd.plus(execValue);
 }
 
-function applySell(state: InventoryState, qty: number): { coveredQty: number; coveredCostUsd: number } {
+function applySell(state: InventoryState, qty: Decimal): { coveredQty: Decimal; coveredCostUsd: Decimal } {
   const heldQty = state.quantity;
-  const coveredQty = Math.min(heldQty, qty);
-  const avgCost = heldQty > 0 ? state.costUsd / heldQty : 0;
-  const coveredCostUsd = coveredQty * avgCost;
+  const coveredQty = heldQty.lt(qty) ? heldQty : qty;
+  const avgCost = heldQty.gt(0) ? state.costUsd.div(heldQty) : dec(0);
+  const coveredCostUsd = coveredQty.mul(avgCost);
 
-  state.quantity = Math.max(0, heldQty - qty);
-  state.costUsd = Math.max(0, state.costUsd - coveredCostUsd);
+  state.quantity = heldQty.minus(qty);
+  if (state.quantity.lt(0)) {
+    state.quantity = dec(0);
+  }
+
+  state.costUsd = state.costUsd.minus(coveredCostUsd);
+  if (state.costUsd.lt(0)) {
+    state.costUsd = dec(0);
+  }
 
   return { coveredQty, coveredCostUsd };
 }
@@ -159,24 +160,24 @@ export function normalizeSpotPnlReport(
     .sort(compareExecutionRows);
 
   const inventoryBySymbol = new Map<string, InventoryState>();
-  const bySymbolMap = new Map<string, SymbolPnL>();
-  const feesBySymbol = new Map<string, number>();
-  const uncoveredSellQtyBySymbol = new Map<string, number>();
+  const bySymbolMap = new Map<string, SymbolPnlAccumulator>();
+  const feesBySymbol = new Map<string, Decimal>();
+  const uncoveredSellQtyBySymbol = new Map<string, Decimal>();
 
-  let realizedPnlUsd = 0;
-  let tradingFeesUsd = 0;
+  let realizedPnlUsd = dec(0);
+  let tradingFeesUsd = dec(0);
 
   for (const row of sortedOpeningRows) {
     const symbol = String(row.symbol ?? "UNKNOWN").toUpperCase();
     const side = String(row.side ?? "").toLowerCase();
-    const qty = toNumber(row.execQty);
-    const execValue = toNumber(row.execValue);
+    const qty = decUnknown(row.execQty);
+    const execValue = decUnknown(row.execValue);
 
-    if (qty <= 0 || execValue <= 0 || (side !== "buy" && side !== "sell")) {
+    if (qty.lte(0) || execValue.lte(0) || (side !== "buy" && side !== "sell")) {
       continue;
     }
 
-    const state = inventoryBySymbol.get(symbol) ?? { quantity: 0, costUsd: 0 };
+    const state = inventoryBySymbol.get(symbol) ?? { quantity: dec(0), costUsd: dec(0) };
     if (side === "buy") {
       applyBuy(state, qty, execValue);
     } else {
@@ -188,26 +189,31 @@ export function normalizeSpotPnlReport(
   for (const row of sortedRows) {
     const symbol = String(row.symbol ?? "UNKNOWN").toUpperCase();
     const side = String(row.side ?? "").toLowerCase();
-    const qty = toNumber(row.execQty);
-    const execValue = toNumber(row.execValue);
-    const price = toNumber(row.execPrice) || (qty > 0 ? execValue / qty : 0);
-    const fee = toNumber(row.execFee);
+    const qty = decUnknown(row.execQty);
+    const execValue = decUnknown(row.execValue);
+    const rawPrice = decUnknown(row.execPrice);
+    const price = rawPrice.gt(0) ? rawPrice : qty.gt(0) ? safeDiv(execValue, qty) : dec(0);
+    const fee = decUnknown(row.execFee);
     const feeCurrency = String(row.feeCurrency ?? "");
 
-    if (qty <= 0 || execValue <= 0 || price <= 0 || (side !== "buy" && side !== "sell")) {
+    if (qty.lte(0) || execValue.lte(0) || price.lte(0) || (side !== "buy" && side !== "sell")) {
       continue;
     }
 
     const parts = inferSymbolParts(symbol);
     const feeEstimate = estimateFeeUsd(fee, feeCurrency, parts, price);
 
-    tradingFeesUsd += feeEstimate;
-    feesBySymbol.set(symbol, (feesBySymbol.get(symbol) ?? 0) + feeEstimate);
+    tradingFeesUsd = tradingFeesUsd.plus(feeEstimate);
+    feesBySymbol.set(symbol, (feesBySymbol.get(symbol) ?? dec(0)).plus(feeEstimate));
 
-    const symbolPnl = bySymbolMap.get(symbol) ?? createDefaultSymbolPnL(symbol);
+    const symbolPnl = bySymbolMap.get(symbol) ?? {
+      symbol,
+      realizedPnlUsd: dec(0),
+      tradesCount: 0
+    };
     symbolPnl.tradesCount = (symbolPnl.tradesCount ?? 0) + 1;
 
-    const state = inventoryBySymbol.get(symbol) ?? { quantity: 0, costUsd: 0 };
+    const state = inventoryBySymbol.get(symbol) ?? { quantity: dec(0), costUsd: dec(0) };
 
     if (side === "buy") {
       applyBuy(state, qty, execValue);
@@ -218,16 +224,16 @@ export function normalizeSpotPnlReport(
 
       // Realized PnL is computed only for quantity with known weighted-average cost basis.
       const { coveredQty, coveredCostUsd } = applySell(state, qty);
-      const uncoveredQty = Math.max(0, qty - coveredQty);
-      const unitProceedsUsd = qty > 0 ? execValue / qty : 0;
-      const coveredProceedsUsd = coveredQty * unitProceedsUsd;
-      const grossPnl = coveredProceedsUsd - coveredCostUsd;
+      const uncoveredQty = qty.minus(coveredQty);
+      const unitProceedsUsd = safeDiv(execValue, qty);
+      const coveredProceedsUsd = coveredQty.mul(unitProceedsUsd);
+      const grossPnl = coveredProceedsUsd.minus(coveredCostUsd);
 
-      realizedPnlUsd += grossPnl;
-      symbolPnl.realizedPnlUsd += grossPnl;
+      realizedPnlUsd = realizedPnlUsd.plus(grossPnl);
+      symbolPnl.realizedPnlUsd = symbolPnl.realizedPnlUsd.plus(grossPnl);
 
-      if (uncoveredQty > 0) {
-        uncoveredSellQtyBySymbol.set(symbol, (uncoveredSellQtyBySymbol.get(symbol) ?? 0) + uncoveredQty);
+      if (uncoveredQty.gt(0)) {
+        uncoveredSellQtyBySymbol.set(symbol, (uncoveredSellQtyBySymbol.get(symbol) ?? dec(0)).plus(uncoveredQty));
       }
     }
 
@@ -235,17 +241,19 @@ export function normalizeSpotPnlReport(
     bySymbolMap.set(symbol, symbolPnl);
   }
 
-  const bySymbol = Array.from(bySymbolMap.values())
+  const bySymbol: SymbolPnL[] = Array.from(bySymbolMap.values())
     .map((item) => {
-      const fee = feesBySymbol.get(item.symbol) ?? 0;
+      const fee = feesBySymbol.get(item.symbol) ?? dec(0);
       return {
-        ...item,
-        netPnlUsd: item.realizedPnlUsd - fee
+        symbol: item.symbol,
+        realizedPnlUsd: toFiniteNumber(item.realizedPnlUsd),
+        netPnlUsd: toFiniteNumber(item.realizedPnlUsd.minus(fee)),
+        tradesCount: item.tradesCount
       };
     })
     .sort((left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol));
 
-  const netPnlUsd = realizedPnlUsd - tradingFeesUsd;
+  const netPnlUsd = toFiniteNumber(realizedPnlUsd.minus(tradingFeesUsd));
   const roi = normalizeRoi({
     equityStartUsd,
     equityEndUsd,
@@ -269,10 +277,10 @@ export function normalizeSpotPnlReport(
     generatedAt: new Date().toISOString(),
     periodFrom,
     periodTo,
-    realizedPnlUsd,
+    realizedPnlUsd: toFiniteNumber(realizedPnlUsd),
     unrealizedPnlUsd: 0,
     fees: {
-      tradingFeesUsd,
+      tradingFeesUsd: toFiniteNumber(tradingFeesUsd),
       fundingFeesUsd: 0
     },
     netPnlUsd,

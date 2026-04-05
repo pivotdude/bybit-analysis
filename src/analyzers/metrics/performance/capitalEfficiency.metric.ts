@@ -1,4 +1,5 @@
 import type { EquitySnapshot } from "../../../types/domain.types";
+import { dec, safePct, sumDecimals, toFiniteNumber } from "../../../services/math/decimal";
 
 export interface CapitalEfficiency {
   status: "supported" | "unsupported";
@@ -9,8 +10,8 @@ export interface CapitalEfficiency {
 
 export function calculateCapitalEfficiency(periodRealizedPnlUsd: number, equityHistory: EquitySnapshot[] = []): CapitalEfficiency {
   const exposures = equityHistory
-    .map((snapshot) => snapshot.grossExposureUsd)
-    .filter((value) => Number.isFinite(value) && value > 0);
+    .map((snapshot) => dec(snapshot.grossExposureUsd))
+    .filter((value) => value.gt(0));
 
   if (exposures.length === 0) {
     return {
@@ -19,13 +20,12 @@ export function calculateCapitalEfficiency(periodRealizedPnlUsd: number, equityH
     };
   }
 
-  const avgDeployedCapitalUsd = exposures.reduce((sum, value) => sum + value, 0) / exposures.length;
-
-  const capitalEfficiencyPct = (periodRealizedPnlUsd / avgDeployedCapitalUsd) * 100;
+  const avgDeployedCapitalUsdDecimal = sumDecimals(exposures).div(exposures.length);
+  const capitalEfficiencyPctDecimal = safePct(dec(periodRealizedPnlUsd), avgDeployedCapitalUsdDecimal);
 
   return {
     status: "supported",
-    avgDeployedCapitalUsd,
-    capitalEfficiencyPct
+    avgDeployedCapitalUsd: toFiniteNumber(avgDeployedCapitalUsdDecimal),
+    capitalEfficiencyPct: toFiniteNumber(capitalEfficiencyPctDecimal)
   };
 }

@@ -12,6 +12,7 @@ import type { BotReport, BotSummary } from "../../types/domain.types";
 import { buildOptionalItemIssue } from "./partialFailurePolicy";
 import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
 import { getBybitBotStrategyIds } from "./bybitProviderContext";
+import { dec, sumDecimals, toFiniteNumber } from "../math/decimal";
 
 const BOT_DETAIL_TTL_MS = 15_000;
 const BOT_REPORT_TTL_MS = 10_000;
@@ -61,7 +62,7 @@ async function mapWithConcurrency<TInput, TOutput>(
 }
 
 function sum(values: Array<number | undefined>): number {
-  return values.reduce<number>((acc, value) => acc + (typeof value === "number" ? value : 0), 0);
+  return toFiniteNumber(sumDecimals(values));
 }
 
 function hasBotIds(context: ServiceRequestContext): boolean {
@@ -174,7 +175,9 @@ export class BybitBotService implements BotDataService {
 
     const totalAllocatedUsd = sum(bots.map((bot) => bot.allocatedCapitalUsd));
     const totalBotExposureUsd = sum(bots.map((bot) => bot.exposureUsd));
-    const totalBotPnlUsd = sum(bots.map((bot) => (bot.realizedPnlUsd ?? 0) + (bot.unrealizedPnlUsd ?? 0)));
+    const totalBotPnlUsd = toFiniteNumber(
+      sumDecimals(bots.map((bot) => dec(bot.realizedPnlUsd ?? 0).plus(dec(bot.unrealizedPnlUsd ?? 0))))
+    );
 
     const report: BotReport = {
       source: "bybit",
