@@ -52,12 +52,34 @@ export class PnLReportGenerator {
     });
     const analysis = this.analyzer.analyze(pnl);
     const roi = resolveRoiContract(analysis);
-
-    const winnerRows = analysis.bestSymbols.map((item) => ["Winner", item.symbol, fmtUsd(item.netPnlUsd)]);
-    const winnerSymbols = new Set(analysis.bestSymbols.map((item) => item.symbol));
-    const loserRows = analysis.worstSymbols
-      .filter((item) => !winnerSymbols.has(item.symbol) && item.netPnlUsd < 0)
+    const symbolRankedByNet = [...analysis.bySymbol].sort(
+      (left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol)
+    );
+    const winnerRows = symbolRankedByNet
+      .filter((item) => item.netPnlUsd > 0)
+      .slice(0, 5)
+      .map((item) => ["Winner", item.symbol, fmtUsd(item.netPnlUsd)]);
+    const loserRows = [...symbolRankedByNet]
+      .reverse()
+      .filter((item) => item.netPnlUsd < 0)
+      .slice(0, 5)
       .map((item) => ["Loser", item.symbol, fmtUsd(item.netPnlUsd)]);
+    const isMarketMode = context.sourceMode === "market";
+    const symbolBreakdownHeaders = isMarketMode
+      ? ["Symbol", "Realized", "Realized Net", "Trades"]
+      : ["Symbol", "Realized", "Unrealized", "Net", "Trades"];
+    const symbolBreakdownRows = analysis.bySymbol.map((item) =>
+      isMarketMode
+        ? [item.symbol, fmtUsd(item.realizedPnlUsd), fmtUsd(item.netPnlUsd), String(item.tradesCount ?? 0)]
+        : [
+            item.symbol,
+            fmtUsd(item.realizedPnlUsd),
+            fmtUsd(item.unrealizedPnlUsd ?? 0),
+            fmtUsd(item.netPnlUsd),
+            String(item.tradesCount ?? 0)
+          ]
+    );
+    const winnerLoserValueLabel = isMarketMode ? "Realized Net PnL" : "Net PnL";
     const sections: ReportDocument["sections"] = [
       section("period", {
         text: [`From: ${fmtIso(analysis.periodFrom)}`, `To: ${fmtIso(analysis.periodTo)}`]
@@ -76,21 +98,15 @@ export class PnLReportGenerator {
       }),
       section("symbolBreakdown", {
         table: {
-          headers: ["Symbol", "Realized", "Unrealized", "Net", "Trades"],
-          rows: analysis.bySymbol.map((item) => [
-            item.symbol,
-            fmtUsd(item.realizedPnlUsd),
-            fmtUsd(item.unrealizedPnlUsd),
-            fmtUsd(item.netPnlUsd),
-            String(item.tradesCount ?? 0)
-          ])
+          headers: symbolBreakdownHeaders,
+          rows: symbolBreakdownRows
         }
       }),
       section("winnersLosers", {
         table: {
-          headers: ["Bucket", "Symbol", "Net PnL"],
+          headers: ["Bucket", "Symbol", winnerLoserValueLabel],
           rows: [
-            ...winnerRows,
+            ...(winnerRows.length > 0 ? winnerRows : [["Winner", "-", "No winning symbols in period"]]),
             ...(loserRows.length > 0 ? loserRows : [["Loser", "-", "No losing symbols in period"]])
           ]
         }

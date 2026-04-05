@@ -274,4 +274,22 @@ describe("SummaryReportGenerator", () => {
     expect(holdings?.type).toBe("table");
     expect(holdings && holdings.type === "table" ? holdings.table.rows : []).toEqual([]);
   });
+
+  it("labels symbol net column as realized net in market mode", async () => {
+    const generator = new SummaryReportGenerator(accountService, executionService, availableBotService);
+    const report = await generator.generate(linearContext);
+    const symbolPnl = report.sections.find((section) => section.id === "summary.symbol_pnl");
+
+    expect(symbolPnl?.type).toBe("table");
+    expect(symbolPnl && symbolPnl.type === "table" ? symbolPnl.table.headers[2] : undefined).toBe("Realized Net");
+  });
+
+  it("keeps generic net label for symbol pnl in bot mode", async () => {
+    const generator = new SummaryReportGenerator(accountService, executionService, availableBotService);
+    const report = await generator.generate(botContext);
+    const symbolPnl = report.sections.find((section) => section.id === "summary.symbol_pnl");
+
+    expect(symbolPnl?.type).toBe("table");
+    expect(symbolPnl && symbolPnl.type === "table" ? symbolPnl.table.headers[2] : undefined).toBe("Net");
+  });
 });

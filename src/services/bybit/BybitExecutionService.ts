@@ -145,7 +145,7 @@ function toBotPnlReport(
     .sort((left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol));
 
   const realizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.realizedPnlUsd, 0);
-  const unrealizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.unrealizedPnlUsd, 0);
+  const unrealizedPnlUsd = bySymbol.reduce((sum, item) => sum + (item.unrealizedPnlUsd ?? 0), 0);
   const netPnlUsd = realizedPnlUsd + unrealizedPnlUsd;
   const roi = normalizeRoi({
     equityStartUsd,

@@ -238,4 +238,88 @@ describe("PnLReportGenerator", () => {
     expect(report.dataCompleteness?.state).toBe("complete");
     expect(report.dataCompleteness?.issues).toHaveLength(0);
   });
+
+  it("uses realized-only symbol columns in market mode and buckets winners/losers truthfully", async () => {
+    const executionService: ExecutionDataService = {
+      getPnlReport: async () => ({
+        source: "bybit",
+        generatedAt: new Date().toISOString(),
+        periodFrom: context.from,
+        periodTo: context.to,
+        realizedPnlUsd: -30,
+        unrealizedPnlUsd: 0,
+        fees: {
+          tradingFeesUsd: 0,
+          fundingFeesUsd: 0
+        },
+        netPnlUsd: -30,
+        ...normalizeRoi({
+          equityStartUsd: 1_000,
+          equityEndUsd: 970
+        }),
+        bySymbol: [
+          {
+            symbol: "SOLUSDT",
+            realizedPnlUsd: -10,
+            netPnlUsd: -10,
+            tradesCount: 2
+          },
+          {
+            symbol: "BTCUSDT",
+            realizedPnlUsd: -20,
+            netPnlUsd: -20,
+            tradesCount: 4
+          }
+        ],
+        bestSymbols: [
+          {
+            symbol: "SOLUSDT",
+            realizedPnlUsd: -10,
+            netPnlUsd: -10,
+            tradesCount: 2
+          }
+        ],
+        worstSymbols: [
+          {
+            symbol: "BTCUSDT",
+            realizedPnlUsd: -20,
+            netPnlUsd: -20,
+            tradesCount: 4
+          }
+        ],
+        dataCompleteness: {
+          state: "complete",
+          partial: false,
+          warnings: [],
+          issues: []
+        }
+      })
+    };
+
+    const report = await new PnLReportGenerator(executionService, createAccountService()).generate(context);
+    const symbolBreakdown = report.sections.find((section) => section.id === "pnl.symbol_breakdown");
+    const winnersLosers = report.sections.find((section) => section.id === "pnl.winners_losers");
+
+    expect(symbolBreakdown?.type).toBe("table");
+    expect(symbolBreakdown && symbolBreakdown.type === "table" ? symbolBreakdown.table.headers : []).toEqual([
+      "Symbol",
+      "Realized",
+      "Realized Net",
+      "Trades"
+    ]);
+    expect(winnersLosers?.type).toBe("table");
+    expect(winnersLosers && winnersLosers.type === "table" ? winnersLosers.table.headers[2] : undefined).toBe(
+      "Realized Net PnL"
+    );
+    expect(winnersLosers && winnersLosers.type === "table" ? winnersLosers.table.rows[0] : []).toEqual([
+      "Winner",
+      "-",
+      "No winning symbols in period"
+    ]);
+    expect(winnersLosers && winnersLosers.type === "table" ? winnersLosers.table.rows[1] : []).toEqual([
+      "Loser",
+      "BTCUSDT",
+      "-$20.00"
+    ]);
+  });
 });

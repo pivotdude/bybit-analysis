@@ -92,7 +92,7 @@ export interface RoiContract {
 export interface SymbolPnL {
   symbol: string;
   realizedPnlUsd: number;
-  unrealizedPnlUsd: number;
+  unrealizedPnlUsd?: number;
   netPnlUsd: number;
   tradesCount?: number;
 }

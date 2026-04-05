@@ -37,7 +37,6 @@ export function normalizePnlReport(
     const current = bySymbolMap.get(symbol) ?? {
       symbol,
       realizedPnlUsd: 0,
-      unrealizedPnlUsd: 0,
       netPnlUsd: 0,
       tradesCount: 0
     };

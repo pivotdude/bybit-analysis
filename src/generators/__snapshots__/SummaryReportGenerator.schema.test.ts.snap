@@ -271,7 +271,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
       "headers": [
         "Symbol",
         "Realized",
-        "Net",
+        "Realized Net",
         "Trades",
       ],
       "rows": [
@@ -539,7 +539,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
       "headers": [
         "Symbol",
         "Realized",
-        "Net",
+        "Realized Net",
         "Trades",
       ],
       "rows": [

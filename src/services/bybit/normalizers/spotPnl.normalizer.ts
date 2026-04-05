@@ -94,7 +94,6 @@ function createDefaultSymbolPnL(symbol: string): SymbolPnL {
   return {
     symbol,
     realizedPnlUsd: 0,
-    unrealizedPnlUsd: 0,
     netPnlUsd: 0,
     tradesCount: 0
   };
