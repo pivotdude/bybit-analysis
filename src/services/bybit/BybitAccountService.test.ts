@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { BybitAccountService } from "./BybitAccountService";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
-import type { PositionDataService } from "../contracts/PositionDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 
@@ -48,8 +47,7 @@ describe("BybitAccountService#getApiKeyPermissionInfo", () => {
       })
     } as unknown as BybitReadonlyClient;
 
-    const positionsService = {} as PositionDataService;
-    const service = new BybitAccountService(client, positionsService, createMemoryCache());
+    const service = new BybitAccountService(client, createMemoryCache());
 
     const info = await service.getApiKeyPermissionInfo(requestContext);
     const serialized = JSON.stringify(info);
@@ -66,7 +64,7 @@ describe("BybitAccountService#getApiKeyPermissionInfo", () => {
   });
 });
 
-describe("BybitAccountService#getAccountSnapshot", () => {
+describe("BybitAccountService#getWalletSnapshot", () => {
   it("marks ROI/capital efficiency as unsupported when historical equity source is unavailable", async () => {
     const client = {
       getWalletBalance: async () => ({
@@ -90,25 +88,11 @@ describe("BybitAccountService#getAccountSnapshot", () => {
       })
     } as unknown as BybitReadonlyClient;
 
-    const positionsService: PositionDataService = {
-      getOpenPositions: async () => ({
-        source: "bybit",
-        exchange: "bybit",
-        positions: [],
-        dataCompleteness: {
-          state: "complete",
-          partial: false,
-          warnings: [],
-          issues: []
-        }
-      })
-    };
-
-    const service = new BybitAccountService(client, positionsService, createMemoryCache());
-    const snapshot = await service.getAccountSnapshot(requestContext);
+    const service = new BybitAccountService(client, createMemoryCache());
+    const snapshot = await service.getWalletSnapshot(requestContext);
 
     expect(snapshot.equityHistory).toBeUndefined();
-    expect(snapshot.dataCompleteness.state).toBe("degraded");
+    expect(snapshot.dataCompleteness.state).toBe("unsupported");
     expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
     expect(snapshot.dataCompleteness.warnings.some((warning) => warning.includes("historical equity source is unavailable"))).toBe(
       true
@@ -130,22 +114,8 @@ describe("BybitAccountService#getAccountSnapshot", () => {
       })
     } as unknown as BybitReadonlyClient;
 
-    const positionsService: PositionDataService = {
-      getOpenPositions: async () => ({
-        source: "bybit",
-        exchange: "bybit",
-        positions: [],
-        dataCompleteness: {
-          state: "complete",
-          partial: false,
-          warnings: [],
-          issues: []
-        }
-      })
-    };
-
-    const service = new BybitAccountService(client, positionsService, createMemoryCache());
-    const snapshot = await service.getAccountSnapshot({
+    const service = new BybitAccountService(client, createMemoryCache());
+    const snapshot = await service.getWalletSnapshot({
       ...requestContext,
       sourceMode: "bot",
       providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["fgrid-1"], spotGridBotIds: [] } } }
@@ -156,7 +126,7 @@ describe("BybitAccountService#getAccountSnapshot", () => {
     expect(snapshot.availableBalanceUsd).toBe(1200);
     expect(snapshot.balances).toEqual([]);
     expect(snapshot.equityHistory).toBeUndefined();
-    expect(snapshot.dataCompleteness.state).toBe("degraded");
+    expect(snapshot.dataCompleteness.state).toBe("unsupported");
     expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
   });
 });

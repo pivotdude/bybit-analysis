@@ -8,6 +8,7 @@ import { filterDataCompletenessIssues, mergeDataCompleteness } from "../services
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
 import { resolveRoiContract } from "./roiContractResolver";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const PNL_SCHEMA_VERSION = "pnl-markdown-v1";
 
@@ -40,18 +41,18 @@ export class PnLReportGenerator {
   ) {}
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
-    const account = await this.accountService.getAccountSnapshot(context);
-    const startingEquity = resolveStartingEquity(account, context.from);
+    const walletSnapshot = await this.accountService.getWalletSnapshot(context);
+    const generatedAt = new Date().toISOString();
+    const startingEquity = resolveStartingEquity(walletSnapshot, context.from);
     const pnl = await this.executionService.getPnlReport({
       context,
       equityStartUsd: startingEquity.equityStartUsd,
-      equityEndUsd: account.totalEquityUsd,
       roiMissingStartReason: startingEquity.missingStartReason,
-      roiMissingStartReasonCode: startingEquity.missingStartReasonCode,
-      accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
+      roiMissingStartReasonCode: startingEquity.missingStartReasonCode
     });
     const analysis = this.analyzer.analyze(pnl);
     const roi = resolveRoiContract(analysis);
+    const periodEndStateUnsupported = analysis.endStateStatus === "unsupported";
     const symbolRankedByNet = [...analysis.bySymbol].sort(
       (left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol)
     );
@@ -87,14 +88,24 @@ export class PnLReportGenerator {
       section("summary", {
         kpis: [
           { label: "Realized PnL", value: fmtUsd(analysis.realizedPnlUsd) },
-          { label: "Unrealized PnL", value: fmtUsd(analysis.unrealizedPnlUsd) },
+          {
+            label: "Period End-State UPnL",
+            value: periodEndStateUnsupported ? "unsupported" : fmtUsd(analysis.unrealizedPnlUsd)
+          },
           { label: "Fees", value: fmtUsd(analysis.totalFeesUsd) },
-          { label: "Net PnL", value: fmtUsd(analysis.netPnlUsd) },
+          {
+            label: periodEndStateUnsupported ? "Realized Net PnL" : "Net PnL",
+            value: fmtUsd(analysis.netPnlUsd)
+          },
           { label: "ROI", value: roi.roiKpiValue }
         ]
       }),
       section("roiStatus", {
-        text: roi.pnlStatusLines
+        text: [
+          ...roi.pnlStatusLines,
+          `Period end-state: ${analysis.endStateStatus}`,
+          ...(analysis.endStateUnsupportedReason ? [`End-state reason: ${analysis.endStateUnsupportedReason}`] : [])
+        ]
       }),
       section("symbolBreakdown", {
         table: {
@@ -114,7 +125,7 @@ export class PnLReportGenerator {
     ];
 
     const accountCompleteness = filterDataCompletenessIssues(
-      account.dataCompleteness,
+      walletSnapshot.dataCompleteness,
       (issue) => !(issue.code === "unsupported_feature" && issue.scope === "positions")
     );
     const dataCompleteness = mergeDataCompleteness(accountCompleteness, pnl.dataCompleteness);
@@ -128,9 +139,55 @@ export class PnLReportGenerator {
       command: "pnl",
       title: "PnL Analytics",
       schemaVersion: PNL_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
       sections,
-      dataCompleteness
+      dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "wallet_snapshot",
+          kind: "wallet_snapshot",
+          provider: walletSnapshot.source,
+          exchange: walletSnapshot.exchange,
+          category: walletSnapshot.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: walletSnapshot.capturedAt,
+          capturedAt: walletSnapshot.capturedAt
+        }),
+        createSourceMetadata({
+          id: "period_pnl",
+          kind: "period_pnl_snapshot",
+          provider: pnl.source,
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: pnl.generatedAt,
+          periodFrom: pnl.periodFrom,
+          periodTo: pnl.periodTo
+        })
+      ],
+      data: {
+        summary: {
+          periodFrom: analysis.periodFrom,
+          periodTo: analysis.periodTo,
+          realizedPnlUsd: analysis.realizedPnlUsd,
+          unrealizedPnlUsd: analysis.unrealizedPnlUsd,
+          totalFeesUsd: analysis.totalFeesUsd,
+          netPnlUsd: analysis.netPnlUsd
+        },
+        roi: {
+          status: analysis.roiStatus,
+          reason: analysis.roiUnsupportedReason,
+          reasonCode: analysis.roiUnsupportedReasonCode,
+          startEquityUsd: analysis.roiStartEquityUsd,
+          endEquityUsd: analysis.roiEndEquityUsd,
+          roiPct: analysis.roiPct
+        },
+        endState: {
+          status: analysis.endStateStatus,
+          reason: analysis.endStateUnsupportedReason,
+          reasonCode: analysis.endStateUnsupportedReasonCode
+        },
+        bySymbol: analysis.bySymbol
+      }
     };
   }
 }

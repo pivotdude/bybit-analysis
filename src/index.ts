@@ -32,7 +32,7 @@ async function main(): Promise<void> {
 
   try {
     const outcome = await executeCommandWithOutcome(parsed, runtimeEnv.values, runtimeEnv.ambientEnv);
-    process.stdout.write(outcome.markdown);
+    process.stdout.write(outcome.output);
     process.exit(outcome.exitCode);
   } catch (error) {
     if (error instanceof UsageError) {

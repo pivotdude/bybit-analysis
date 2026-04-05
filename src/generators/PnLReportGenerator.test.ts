@@ -13,9 +13,9 @@ const context: ServiceRequestContext = {
   timeoutMs: 5_000
 };
 
-function createAccountService(overrides: Partial<Awaited<ReturnType<AccountDataService["getAccountSnapshot"]>>> = {}): AccountDataService {
+function createAccountService(overrides: Partial<Awaited<ReturnType<AccountDataService["getWalletSnapshot"]>>> = {}): AccountDataService {
   return {
-    getAccountSnapshot: async () => ({
+    getWalletSnapshot: async () => ({
       source: "bybit",
       exchange: "bybit",
       category: "linear",
@@ -40,7 +40,6 @@ function createAccountService(overrides: Partial<Awaited<ReturnType<AccountDataS
           netExposureUsd: 1_000
         }
       ],
-      positions: [],
       balances: [],
       dataCompleteness: {
         state: "complete",
@@ -69,14 +68,14 @@ function createAccountService(overrides: Partial<Awaited<ReturnType<AccountDataS
 }
 
 describe("PnLReportGenerator", () => {
-  it("passes starting equity from account equity history and renders supported ROI", async () => {
+  it("does not use live wallet state as the historical period end-state", async () => {
     let passedStartEquity: number | undefined;
-    let passedEndEquity: number | undefined;
+    let passedEndingState = undefined as Parameters<ExecutionDataService["getPnlReport"]>[0]["endingState"];
 
     const executionService: ExecutionDataService = {
       getPnlReport: async (request) => {
         passedStartEquity = request.equityStartUsd;
-        passedEndEquity = request.equityEndUsd;
+        passedEndingState = request.endingState;
 
         return {
           source: "bybit",
@@ -90,9 +89,12 @@ describe("PnLReportGenerator", () => {
             fundingFeesUsd: 0
           },
           netPnlUsd: 100,
+          endStateStatus: "unsupported",
+          endStateUnsupportedReason: "Historical period end-state is unavailable",
+          endStateUnsupportedReasonCode: "historical_end_state_unavailable",
           ...normalizeRoi({
             equityStartUsd: request.equityStartUsd,
-            equityEndUsd: request.equityEndUsd,
+            equityEndUsd: request.endingState?.totalEquityUsd,
             missingStartReason: request.roiMissingStartReason,
             missingStartReasonCode: request.roiMissingStartReasonCode
           }),
@@ -115,23 +117,23 @@ describe("PnLReportGenerator", () => {
     const roiStatus = report.sections.find((section) => section.title === "ROI Status");
 
     expect(passedStartEquity).toBe(1_000);
-    expect(passedEndEquity).toBe(1_100);
+    expect(passedEndingState).toBeUndefined();
     expect(summary?.type).toBe("kpi");
     expect(summary && summary.type === "kpi" ? summary.kpis.find((kpi) => kpi.label === "ROI")?.value : undefined).toBe(
-      "10.00%"
+      "unsupported"
     );
     expect(roiStatus?.type).toBe("text");
-    expect(roiStatus && roiStatus.type === "text" ? roiStatus.text[0] : undefined).toBe("Status: supported");
+    expect(roiStatus && roiStatus.type === "text" ? roiStatus.text[0] : undefined).toBe("Status: unsupported");
   });
 
   it("renders unsupported ROI with explicit reason when starting equity is unavailable", async () => {
     let passedStartEquity: number | undefined;
-    let passedEndEquity: number | undefined;
+    let passedEndingState = undefined as Parameters<ExecutionDataService["getPnlReport"]>[0]["endingState"];
 
     const executionService: ExecutionDataService = {
       getPnlReport: async (request) => {
         passedStartEquity = request.equityStartUsd;
-        passedEndEquity = request.equityEndUsd;
+        passedEndingState = request.endingState;
 
         return {
           source: "bybit",
@@ -145,9 +147,12 @@ describe("PnLReportGenerator", () => {
             fundingFeesUsd: 0
           },
           netPnlUsd: 100,
+          endStateStatus: "unsupported",
+          endStateUnsupportedReason: "Historical period end-state is unavailable",
+          endStateUnsupportedReasonCode: "historical_end_state_unavailable",
           ...normalizeRoi({
             equityStartUsd: request.equityStartUsd,
-            equityEndUsd: request.equityEndUsd,
+            equityEndUsd: request.endingState?.totalEquityUsd,
             missingStartReason: request.roiMissingStartReason,
             missingStartReasonCode: request.roiMissingStartReasonCode
           }),
@@ -171,7 +176,7 @@ describe("PnLReportGenerator", () => {
     const roiStatus = report.sections.find((section) => section.title === "ROI Status");
 
     expect(passedStartEquity).toBeUndefined();
-    expect(passedEndEquity).toBe(1_100);
+    expect(passedEndingState).toBeUndefined();
     expect(summary?.type).toBe("kpi");
     expect(summary && summary.type === "kpi" ? summary.kpis.find((kpi) => kpi.label === "ROI")?.value : undefined).toBe(
       "unsupported"
@@ -196,9 +201,12 @@ describe("PnLReportGenerator", () => {
           fundingFeesUsd: 0
         },
         netPnlUsd: 100,
+        endStateStatus: "unsupported",
+        endStateUnsupportedReason: "Historical period end-state is unavailable",
+        endStateUnsupportedReasonCode: "historical_end_state_unavailable",
         ...normalizeRoi({
           equityStartUsd: 1_000,
-          equityEndUsd: 1_100
+          equityEndUsd: undefined
         }),
         bySymbol: [],
         bestSymbols: [],
@@ -215,7 +223,7 @@ describe("PnLReportGenerator", () => {
     const accountService = createAccountService({
       category: "spot",
       dataCompleteness: {
-        state: "degraded",
+        state: "unsupported",
         partial: true,
         warnings: ["Spot market exposure/risk is unsupported."],
         issues: [
@@ -253,9 +261,12 @@ describe("PnLReportGenerator", () => {
           fundingFeesUsd: 0
         },
         netPnlUsd: -30,
+        endStateStatus: "unsupported",
+        endStateUnsupportedReason: "Historical period end-state is unavailable",
+        endStateUnsupportedReasonCode: "historical_end_state_unavailable",
         ...normalizeRoi({
           equityStartUsd: 1_000,
-          equityEndUsd: 970
+          equityEndUsd: undefined
         }),
         bySymbol: [
           {

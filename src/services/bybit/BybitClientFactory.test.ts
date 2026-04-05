@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import type { RuntimeConfig } from "../../types/config.types";
 import {
   type BybitClientOptions,
+  BybitApiError,
   BybitHttpError,
   BybitMalformedResponseError,
   BybitTransportError,
@@ -294,10 +295,75 @@ describe("BybitReadonlyClient retry policy", () => {
         retries: 2,
         maxAttempts: 3,
         delaysMs: [50, 100],
-        totalDelayMs: 150
+        totalDelayMs: 150,
+        failureClass: "transport"
       });
       expect(delays).toEqual([50, 100]);
     }
+  });
+
+  it("retries transient API envelope failures by retCode", async () => {
+    let callCount = 0;
+    const delays: number[] = [];
+
+    mockFetch(async () => {
+      callCount += 1;
+      if (callCount === 1) {
+        return new Response("{\"retCode\":10016,\"retMsg\":\"service unavailable\",\"result\":{},\"time\":1}", {
+          status: 200,
+          statusText: "OK",
+          headers: { "content-type": "application/json" }
+        });
+      }
+
+      return new Response("{\"retCode\":0,\"retMsg\":\"OK\",\"result\":{\"timeNano\":\"3\",\"timeSecond\":\"3\"},\"time\":3}", {
+        status: 200,
+        statusText: "OK",
+        headers: { "content-type": "application/json" }
+      });
+    });
+
+    const client = createTestClient({
+      sleep: async (delayMs) => {
+        delays.push(delayMs);
+      },
+      retryPolicy: {
+        maxAttempts: 3,
+        baseDelayMs: 100,
+        maxDelayMs: 1_000,
+        jitterRatio: 0
+      }
+    });
+
+    const serverTime = await client.getServerTime();
+    expect(serverTime).toEqual({ timeNano: "3", timeSecond: "3" });
+    expect(callCount).toBe(2);
+    expect(delays).toEqual([100]);
+  });
+
+  it("keeps auth and permission retCodes fail-fast", async () => {
+    let callCount = 0;
+
+    mockFetch(async () => {
+      callCount += 1;
+      return new Response("{\"retCode\":10005,\"retMsg\":\"permission denied\",\"result\":{},\"time\":1}", {
+        status: 200,
+        statusText: "OK",
+        headers: { "content-type": "application/json" }
+      });
+    });
+
+    const client = createTestClient({
+      retryPolicy: {
+        maxAttempts: 4,
+        baseDelayMs: 100,
+        maxDelayMs: 1_000,
+        jitterRatio: 0
+      }
+    });
+
+    await expect(client.getApiKeyInfo()).rejects.toBeInstanceOf(BybitApiError);
+    expect(callCount).toBe(1);
   });
 });
 
@@ -323,5 +389,22 @@ describe("BybitReadonlyClient positions query", () => {
     expect(url.searchParams.get("category")).toBe("linear");
     expect(url.searchParams.get("limit")).toBe("200");
     expect(url.searchParams.has("settleCoin")).toBe(false);
+  });
+
+  it("denies unknown private endpoints by default", async () => {
+    const client = createTestClient() as unknown as {
+      requestPrivate: (
+        method: "GET" | "POST",
+        path: string,
+        args: { query?: Record<string, string>; body?: Record<string, unknown>; timeoutMs: number }
+      ) => Promise<unknown>;
+    };
+
+    await expect(
+      client.requestPrivate("GET", "/v5/order/realtime", {
+        query: {},
+        timeoutMs: runtimeConfig.timeoutMs
+      })
+    ).rejects.toThrow("Blocked private endpoint outside read-only allowlist");
   });
 });

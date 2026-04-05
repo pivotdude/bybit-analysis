@@ -28,6 +28,7 @@ export interface BybitRetryPolicy {
   retryOnTransportErrors: boolean;
   retryOnHttp5xx: boolean;
   retryableHttpStatuses: number[];
+  retryableRetCodes: number[];
 }
 
 export interface BybitRetryInfo {
@@ -36,6 +37,7 @@ export interface BybitRetryInfo {
   maxAttempts: number;
   delaysMs: number[];
   totalDelayMs: number;
+  failureClass: string;
 }
 
 export interface BybitClientOptions {
@@ -47,14 +49,15 @@ export interface BybitClientOptions {
 
 const ERROR_BODY_FRAGMENT_MAX_CHARS = 512;
 const BASE_URL = "https://api.bybit.com";
-const WRITE_ENDPOINT_GUARD = [
-  "/v5/order",
-  "/v5/position/set",
-  "/v5/asset/transfer",
-  "/v5/account/set",
-  "/v5/spot-lever-token",
-  "/v5/loan"
-];
+const READONLY_PRIVATE_ENDPOINT_ALLOWLIST = new Set([
+  "GET /v5/user/query-api",
+  "GET /v5/account/wallet-balance",
+  "GET /v5/position/list",
+  "GET /v5/position/closed-pnl",
+  "GET /v5/execution/list",
+  "POST /v5/fgridbot/detail",
+  "POST /v5/grid/query-grid-detail"
+]);
 const RETRYABLE_TRANSPORT_ERROR_PATTERNS = [
   "timed out",
   "timeout",
@@ -74,7 +77,8 @@ export const DEFAULT_BYBIT_RETRY_POLICY: BybitRetryPolicy = {
   jitterRatio: 0.2,
   retryOnTransportErrors: true,
   retryOnHttp5xx: true,
-  retryableHttpStatuses: [429]
+  retryableHttpStatuses: [429],
+  retryableRetCodes: [10000, 10006, 10016]
 };
 
 interface BybitClientRuntimeOptions {
@@ -187,10 +191,10 @@ export class BybitMalformedResponseError extends Error {
   }
 }
 
-function checkReadonlyEndpoint(path: string): void {
-  const normalized = path.toLowerCase();
-  if (WRITE_ENDPOINT_GUARD.some((prefix) => normalized.startsWith(prefix))) {
-    throw new Error(`Blocked endpoint by read-only guard: ${path}`);
+function checkReadonlyEndpoint(method: HttpMethod, path: string): void {
+  const normalizedKey = `${method} ${path.toLowerCase()}`;
+  if (!READONLY_PRIVATE_ENDPOINT_ALLOWLIST.has(normalizedKey)) {
+    throw new Error(`Blocked private endpoint outside read-only allowlist: ${method} ${path}`);
   }
 }
 
@@ -242,6 +246,9 @@ function resolveRetryPolicy(policy?: Partial<BybitRetryPolicy>): BybitRetryPolic
   const retryableHttpStatuses = policy?.retryableHttpStatuses?.length
     ? [...new Set(policy.retryableHttpStatuses.filter((status) => Number.isInteger(status) && status >= 100 && status <= 599))]
     : DEFAULT_BYBIT_RETRY_POLICY.retryableHttpStatuses;
+  const retryableRetCodes = policy?.retryableRetCodes?.length
+    ? [...new Set(policy.retryableRetCodes.filter((retCode) => Number.isInteger(retCode) && retCode >= 0))]
+    : DEFAULT_BYBIT_RETRY_POLICY.retryableRetCodes;
 
   return {
     maxAttempts: Math.max(1, Math.floor(policy?.maxAttempts ?? DEFAULT_BYBIT_RETRY_POLICY.maxAttempts)),
@@ -250,7 +257,8 @@ function resolveRetryPolicy(policy?: Partial<BybitRetryPolicy>): BybitRetryPolic
     jitterRatio: Math.min(1, Math.max(0, policy?.jitterRatio ?? DEFAULT_BYBIT_RETRY_POLICY.jitterRatio)),
     retryOnTransportErrors: policy?.retryOnTransportErrors ?? DEFAULT_BYBIT_RETRY_POLICY.retryOnTransportErrors,
     retryOnHttp5xx: policy?.retryOnHttp5xx ?? DEFAULT_BYBIT_RETRY_POLICY.retryOnHttp5xx,
-    retryableHttpStatuses
+    retryableHttpStatuses,
+    retryableRetCodes
   };
 }
 
@@ -288,6 +296,45 @@ function hasTransientTransportSignature(cause: unknown): boolean {
 
 function isRetryableHttpStatus(status: number, policy: BybitRetryPolicy): boolean {
   return policy.retryableHttpStatuses.includes(status) || (policy.retryOnHttp5xx && status >= 500 && status <= 599);
+}
+
+function isRetryableRetCode(retCode: number, policy: BybitRetryPolicy): boolean {
+  return policy.retryableRetCodes.includes(retCode);
+}
+
+function classifyFailure(error: unknown): string {
+  if (error instanceof BybitTransportError) {
+    return "transport";
+  }
+
+  if (error instanceof BybitHttpError) {
+    if (error.status === 429) {
+      return "http_rate_limit";
+    }
+    if (error.status >= 500 && error.status <= 599) {
+      return "http_server_error";
+    }
+    return "http_client_error";
+  }
+
+  if (error instanceof BybitApiError) {
+    switch (error.retCode) {
+      case 10000:
+        return "api_timeout";
+      case 10006:
+        return "api_rate_limit";
+      case 10016:
+        return "api_service_unavailable";
+      default:
+        return `api_ret_code_${error.retCode}`;
+    }
+  }
+
+  if (error instanceof BybitMalformedResponseError) {
+    return "malformed_response";
+  }
+
+  return "unknown";
 }
 
 export class BybitReadonlyClient {
@@ -409,7 +456,7 @@ export class BybitReadonlyClient {
       timeoutMs: number;
     }
   ): Promise<T> {
-    checkReadonlyEndpoint(path);
+    checkReadonlyEndpoint(method, path);
 
     const recvWindow = "5000";
     const query = toQueryString(args.query ?? {});
@@ -519,6 +566,10 @@ export class BybitReadonlyClient {
       return hasTransientTransportSignature(error.cause) || error.cause instanceof TypeError;
     }
 
+    if (error instanceof BybitApiError) {
+      return isRetryableRetCode(error.retCode, this.runtimeOptions.retryPolicy);
+    }
+
     return false;
   }
 
@@ -537,7 +588,7 @@ export class BybitReadonlyClient {
   }
 
   private attachRetryInfo(error: unknown, attempts: number, delaysMs: number[]): unknown {
-    const retryInfo = this.createRetryInfo(attempts, delaysMs);
+    const retryInfo = this.createRetryInfo(attempts, delaysMs, classifyFailure(error));
     if (error instanceof BybitTransportError || error instanceof BybitHttpError || error instanceof BybitApiError || error instanceof BybitMalformedResponseError) {
       error.retryInfo = retryInfo;
       return error;
@@ -545,13 +596,14 @@ export class BybitReadonlyClient {
     return error;
   }
 
-  private createRetryInfo(attempts: number, delaysMs: number[]): BybitRetryInfo {
+  private createRetryInfo(attempts: number, delaysMs: number[], failureClass: string): BybitRetryInfo {
     return {
       attempts,
       retries: Math.max(0, attempts - 1),
       maxAttempts: this.runtimeOptions.retryPolicy.maxAttempts,
       delaysMs: [...delaysMs],
-      totalDelayMs: delaysMs.reduce((total, delay) => total + delay, 0)
+      totalDelayMs: delaysMs.reduce((total, delay) => total + delay, 0),
+      failureClass
     };
   }
 

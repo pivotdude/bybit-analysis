@@ -15,7 +15,7 @@ export const bybitServiceProviderFactory: ExchangeServiceProviderFactory = {
       maxPages: config.pagination.positionsMaxPages,
       limitMode: config.pagination.limitMode
     });
-    const accountService = new BybitAccountService(client, positionService, cache);
+    const accountService = new BybitAccountService(client, cache);
     const executionService = new BybitExecutionService(client, botService, cache, {
       maxPagesPerChunk: config.pagination.executionsMaxPagesPerChunk,
       limitMode: config.pagination.limitMode

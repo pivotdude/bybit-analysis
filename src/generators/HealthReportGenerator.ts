@@ -1,8 +1,10 @@
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
+import { unsupportedDataCompleteness } from "../services/reliability/dataCompleteness";
 import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
 import { fmtIso } from "./formatters";
 import { buildUnsupportedDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const HEALTH_SCHEMA_VERSION = "health-markdown-v1";
 
@@ -27,13 +29,32 @@ export class HealthReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const health = await this.accountService.checkHealth(context);
+    const generatedAt = new Date().toISOString();
+    const dataCompleteness = unsupportedDataCompleteness(
+      "Data completeness is not tracked for health check reports."
+    );
 
     return {
       command: "health",
       title: "Health Status",
       schemaVersion: HEALTH_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
+      asOf: health.serverTime ?? generatedAt,
+      dataCompleteness,
       healthStatus: health.connectivity === "ok" && health.auth === "ok" ? "ok" : "failed",
+      sources: [
+        createSourceMetadata({
+          id: "health_check",
+          kind: "health_check",
+          provider: "bybit",
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: generatedAt,
+          capturedAt: health.serverTime,
+          exchangeServerTime: health.serverTime
+        })
+      ],
+      data: health,
       sections: [
         section("status", {
           kpis: [
@@ -60,9 +81,7 @@ export class HealthReportGenerator {
           ]
         }),
         section("dataCompleteness", {
-          alerts: buildUnsupportedDataCompletenessAlerts(
-            "Data completeness is not tracked for health check reports."
-          )
+          alerts: buildUnsupportedDataCompletenessAlerts(dataCompleteness.warnings[0]!)
         })
       ]
     };

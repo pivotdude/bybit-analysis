@@ -2,6 +2,8 @@ import { SummaryAnalyzer } from "../analyzers/orchestrators/SummaryAnalyzer";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
+import type { PositionDataService } from "../services/contracts/PositionDataService";
+import { composeAccountSnapshot } from "../services/contracts/accountSnapshot";
 import type { MarkdownAlert, ReportDocument, ReportSection, ReportSectionType } from "../types/report.types";
 import type { BotReport, DataCompleteness } from "../types/domain.types";
 import { fmtPct, fmtUsd } from "./formatters";
@@ -13,6 +15,7 @@ import {
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveRoiContract } from "./roiContractResolver";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const SUMMARY_SCHEMA_VERSION = "summary-markdown-v1";
 
@@ -72,19 +75,21 @@ export class SummaryReportGenerator {
   constructor(
     private readonly accountService: AccountDataService,
     private readonly executionService: ExecutionDataService,
+    private readonly positionService: PositionDataService,
     private readonly botService?: BotDataService
   ) {}
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
-    const account = await this.accountService.getAccountSnapshot(context);
-    const startingEquity = resolveStartingEquity(account, context.from);
+    const walletSnapshot = await this.accountService.getWalletSnapshot(context);
+    const positionsResult = await this.positionService.getOpenPositions(context);
+    const account = composeAccountSnapshot(walletSnapshot, positionsResult);
+    const generatedAt = new Date().toISOString();
+    const startingEquity = resolveStartingEquity(walletSnapshot, context.from);
     const pnl = await this.executionService.getPnlReport({
       context,
       equityStartUsd: startingEquity.equityStartUsd,
-      equityEndUsd: account.totalEquityUsd,
       roiMissingStartReason: startingEquity.missingStartReason,
-      roiMissingStartReasonCode: startingEquity.missingStartReasonCode,
-      accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
+      roiMissingStartReasonCode: startingEquity.missingStartReasonCode
     });
     const bot = await this.loadBotReport(context);
     const botReport = bot.report;
@@ -114,6 +119,7 @@ export class SummaryReportGenerator {
       typeof summary.performance.capitalEfficiencyPct === "number"
         ? fmtPct(summary.performance.capitalEfficiencyPct)
         : "unsupported";
+    const periodEndStateUnsupported = summary.pnl.endStateStatus === "unsupported";
     const roi = resolveRoiContract(summary.performance);
 
     const positionsRows = summary.positions.largestPositions.map((position) => [
@@ -186,6 +192,13 @@ export class SummaryReportGenerator {
           `Category: ${context.category}`,
           `Source mode: ${context.sourceMode}`,
           `Period: ${pnl.periodFrom} -> ${pnl.periodTo}`,
+          `Live snapshot as of: ${account.capturedAt}`,
+          "Live snapshot metrics: balance, holdings, exposure, risk, and open positions.",
+          "Period metrics: trading activity and realized PnL over the requested window.",
+          `Period end-state status: ${summary.pnl.endStateStatus}`,
+          ...(summary.pnl.endStateUnsupportedReason
+            ? [`Period end-state reason: ${summary.pnl.endStateUnsupportedReason}`]
+            : []),
           ...roi.narrativeLines,
           ...(unsupportedExposureRiskReason
             ? [`Exposure/risk status: unsupported (${unsupportedExposureRiskReason})`]
@@ -196,7 +209,10 @@ export class SummaryReportGenerator {
       section("overview", {
         kpis: [
           { label: "Total Equity", value: fmtUsd(summary.balance.snapshot.totalEquityUsd) },
-          { label: "Net PnL", value: fmtUsd(summary.pnl.netPnlUsd) },
+          {
+            label: periodEndStateUnsupported ? "Realized Net PnL" : "Net PnL",
+            value: fmtUsd(summary.pnl.netPnlUsd)
+          },
           { label: "ROI", value: roi.roiKpiValue },
           {
             label: "Gross Exposure",
@@ -294,10 +310,65 @@ export class SummaryReportGenerator {
     return {
       command: "summary",
       title: "Account Summary",
-      generatedAt: summary.generatedAt,
+      generatedAt,
       schemaVersion: SUMMARY_SCHEMA_VERSION,
       sections,
-      dataCompleteness
+      dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "wallet_snapshot",
+          kind: "wallet_snapshot",
+          provider: account.source,
+          exchange: account.exchange,
+          category: account.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: account.capturedAt,
+          capturedAt: account.capturedAt
+        }),
+        createSourceMetadata({
+          id: "positions_snapshot",
+          kind: "positions_snapshot",
+          provider: positionsResult.source,
+          exchange: positionsResult.exchange,
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: positionsResult.capturedAt,
+          capturedAt: positionsResult.capturedAt
+        }),
+        createSourceMetadata({
+          id: "period_pnl",
+          kind: "period_pnl_snapshot",
+          provider: pnl.source,
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: pnl.generatedAt,
+          periodFrom: pnl.periodFrom,
+          periodTo: pnl.periodTo
+        }),
+        ...(botReport
+          ? [
+              createSourceMetadata({
+                id: "bot_report",
+                kind: "bot_report",
+                provider: botReport.source,
+                category: context.category,
+                sourceMode: context.sourceMode,
+                fetchedAt: botReport.generatedAt,
+                periodFrom: context.from,
+                periodTo: context.to
+              })
+            ]
+          : [])
+      ],
+      data: {
+        balance: summary.balance,
+        pnl: summary.pnl,
+        performance: summary.performance,
+        exposure: unsupportedExposureRiskReason ? { unsupportedReason: unsupportedExposureRiskReason } : summary.exposure,
+        risk: unsupportedExposureRiskReason ? { unsupportedReason: unsupportedExposureRiskReason } : summary.risk,
+        holdings,
+        bots: botReport?.bots ?? []
+      }
     };
   }
 

@@ -68,4 +68,25 @@ describe("normalizePnlReport", () => {
     expect(report.bySymbol[0]?.realizedPnlUsd).toBe(0.3);
     expect(report.bySymbol[0]?.netPnlUsd).toBe(0.21);
   });
+
+  it("surfaces malformed critical rows instead of treating them as zero-valued pnl", () => {
+    const report = normalizePnlReport(
+      {
+        list: [
+          { symbol: "SOLUSDT", closedPnl: "12.3", openFee: "-0.4", closeFee: "-0.3" },
+          { symbol: "DOGEUSDT", closedPnl: "N/A", openFee: "", closeFee: null },
+          { symbol: null, closedPnl: "-2", openFee: "-0.1", closeFee: "-0.1" }
+        ]
+      },
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-02T00:00:00.000Z",
+      0
+    );
+
+    expect(report.realizedPnlUsd).toBe(12.3);
+    expect(report.bySymbol.map((item) => item.symbol)).toEqual(["SOLUSDT"]);
+    expect(report.dataCompleteness.state).toBe("partial_critical");
+    expect(report.dataCompleteness.issues).toHaveLength(2);
+    expect(report.dataCompleteness.issues[0]?.code).toBe("invalid_payload_row");
+  });
 });

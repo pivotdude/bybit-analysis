@@ -8,6 +8,9 @@ export interface PnLAnalysis {
   unrealizedPnlUsd: number;
   totalFeesUsd: number;
   netPnlUsd: number;
+  endStateStatus: PnLReport["endStateStatus"];
+  endStateUnsupportedReason?: PnLReport["endStateUnsupportedReason"];
+  endStateUnsupportedReasonCode?: PnLReport["endStateUnsupportedReasonCode"];
   roiStatus: PnLReport["roiStatus"];
   roiUnsupportedReason?: PnLReport["roiUnsupportedReason"];
   roiUnsupportedReasonCode?: PnLReport["roiUnsupportedReasonCode"];
@@ -30,6 +33,9 @@ export class PnLAnalyzer {
         dec(report.fees.tradingFeesUsd).plus(report.fees.fundingFeesUsd).plus(report.fees.otherFeesUsd ?? 0)
       ),
       netPnlUsd: report.netPnlUsd,
+      endStateStatus: report.endStateStatus,
+      endStateUnsupportedReason: report.endStateUnsupportedReason,
+      endStateUnsupportedReasonCode: report.endStateUnsupportedReasonCode,
       roiStatus: report.roiStatus,
       roiUnsupportedReason: report.roiUnsupportedReason,
       roiUnsupportedReasonCode: report.roiUnsupportedReasonCode,

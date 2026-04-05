@@ -6,6 +6,7 @@ import { SummaryReportGenerator } from "./SummaryReportGenerator";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ExecutionDataService, GetPnlReportRequest } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
+import type { PositionDataService } from "../services/contracts/PositionDataService";
 import type { ReportDocument } from "../types/report.types";
 
 const context: ServiceRequestContext = {
@@ -19,7 +20,7 @@ const context: ServiceRequestContext = {
 
 function createAccountService(withHistory: boolean): AccountDataService {
   return {
-    getAccountSnapshot: async () => ({
+    getWalletSnapshot: async () => ({
       source: "bybit",
       exchange: "bybit",
       category: "linear",
@@ -46,7 +47,6 @@ function createAccountService(withHistory: boolean): AccountDataService {
             }
           ]
         : undefined,
-      positions: [],
       balances: [{ asset: "USDT", walletBalance: 1_100, availableBalance: 1_100, usdValue: 1_100 }],
       dataCompleteness: {
         state: "complete",
@@ -89,6 +89,21 @@ const botService: BotDataService = {
   })
 };
 
+const positionService: PositionDataService = {
+  getOpenPositions: async () => ({
+    source: "bybit",
+    exchange: "bybit",
+    capturedAt: "2026-01-31T00:00:00.000Z",
+    positions: [],
+    dataCompleteness: {
+      state: "complete",
+      partial: false,
+      warnings: [],
+      issues: []
+    }
+  })
+};
+
 function createExecutionService(requests: GetPnlReportRequest[]): ExecutionDataService {
   return {
     getPnlReport: async (request) => {
@@ -105,9 +120,12 @@ function createExecutionService(requests: GetPnlReportRequest[]): ExecutionDataS
           fundingFeesUsd: 0
         },
         netPnlUsd: 100,
+        endStateStatus: "unsupported",
+        endStateUnsupportedReason: "Historical period end-state is unavailable",
+        endStateUnsupportedReasonCode: "historical_end_state_unavailable",
         ...normalizeRoi({
           equityStartUsd: request.equityStartUsd,
-          equityEndUsd: request.equityEndUsd,
+          equityEndUsd: request.endingState?.totalEquityUsd,
           missingStartReason: request.roiMissingStartReason,
           missingStartReasonCode: request.roiMissingStartReasonCode
         }),
@@ -135,14 +153,16 @@ function findKpi(report: ReportDocument, sectionTitle: string, label: string): s
 }
 
 describe("ROI contract consistency across commands", () => {
-  it("keeps ROI supported and equal across pnl, performance, summary", async () => {
+  it("keeps ROI unsupported and equal across pnl, performance, summary when end-state is unavailable", async () => {
     const requests: GetPnlReportRequest[] = [];
     const executionService = createExecutionService(requests);
     const accountService = createAccountService(true);
 
     const pnlReport = await new PnLReportGenerator(executionService, accountService).generate(context);
     const performanceReport = await new PerformanceReportGenerator(accountService, executionService).generate(context);
-    const summaryReport = await new SummaryReportGenerator(accountService, executionService, botService).generate(context);
+    const summaryReport = await new SummaryReportGenerator(accountService, executionService, positionService, botService).generate(
+      context
+    );
 
     const pnlRoi = findKpi(pnlReport, "PnL Summary", "ROI");
     const perfRoi = findKpi(performanceReport, "ROI", "ROI");
@@ -150,10 +170,10 @@ describe("ROI contract consistency across commands", () => {
 
     expect(requests).toHaveLength(3);
     expect(requests.map((request) => request.equityStartUsd)).toEqual([1_000, 1_000, 1_000]);
-    expect(requests.map((request) => request.equityEndUsd)).toEqual([1_100, 1_100, 1_100]);
-    expect(pnlRoi).toBe("10.00%");
-    expect(perfRoi).toBe("10.00%");
-    expect(summaryRoi).toBe("10.00%");
+    expect(requests.map((request) => request.endingState)).toEqual([undefined, undefined, undefined]);
+    expect(pnlRoi).toBe("unsupported");
+    expect(perfRoi).toBe("unsupported");
+    expect(summaryRoi).toBe("unsupported");
   });
 
   it("keeps ROI unsupported and equal across pnl, performance, summary", async () => {
@@ -163,7 +183,9 @@ describe("ROI contract consistency across commands", () => {
 
     const pnlReport = await new PnLReportGenerator(executionService, accountService).generate(context);
     const performanceReport = await new PerformanceReportGenerator(accountService, executionService).generate(context);
-    const summaryReport = await new SummaryReportGenerator(accountService, executionService, botService).generate(context);
+    const summaryReport = await new SummaryReportGenerator(accountService, executionService, positionService, botService).generate(
+      context
+    );
 
     const pnlRoi = findKpi(pnlReport, "PnL Summary", "ROI");
     const perfRoi = findKpi(performanceReport, "ROI", "ROI");

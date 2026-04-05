@@ -1,0 +1,59 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`JsonRenderer keeps stable json structure for snapshots 1`] = `
+"{
+  "jsonSchemaVersion": "report-json-v1",
+  "reportSchemaVersion": "balance-markdown-v1",
+  "command": "balance",
+  "title": "Balance Analytics",
+  "generatedAt": "2026-01-31T00:00:00.000Z",
+  "asOf": "2026-01-31T00:00:00.000Z",
+  "outcome": {
+    "status": "success",
+    "exitCode": 0,
+    "exitCodeLabel": "success",
+    "dataCompletenessState": "complete",
+    "healthStatus": "n/a"
+  },
+  "dataCompleteness": {
+    "state": "complete",
+    "partial": false,
+    "warnings": [],
+    "issues": []
+  },
+  "healthStatus": "ok",
+  "sources": [
+    {
+      "id": "wallet_snapshot",
+      "kind": "wallet_snapshot",
+      "provider": "bybit",
+      "exchange": "bybit",
+      "category": "linear",
+      "sourceMode": "market",
+      "fetchedAt": "2026-01-31T00:00:00.000Z",
+      "capturedAt": "2026-01-31T00:00:00.000Z",
+      "cacheStatus": "unknown"
+    }
+  ],
+  "sections": [
+    {
+      "id": "balance.snapshot",
+      "title": "Balance Snapshot",
+      "type": "kpi",
+      "kpis": [
+        {
+          "label": "Total Equity",
+          "value": "$10,000.00"
+        }
+      ]
+    }
+  ],
+  "data": {
+    "snapshot": {
+      "totalEquityUsd": 10000,
+      "availableBalanceUsd": 9000
+    }
+  }
+}
+"
+`;

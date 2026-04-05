@@ -1,4 +1,4 @@
-import type { AccountSnapshot, IntegrationMode, MarketCategory } from "../../types/domain.types";
+import type { IntegrationMode, LiveAccountSnapshot, MarketCategory } from "../../types/domain.types";
 
 export interface ServiceRequestContext {
   category: MarketCategory;
@@ -31,7 +31,7 @@ export interface ApiKeyPermissionInfo {
 }
 
 export interface AccountDataService {
-  getAccountSnapshot(context: ServiceRequestContext): Promise<AccountSnapshot>;
+  getWalletSnapshot(context: ServiceRequestContext): Promise<LiveAccountSnapshot>;
   checkHealth(context: ServiceRequestContext): Promise<HealthCheckResult>;
   getApiKeyPermissionInfo(context: ServiceRequestContext): Promise<ApiKeyPermissionInfo>;
 }

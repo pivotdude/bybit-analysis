@@ -6,6 +6,7 @@ import type { ServiceRequestContext } from "../services/contracts/AccountDataSer
 import { fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { filterDataCompletenessIssues } from "../services/reliability/dataCompleteness";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const BALANCE_SCHEMA_VERSION = "balance-markdown-v1";
 
@@ -31,7 +32,8 @@ export class BalanceReportGenerator {
   constructor(private readonly accountService: AccountDataService) {}
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
-    const snapshot = await this.accountService.getAccountSnapshot(context);
+    const snapshot = await this.accountService.getWalletSnapshot(context);
+    const generatedAt = new Date().toISOString();
     const dataCompleteness = filterDataCompletenessIssues(
       snapshot.dataCompleteness,
       (issue) =>
@@ -79,9 +81,27 @@ export class BalanceReportGenerator {
       command: "balance",
       title: "Balance Analytics",
       schemaVersion: BALANCE_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
+      asOf: snapshot.capturedAt,
       sections,
-      dataCompleteness
+      dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "wallet_snapshot",
+          kind: "wallet_snapshot",
+          provider: snapshot.source,
+          exchange: snapshot.exchange,
+          category: snapshot.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: snapshot.capturedAt,
+          capturedAt: snapshot.capturedAt
+        })
+      ],
+      data: {
+        snapshot: analysis.snapshot,
+        balances: analysis.balances,
+        marginState: analysis.marginState
+      }
     };
   }
 }

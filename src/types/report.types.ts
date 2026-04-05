@@ -1,4 +1,10 @@
-import type { DataCompleteness } from "./domain.types";
+import type {
+  DataCompleteness,
+  DataSource,
+  ExchangeId,
+  IntegrationMode,
+  MarketCategory
+} from "./domain.types";
 
 export type ReportSectionType = "kpi" | "table" | "alerts" | "text";
 
@@ -41,12 +47,41 @@ export type ReportAlertsSection = ReportSectionBase<"alerts"> & {
 
 export type ReportSection = ReportTextSection | ReportKpiSection | ReportTableSection | ReportAlertsSection;
 
+export type ReportSourceKind =
+  | "wallet_snapshot"
+  | "positions_snapshot"
+  | "period_pnl_snapshot"
+  | "bot_report"
+  | "health_check"
+  | "api_key_permissions"
+  | "runtime_config";
+
+export type ReportSourceCacheStatus = "hit" | "miss" | "mixed" | "unknown";
+
+export interface ReportSourceMetadata {
+  id: string;
+  kind: ReportSourceKind;
+  provider: DataSource | string;
+  exchange?: ExchangeId;
+  category?: MarketCategory;
+  sourceMode?: IntegrationMode;
+  fetchedAt: string;
+  capturedAt?: string;
+  exchangeServerTime?: string;
+  periodFrom?: string;
+  periodTo?: string;
+  cacheStatus?: ReportSourceCacheStatus;
+}
+
 export interface ReportDocument {
   command: string;
   title: string;
   generatedAt: string;
+  asOf?: string;
   schemaVersion: string;
   sections: ReportSection[];
   dataCompleteness?: DataCompleteness;
   healthStatus?: "ok" | "failed";
+  sources?: ReportSourceMetadata[];
+  data?: unknown;
 }

@@ -40,9 +40,17 @@ export function createSectionBuilder<const TContract extends SectionContractMap>
 }
 
 export function buildDataCompletenessAlerts(dataCompleteness: DataCompleteness): MarkdownAlert[] {
+  const stateSeverity: MarkdownAlert["severity"] =
+    dataCompleteness.state === "complete"
+      ? "info"
+      : dataCompleteness.state === "partial_optional"
+        ? "warning"
+        : dataCompleteness.state === "unsupported" && dataCompleteness.issues.length === 0
+          ? "info"
+          : "critical";
   const alerts: MarkdownAlert[] = [
     {
-      severity: dataCompleteness.partial ? "warning" : "info",
+      severity: stateSeverity,
       message: `State: ${dataCompleteness.state}`
     },
     {

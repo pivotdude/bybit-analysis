@@ -102,8 +102,26 @@ describe("MarkdownRenderer", () => {
       command: "health",
       title: "Health Status",
       generatedAt: "2026-01-31T00:00:00.000Z",
+      asOf: "2026-01-31T00:00:10.000Z",
       schemaVersion: "health-markdown-v1",
       healthStatus: "failed",
+      dataCompleteness: {
+        state: "unsupported",
+        partial: true,
+        warnings: ["Data completeness is not tracked for health check reports."],
+        issues: []
+      },
+      sources: [
+        {
+          id: "health_check",
+          kind: "health_check",
+          provider: "bybit",
+          fetchedAt: "2026-01-31T00:00:00.000Z",
+          capturedAt: "2026-01-31T00:00:10.000Z",
+          exchangeServerTime: "2026-01-31T00:00:10.000Z",
+          cacheStatus: "unknown"
+        }
+      ],
       sections: [
         {
           id: "health.checks",
@@ -121,10 +139,12 @@ describe("MarkdownRenderer", () => {
 
     expect(markdown).toContain("Command: health");
     expect(markdown).toContain("Outcome: failed");
-    expect(markdown).toContain("Exit Code: 4 (health_check_failed)");
+    expect(markdown).toContain("As Of: 2026-01-31T00:00:10.000Z");
+    expect(markdown).toContain("Exit Code: 5 (health_check_failed)");
     expect(markdown).toContain("Data Completeness: unsupported");
-    expect(markdown).toContain("Partial Data: unsupported");
     expect(markdown).toContain("Health Status: failed");
+    expect(markdown).toContain("Source Freshness: 1 source(s)");
+    expect(markdown).toContain("Source: health_check:");
     expect(markdown).toContain("| <empty> | <empty> |");
   });
 });

@@ -5,6 +5,7 @@ import { SummaryReportGenerator } from "./SummaryReportGenerator";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
+import type { PositionDataService } from "../services/contracts/PositionDataService";
 
 const context: ServiceRequestContext = {
   category: "spot",
@@ -16,7 +17,7 @@ const context: ServiceRequestContext = {
 };
 
 const accountService: AccountDataService = {
-  getAccountSnapshot: async () => ({
+  getWalletSnapshot: async () => ({
     source: "bybit",
     exchange: "bybit",
     category: "spot",
@@ -25,10 +26,9 @@ const accountService: AccountDataService = {
     walletBalanceUsd: 10_000,
     availableBalanceUsd: 10_000,
     unrealizedPnlUsd: 0,
-    positions: [],
     balances: [{ asset: "USDT", walletBalance: 10_000, availableBalance: 10_000, usdValue: 10_000 }],
     dataCompleteness: {
-      state: "degraded",
+      state: "partial_critical",
       partial: true,
       warnings: ["Pagination safety limit reached for positions"],
       issues: [
@@ -59,6 +59,29 @@ const accountService: AccountDataService = {
   })
 };
 
+const positionService: PositionDataService = {
+  getOpenPositions: async () => ({
+    source: "bybit",
+    exchange: "bybit",
+    capturedAt: new Date().toISOString(),
+    positions: [],
+    dataCompleteness: {
+      state: "partial_critical",
+      partial: true,
+      warnings: ["Pagination safety limit reached for positions"],
+      issues: [
+        {
+          code: "pagination_limit_reached",
+          scope: "positions",
+          severity: "warning",
+          criticality: "critical",
+          message: "Pagination safety limit reached for positions"
+        }
+      ]
+    }
+  })
+};
+
 const partialPnlReport = {
   source: "bybit" as const,
   generatedAt: new Date().toISOString(),
@@ -71,11 +94,15 @@ const partialPnlReport = {
     fundingFeesUsd: 0
   },
   netPnlUsd: 9,
-  roiStatus: "supported" as const,
-  roiUnsupportedReason: undefined,
+  endStateStatus: "unsupported" as const,
+  endStateUnsupportedReason: "Historical period end-state is unavailable",
+  endStateUnsupportedReasonCode: "historical_end_state_unavailable" as const,
+  roiStatus: "unsupported" as const,
+  roiUnsupportedReason: "ending equity is unavailable for the requested period window",
+  roiUnsupportedReasonCode: "ending_equity_unavailable" as const,
   roiStartEquityUsd: 10_000,
-  roiEndEquityUsd: 10_009,
-  roiPct: 0.09,
+  roiEndEquityUsd: undefined,
+  roiPct: undefined,
   bySymbol: [
     {
       symbol: "BTCUSDT",
@@ -104,7 +131,7 @@ const partialPnlReport = {
     }
   ],
   dataCompleteness: {
-    state: "degraded" as const,
+    state: "partial_critical" as const,
     partial: true,
     warnings: ["Pagination safety limit reached for execution-list"],
     issues: [
@@ -150,7 +177,7 @@ describe("Data completeness sections", () => {
         ? section.alerts.some((alert) => alert.message.includes("pagination_limit_reached"))
         : false
     ).toBe(true);
-    expect(report.dataCompleteness?.state).toBe("degraded");
+    expect(report.dataCompleteness?.state).toBe("partial_critical");
   });
 
   it("adds fixed data completeness alerts section in performance report", async () => {
@@ -159,11 +186,11 @@ describe("Data completeness sections", () => {
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
     expect(section?.type).toBe("alerts");
-    expect(report.dataCompleteness?.state).toBe("degraded");
+    expect(report.dataCompleteness?.state).toBe("partial_critical");
   });
 
   it("keeps summary data completeness alerts contract", async () => {
-    const generator = new SummaryReportGenerator(accountService, executionService, botService);
+    const generator = new SummaryReportGenerator(accountService, executionService, positionService, botService);
     const report = await generator.generate(context);
 
     const section = report.sections.find((item) => item.title === "Data Completeness");
@@ -174,8 +201,10 @@ describe("Data completeness sections", () => {
         : false
     ).toBe(true);
     expect(
-      section && section.type === "alerts" ? section.alerts.some((alert) => alert.message === "State: degraded") : false
+      section && section.type === "alerts"
+        ? section.alerts.some((alert) => alert.message === "State: partial_critical")
+        : false
     ).toBe(true);
-    expect(report.dataCompleteness?.state).toBe("degraded");
+    expect(report.dataCompleteness?.state).toBe("partial_critical");
   });
 });

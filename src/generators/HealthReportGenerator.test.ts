@@ -13,7 +13,7 @@ const context: ServiceRequestContext = {
 
 function createAccountService(overrides: Partial<Awaited<ReturnType<AccountDataService["checkHealth"]>>>): AccountDataService {
   return {
-    async getAccountSnapshot() {
+    async getWalletSnapshot() {
       throw new Error("not used");
     },
     async checkHealth() {

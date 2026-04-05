@@ -30,11 +30,12 @@ describe("buildPageFetchIssue", () => {
       page: 2,
       cursor: "abc",
       error: Object.assign(new Error("too many requests"), {
-        retryInfo: { attempts: 4 }
+        retryInfo: { attempts: 4, failureClass: "api_rate_limit" }
       })
     });
 
     expect(issue.message).toContain("after 4 attempts");
     expect(issue.message).toContain("cursor=abc");
+    expect(issue.message).toContain("failure_class=api_rate_limit");
   });
 });

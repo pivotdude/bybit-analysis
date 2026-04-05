@@ -73,6 +73,7 @@ import {
   HEALTH_SECTION_CONTRACT,
   HEALTH_SECTION_ORDER
 } from "./HealthReportGenerator";
+import { JsonRenderer } from "../renderers/JsonRenderer";
 
 const context: ServiceRequestContext = {
   category: "linear",
@@ -103,7 +104,7 @@ const samplePosition = {
 };
 
 const accountService: AccountDataService = {
-  getAccountSnapshot: async (requestContext) => ({
+  getWalletSnapshot: async (requestContext: ServiceRequestContext) => ({
     source: "bybit",
     exchange: "bybit",
     category: requestContext.category,
@@ -112,7 +113,6 @@ const accountService: AccountDataService = {
     walletBalanceUsd: 9_900,
     availableBalanceUsd: 8_000,
     unrealizedPnlUsd: 100,
-    positions: requestContext.category === "spot" ? [] : [samplePosition],
     balances: [
       { asset: "USDT", walletBalance: 9_000, availableBalance: 8_000, usdValue: 9_000 },
       { asset: "BTC", walletBalance: 0.02, availableBalance: 0.01, usdValue: 1_000 }
@@ -157,11 +157,14 @@ const executionService: ExecutionDataService = {
       fundingFeesUsd: 0
     },
     netPnlUsd: 114,
+    endStateStatus: "unsupported",
+    endStateUnsupportedReason: "Historical period end-state is unavailable",
+    endStateUnsupportedReasonCode: "historical_end_state_unavailable",
     roiStatus: "unsupported",
     roiUnsupportedReason: "starting equity is unavailable for the requested period window",
     roiUnsupportedReasonCode: "equity_history_unavailable",
     roiStartEquityUsd: undefined,
-    roiEndEquityUsd: 10_000,
+    roiEndEquityUsd: undefined,
     bySymbol: [],
     bestSymbols: [],
     worstSymbols: [],
@@ -181,6 +184,7 @@ const positionService: PositionDataService = {
   getOpenPositions: async () => ({
     source: "bybit",
     exchange: "bybit",
+    capturedAt: "2026-01-31T00:00:00.000Z",
     positions: [samplePosition],
     dataCompleteness: completeDataCompleteness()
   })
@@ -190,6 +194,7 @@ const emptyPositionService: PositionDataService = {
   getOpenPositions: async () => ({
     source: "bybit",
     exchange: "bybit",
+    capturedAt: "2026-01-31T00:00:00.000Z",
     positions: [],
     dataCompleteness: completeDataCompleteness()
   })
@@ -272,13 +277,15 @@ function assertSectionContract<TKey extends string>(
 
 describe("All report schema contracts", () => {
   it("enforces fixed schema version and section contract for every command", async () => {
-    const summary = await new SummaryReportGenerator(accountService, executionService, botService).generate(context);
+    const summary = await new SummaryReportGenerator(accountService, executionService, positionService, botService).generate(
+      context
+    );
     const balance = await new BalanceReportGenerator(accountService).generate(context);
     const pnl = await new PnLReportGenerator(executionService, accountService).generate(context);
     const positions = await new PositionsReportGenerator(positionService).generate(context);
     const exposure = await new ExposureReportGenerator(positionService).generate(context);
     const performance = await new PerformanceReportGenerator(accountService, executionService).generate(context);
-    const risk = await new RiskReportGenerator(accountService).generate(context);
+    const risk = await new RiskReportGenerator(accountService, positionService).generate(context);
     const bots = await new BotsReportGenerator(botService).generate(context);
     const permissions = await new PermissionsReportGenerator(accountService).generate(context);
     const config = new ConfigReportGenerator().generate(runtimeConfig);
@@ -321,5 +328,35 @@ describe("All report schema contracts", () => {
     expect(alerts && alerts.type === "alerts" ? alerts.alerts[0]?.message : undefined).toBe(
       "No active position alerts"
     );
+  });
+
+  it("keeps json output schema-stable and populated with source freshness metadata", async () => {
+    const reports = [
+      await new SummaryReportGenerator(accountService, executionService, positionService, botService).generate(context),
+      await new BalanceReportGenerator(accountService).generate(context),
+      await new PnLReportGenerator(executionService, accountService).generate(context),
+      await new PositionsReportGenerator(positionService).generate(context),
+      await new ExposureReportGenerator(positionService).generate(context),
+      await new PerformanceReportGenerator(accountService, executionService).generate(context),
+      await new RiskReportGenerator(accountService, positionService).generate(context),
+      await new BotsReportGenerator(botService).generate(context),
+      await new PermissionsReportGenerator(accountService).generate(context),
+      new ConfigReportGenerator().generate(runtimeConfig),
+      await new HealthReportGenerator(accountService).generate(context)
+    ];
+
+    const renderer = new JsonRenderer();
+
+    for (const report of reports) {
+      const payload = JSON.parse(renderer.render(report, "json")) as Record<string, unknown>;
+
+      expect(payload.jsonSchemaVersion).toBe("report-json-v1");
+      expect(payload.reportSchemaVersion).toBe(report.schemaVersion);
+      expect(payload.command).toBe(report.command);
+      expect(Array.isArray(payload.sections)).toBe(true);
+      expect(Array.isArray(payload.sources)).toBe(true);
+      expect(typeof payload.data).toBe("object");
+      expect((payload.sources as Array<unknown>).length).toBeGreaterThan(0);
+    }
   });
 });

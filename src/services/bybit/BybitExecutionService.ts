@@ -9,6 +9,7 @@ import { isStableSpotQuoteSymbol, normalizeSpotPnlReport } from "./normalizers/s
 import { normalizeRoi } from "../normalizers/roi.normalizer";
 import type {
   DataCompleteness,
+  HistoricalBoundaryState,
   PnLReport,
   RoiUnsupportedReasonCode,
   SymbolPnL
@@ -36,6 +37,8 @@ const CLOSED_PNL_TTL_MS = 20_000;
 const MAX_CLOSED_PNL_RANGE_MS = 7 * 24 * 60 * 60 * 1000;
 const SPOT_OPENING_LOOKBACK_DAYS = 365;
 const SPOT_OPENING_LOOKBACK_MS = SPOT_OPENING_LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+const HISTORICAL_END_STATE_UNSUPPORTED_MESSAGE =
+  "Historical period end-state is unavailable: period end unrealized PnL and ending-equity metrics are unsupported.";
 
 interface TimeChunk {
   from: string;
@@ -128,7 +131,7 @@ function toBotPnlReport(
   context: ServiceRequestContext,
   report: Awaited<ReturnType<BotDataService["getBotReport"]>>,
   equityStartUsd?: number,
-  equityEndUsd?: number,
+  endingState?: HistoricalBoundaryState,
   roiMissingStartReason?: string,
   roiMissingStartReasonCode?: RoiUnsupportedReasonCode
 ): PnLReport {
@@ -163,7 +166,7 @@ function toBotPnlReport(
   const netPnlUsd = toFiniteNumber(netPnlUsdDecimal);
   const roi = normalizeRoi({
     equityStartUsd,
-    equityEndUsd,
+    equityEndUsd: endingState?.totalEquityUsd,
     missingStartReason: roiMissingStartReason,
     missingStartReasonCode: roiMissingStartReasonCode
   });
@@ -180,6 +183,10 @@ function toBotPnlReport(
       fundingFeesUsd: 0
     },
     netPnlUsd,
+    endStateStatus: endingState ? "supported" : "unsupported",
+    endState: endingState,
+    endStateUnsupportedReason: endingState ? undefined : HISTORICAL_END_STATE_UNSUPPORTED_MESSAGE,
+    endStateUnsupportedReasonCode: endingState ? undefined : "historical_end_state_unavailable",
     ...roi,
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),
@@ -319,10 +326,9 @@ export class BybitExecutionService implements ExecutionDataService {
     const {
       context,
       equityStartUsd,
-      equityEndUsd,
+      endingState,
       roiMissingStartReason,
-      roiMissingStartReasonCode,
-      accountSnapshot
+      roiMissingStartReasonCode
     } = request;
 
     if (context.sourceMode === "bot") {
@@ -331,7 +337,7 @@ export class BybitExecutionService implements ExecutionDataService {
         context,
         report,
         equityStartUsd,
-        equityEndUsd,
+        endingState,
         roiMissingStartReason,
         roiMissingStartReasonCode
       );
@@ -383,7 +389,7 @@ export class BybitExecutionService implements ExecutionDataService {
         context.from,
         context.to,
         equityStartUsd,
-        equityEndUsd,
+        endingState,
         {
           openingExecutions: { list: openingExecutions },
           inventoryCostMethod: "weighted_average"
@@ -483,17 +489,7 @@ export class BybitExecutionService implements ExecutionDataService {
       }
     }
 
-    const unrealizedPnlUsdFromAccount = accountSnapshot?.unrealizedPnlUsd;
-    const unrealizedPnlUsd =
-      typeof unrealizedPnlUsdFromAccount === "number"
-        ? toFiniteNumber(dec(unrealizedPnlUsdFromAccount))
-        : toFiniteNumber(
-            decUnknown(
-              ((await this.client.getWalletBalance(context.category, context.timeoutMs)) as {
-                list?: Array<Record<string, unknown>>;
-              }).list?.[0]?.totalPerpUPL
-            )
-          );
+    const unrealizedPnlUsd = toFiniteNumber(dec(endingState?.unrealizedPnlUsd ?? 0));
 
     const report = normalizePnlReport(
       { list: events },
@@ -501,11 +497,25 @@ export class BybitExecutionService implements ExecutionDataService {
       context.to,
       unrealizedPnlUsd,
       equityStartUsd,
-      equityEndUsd,
+      endingState,
       roiMissingStartReason,
       roiMissingStartReasonCode
     );
-    report.dataCompleteness = issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness();
+    report.dataCompleteness = mergeDataCompleteness(
+      report.dataCompleteness,
+      issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness(),
+      endingState
+        ? completeDataCompleteness()
+        : degradedDataCompleteness([
+            {
+              code: "unsupported_feature",
+              scope: "execution_window",
+              severity: "critical",
+              criticality: "critical",
+              message: HISTORICAL_END_STATE_UNSUPPORTED_MESSAGE
+            }
+          ])
+    );
     return report;
   }
 }

@@ -60,6 +60,21 @@ export function getRetryAttempts(error: unknown): number {
   return Math.floor(attempts);
 }
 
+export function getFailureClass(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  const retryInfo = (error as { retryInfo?: { failureClass?: unknown } }).retryInfo;
+  if (!retryInfo || typeof retryInfo !== "object") {
+    return undefined;
+  }
+
+  return typeof retryInfo.failureClass === "string" && retryInfo.failureClass.length > 0
+    ? retryInfo.failureClass
+    : undefined;
+}
+
 export function buildPageFetchIssue(args: {
   scope: DataCompletenessScope;
   criticality: DataCriticality;
@@ -70,12 +85,14 @@ export function buildPageFetchIssue(args: {
   const cursorMessage = args.cursor ? ` (cursor=${args.cursor})` : "";
   const attempts = getRetryAttempts(args.error);
   const attemptLabel = attempts === 1 ? "attempt" : "attempts";
+  const failureClass = getFailureClass(args.error);
+  const failureClassMessage = failureClass ? ` [failure_class=${failureClass}]` : "";
   return {
     code: "page_fetch_failed",
     scope: args.scope,
     severity: "warning",
     criticality: args.criticality,
-    message: `Failed to fetch page ${args.page}${cursorMessage} after ${attempts} ${attemptLabel}: ${toErrorMessage(args.error)}`
+    message: `Failed to fetch page ${args.page}${cursorMessage} after ${attempts} ${attemptLabel}${failureClassMessage}: ${toErrorMessage(args.error)}`
   };
 }
 

@@ -120,7 +120,10 @@ describe("BybitExecutionService pagination", () => {
     const report = await service.getPnlReport({
       context: linearContext,
       equityStartUsd: 1_000,
-      equityEndUsd: 1_100
+      endingState: {
+        asOf: linearContext.to,
+        totalEquityUsd: 1_100
+      }
     });
 
     expect(report.roiStatus).toBe("supported");
@@ -143,8 +146,7 @@ describe("BybitExecutionService pagination", () => {
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
     const report = await service.getPnlReport({
       context: linearContext,
-      equityStartUsd: undefined,
-      equityEndUsd: 1_100
+      equityStartUsd: undefined
     });
 
     expect(report.roiStatus).toBe("unsupported");
@@ -396,11 +398,14 @@ describe("BybitExecutionService pagination", () => {
 
     expect(calls).toBe(2);
     expect(report.dataCompleteness.partial).toBe(true);
-    expect(report.dataCompleteness.warnings).toHaveLength(1);
-    expect(report.dataCompleteness.warnings[0]).toContain("closed-pnl");
+    expect(report.dataCompleteness.warnings).toHaveLength(2);
+    expect(report.dataCompleteness.warnings.some((warning) => warning.includes("closed-pnl"))).toBe(true);
+    expect(report.dataCompleteness.warnings.some((warning) => warning.includes("Historical period end-state is unavailable"))).toBe(
+      true
+    );
   });
 
-  it("reuses unrealized pnl from account snapshot and skips wallet fetch", async () => {
+  it("reuses supplied historical end-state and skips wallet fetch", async () => {
     let walletCalls = 0;
 
     const client = {
@@ -426,7 +431,9 @@ describe("BybitExecutionService pagination", () => {
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
     const report = await service.getPnlReport({
       context: linearContext,
-      accountSnapshot: {
+      endingState: {
+        asOf: linearContext.to,
+        totalEquityUsd: 1_050,
         unrealizedPnlUsd: 42
       }
     });

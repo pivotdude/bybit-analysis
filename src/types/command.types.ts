@@ -13,7 +13,7 @@ export type CommandName =
   | "config"
   | "health";
 
-export type OutputFormat = "md" | "compact";
+export type OutputFormat = "md" | "compact" | "json";
 
 export interface TimeRange {
   from: string;

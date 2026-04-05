@@ -340,7 +340,7 @@ export function resolveRuntimeConfig(
     futuresGridBotIds,
     spotGridBotIds
   });
-  const format = (options.format ?? (env[ENV_VARS.format] as "md" | "compact") ?? DEFAULT_FORMAT);
+  const format = (options.format ?? (env[ENV_VARS.format] as "md" | "compact" | "json") ?? DEFAULT_FORMAT);
   const timeoutMs =
     options.timeoutMs ??
     parseOptionalPositiveInt(env[ENV_VARS.timeoutMs], ENV_VARS.timeoutMs) ??
@@ -367,8 +367,8 @@ export function resolveRuntimeConfig(
   if (sourceMode !== "market" && sourceMode !== "bot") {
     throw new Error(`Invalid source mode: ${sourceMode}. Expected market|bot`);
   }
-  if (format !== "md" && format !== "compact") {
-    throw new Error(`Invalid format: ${format}. Expected md|compact`);
+  if (format !== "md" && format !== "compact" && format !== "json") {
+    throw new Error(`Invalid format: ${format}. Expected md|compact|json`);
   }
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new Error(`Invalid timeout: ${timeoutMs}`);

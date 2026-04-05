@@ -1,4 +1,4 @@
-import type { AccountSnapshot } from "../../types/domain.types";
+import type { LiveAccountSnapshot } from "../../types/domain.types";
 
 export interface BalanceAnalysis {
   snapshot: {
@@ -12,11 +12,11 @@ export interface BalanceAnalysis {
     maintenanceMarginUsd: number;
     marginBalanceUsd: number;
   };
-  balances: AccountSnapshot["balances"];
+  balances: LiveAccountSnapshot["balances"];
 }
 
 export class BalanceAnalyzer {
-  analyze(account: AccountSnapshot): BalanceAnalysis {
+  analyze(account: LiveAccountSnapshot): BalanceAnalysis {
     return {
       snapshot: {
         totalEquityUsd: account.totalEquityUsd,

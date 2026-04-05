@@ -1,5 +1,15 @@
-import type { MarketCategory, Position, PriceSource } from "../../../types/domain.types";
+import type {
+  DataCompletenessIssue,
+  MarketCategory,
+  Position,
+  PriceSource
+} from "../../../types/domain.types";
 import { dec, decUnknown, toFiniteNumber } from "../../math/decimal";
+
+export interface PositionNormalizationResult {
+  positions: Position[];
+  issues: DataCompletenessIssue[];
+}
 
 function inferSymbolParts(symbol: string): { baseAsset: string; quoteAsset: string } {
   const quoteCandidates = ["USDT", "USDC", "USD", "BTC", "ETH"];
@@ -14,36 +24,63 @@ function inferSymbolParts(symbol: string): { baseAsset: string; quoteAsset: stri
   return { baseAsset: symbol, quoteAsset: "USD" };
 }
 
-function detectPriceSource(entry: Record<string, unknown>): PriceSource {
+function detectPriceSource(entry: Record<string, unknown>): PriceSource | undefined {
   if (decUnknown(entry.markPrice).gt(0)) {
     return "mark";
   }
   if (decUnknown(entry.lastPriceOnCreated).gt(0) || decUnknown(entry.lastPrice).gt(0)) {
     return "last";
   }
-  return "index";
+  if (decUnknown(entry.indexPrice).gt(0)) {
+    return "index";
+  }
+  return undefined;
 }
 
-export function normalizePositions(input: unknown, category: MarketCategory): Position[] {
+function toTimestamp(input: unknown): string | undefined {
+  const value = Number(input);
+  if (!Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+export function normalizePositions(input: unknown, category: MarketCategory): PositionNormalizationResult {
   const payload = input as { list?: Array<Record<string, unknown>> } | undefined;
   const rows = payload?.list ?? [];
-
-  return rows
-    .map((entry): Position | null => {
+  const issues: DataCompletenessIssue[] = [];
+  const positions = rows
+    .map((entry, index): Position | null => {
       const qty = decUnknown(entry.size).abs();
       if (qty.eq(0)) {
         return null;
       }
 
-      const symbol = String(entry.symbol ?? "UNKNOWN");
-      const sideRaw = String(entry.side ?? "Buy").toLowerCase();
-      const side = sideRaw === "sell" ? "short" : "long";
-      const parts = inferSymbolParts(symbol);
-
+      const symbol = typeof entry.symbol === "string" ? entry.symbol.trim() : "";
+      const updatedAt = toTimestamp(entry.updatedTime);
+      const openedAt = toTimestamp(entry.createdTime);
+      const sideRaw = String(entry.side ?? "").toLowerCase();
+      const priceSource = detectPriceSource(entry);
       const markPrice = decUnknown(entry.markPrice);
       const lastPrice = decUnknown(entry.lastPrice);
       const indexPrice = decUnknown(entry.indexPrice);
       const valuationPrice = markPrice.gt(0) ? markPrice : lastPrice.gt(0) ? lastPrice : indexPrice;
+
+      if (!symbol || (sideRaw !== "buy" && sideRaw !== "sell") || !priceSource || valuationPrice.lte(0) || !updatedAt) {
+        issues.push({
+          code: "invalid_payload_row",
+          scope: "positions",
+          severity: "critical",
+          criticality: "critical",
+          message: `Position row ${index + 1} is malformed and was excluded from exposure/risk analytics.`
+        });
+        return null;
+      }
+
+      const parts = inferSymbolParts(symbol);
+      const side = sideRaw === "sell" ? "short" : "long";
       const positionValueRaw = decUnknown(entry.positionValue);
       const positionValue = positionValueRaw.gt(0) ? positionValueRaw : qty.mul(valuationPrice);
       const absoluteNotional = positionValue.abs();
@@ -66,18 +103,21 @@ export function normalizePositions(input: unknown, category: MarketCategory): Po
         quantity: toFiniteNumber(qty),
         entryPrice: toFiniteNumber(decUnknown(entry.avgPrice)),
         valuationPrice: toFiniteNumber(valuationPrice),
-        priceSource: detectPriceSource(entry),
+        priceSource,
         notionalUsd: toFiniteNumber(signedNotional),
         leverage: toFiniteNumber(leverageValue),
         liquidationPrice: toFiniteNumber(decUnknown(entry.liqPrice)) || undefined,
         unrealizedPnlUsd: toFiniteNumber(decUnknown(entry.unrealisedPnl)),
         initialMarginUsd: toFiniteNumber(decUnknown(entry.positionIM)) || undefined,
         maintenanceMarginUsd: toFiniteNumber(decUnknown(entry.positionMM)) || undefined,
-        openedAt: entry.createdTime ? new Date(toFiniteNumber(decUnknown(entry.createdTime))).toISOString() : undefined,
-        updatedAt: entry.updatedTime
-          ? new Date(toFiniteNumber(decUnknown(entry.updatedTime))).toISOString()
-          : new Date().toISOString()
+        openedAt,
+        updatedAt
       };
     })
     .filter((position): position is Position => position !== null);
+
+  return {
+    positions,
+    issues
+  };
 }

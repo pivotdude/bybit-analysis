@@ -53,10 +53,11 @@ describe("BybitExecutionService real fixture contracts", () => {
 
     expect(report.realizedPnlUsd).toBeCloseTo(114.7);
     expect(report.fees.tradingFeesUsd).toBeCloseTo(10.05);
-    expect(report.unrealizedPnlUsd).toBe(10);
-    expect(report.netPnlUsd).toBeCloseTo(114.65);
+    expect(report.unrealizedPnlUsd).toBe(0);
+    expect(report.netPnlUsd).toBeCloseTo(104.65);
     expect(report.bySymbol.map((item) => item.symbol)).toEqual(["BTCUSDT", "ETHUSDC"]);
-    expect(report.dataCompleteness.partial).toBe(false);
+    expect(report.dataCompleteness.partial).toBe(true);
+    expect(report.endStateStatus).toBe("unsupported");
   });
 
   it("keeps linear pnl contract stable for empty payload", async () => {
@@ -71,7 +72,7 @@ describe("BybitExecutionService real fixture contracts", () => {
     expect(report.realizedPnlUsd).toBe(0);
     expect(report.fees.tradingFeesUsd).toBe(0);
     expect(report.bySymbol).toEqual([]);
-    expect(report.dataCompleteness.partial).toBe(false);
+    expect(report.dataCompleteness.partial).toBe(true);
   });
 
   it("absorbs malformed linear rows from captured payload", async () => {
@@ -87,10 +88,11 @@ describe("BybitExecutionService real fixture contracts", () => {
     const service = new BybitExecutionService(client, botService, new MemoryCacheStore());
     const report = await service.getPnlReport({ context: linearContext });
 
-    expect(report.realizedPnlUsd).toBeCloseTo(10.3);
-    expect(report.fees.tradingFeesUsd).toBeCloseTo(0.9);
-    expect(report.netPnlUsd).toBeCloseTo(9.4);
-    expect(report.bySymbol.some((item) => item.symbol === "UNKNOWN")).toBe(true);
+    expect(report.realizedPnlUsd).toBeCloseTo(12.3);
+    expect(report.fees.tradingFeesUsd).toBeCloseTo(0.7);
+    expect(report.netPnlUsd).toBeCloseTo(11.6);
+    expect(report.bySymbol.map((item) => item.symbol)).toEqual(["SOLUSDT"]);
+    expect(report.dataCompleteness.issues.some((issue) => issue.code === "invalid_payload_row")).toBe(true);
   });
 
   it("normalizes spot execution and opening-inventory captures in mixed-market mode", async () => {
