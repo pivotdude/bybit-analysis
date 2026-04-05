@@ -10,6 +10,19 @@ export interface PositionsAnalysis {
   priceSourceAlert?: string;
 }
 
+function comparePositionsByAbsNotionalDesc(left: Position, right: Position): number {
+  return (
+    Math.abs(right.notionalUsd) - Math.abs(left.notionalUsd) ||
+    left.symbol.localeCompare(right.symbol) ||
+    left.side.localeCompare(right.side) ||
+    left.marginMode.localeCompare(right.marginMode) ||
+    left.updatedAt.localeCompare(right.updatedAt) ||
+    (left.openedAt ?? "").localeCompare(right.openedAt ?? "") ||
+    left.quantity - right.quantity ||
+    left.entryPrice - right.entryPrice
+  );
+}
+
 export class PositionsAnalyzer {
   analyze(positions: Position[]): PositionsAnalysis {
     const longCount = positions.filter((position) => position.side === "long").length;
@@ -18,7 +31,7 @@ export class PositionsAnalyzer {
     const sources = new Set(positions.map((position) => position.priceSource));
     const priceSourceAlert =
       sources.size > 1
-        ? `Mixed valuation price sources detected: ${Array.from(sources).join(", ")}`
+        ? `Mixed valuation price sources detected: ${Array.from(sources).sort((left, right) => left.localeCompare(right)).join(", ")}`
         : undefined;
 
     return {
@@ -26,9 +39,9 @@ export class PositionsAnalyzer {
       longCount,
       shortCount,
       totalNotionalUsd: positions.reduce((sum, position) => sum + Math.abs(position.notionalUsd), 0),
-      positions: [...positions].sort((left, right) => Math.abs(right.notionalUsd) - Math.abs(left.notionalUsd)),
+      positions: [...positions].sort(comparePositionsByAbsNotionalDesc),
       largestPositions: [...positions]
-        .sort((left, right) => Math.abs(right.notionalUsd) - Math.abs(left.notionalUsd))
+        .sort(comparePositionsByAbsNotionalDesc)
         .slice(0, 5),
       priceSourceAlert
     };

@@ -109,6 +109,20 @@ function normalizeExecutionRows(input: unknown): SpotExecutionRow[] {
   return (payload?.list ?? []) as SpotExecutionRow[];
 }
 
+function compareExecutionRows(left: SpotExecutionRow, right: SpotExecutionRow): number {
+  return (
+    toTimestamp(left.execTime) - toTimestamp(right.execTime) ||
+    String(left.symbol ?? "UNKNOWN").localeCompare(String(right.symbol ?? "UNKNOWN")) ||
+    String(left.side ?? "").localeCompare(String(right.side ?? "")) ||
+    String(left.execType ?? "Trade").localeCompare(String(right.execType ?? "Trade")) ||
+    toNumber(left.execQty) - toNumber(right.execQty) ||
+    toNumber(left.execValue) - toNumber(right.execValue) ||
+    toNumber(left.execPrice) - toNumber(right.execPrice) ||
+    toNumber(left.execFee) - toNumber(right.execFee) ||
+    String(left.feeCurrency ?? "").localeCompare(String(right.feeCurrency ?? ""))
+  );
+}
+
 function applyBuy(state: InventoryState, qty: number, execValue: number): void {
   state.quantity += qty;
   state.costUsd += execValue;
@@ -142,10 +156,10 @@ export function normalizeSpotPnlReport(
 
   const sortedOpeningRows = [...openingRows]
     .filter((row) => isTradeRow(row))
-    .sort((left, right) => toTimestamp(left.execTime) - toTimestamp(right.execTime));
+    .sort(compareExecutionRows);
   const sortedRows = [...rows]
     .filter((row) => isTradeRow(row))
-    .sort((left, right) => toTimestamp(left.execTime) - toTimestamp(right.execTime));
+    .sort(compareExecutionRows);
 
   const inventoryBySymbol = new Map<string, InventoryState>();
   const bySymbolMap = new Map<string, SymbolPnL>();
@@ -232,7 +246,7 @@ export function normalizeSpotPnlReport(
         netPnlUsd: item.realizedPnlUsd - fee
       };
     })
-    .sort((left, right) => right.netPnlUsd - left.netPnlUsd);
+    .sort((left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol));
 
   const netPnlUsd = realizedPnlUsd - tradingFeesUsd;
   const roi = normalizeRoi({

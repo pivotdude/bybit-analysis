@@ -41,7 +41,9 @@ function aggregateBotBalances(report: BotReport): AssetBalance[] {
     grouped.set(asset, current);
   }
 
-  return Array.from(grouped.values()).sort((a, b) => b.usdValue - a.usdValue);
+  return Array.from(grouped.values()).sort(
+    (left, right) => right.usdValue - left.usdValue || left.asset.localeCompare(right.asset)
+  );
 }
 
 export class BybitAccountService implements AccountDataService {

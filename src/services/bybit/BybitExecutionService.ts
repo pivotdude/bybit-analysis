@@ -142,7 +142,7 @@ function toBotPnlReport(
         tradesCount: bot.openPositions
       };
     })
-    .sort((left, right) => right.netPnlUsd - left.netPnlUsd);
+    .sort((left, right) => right.netPnlUsd - left.netPnlUsd || left.symbol.localeCompare(right.symbol));
 
   const realizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.realizedPnlUsd, 0);
   const unrealizedPnlUsd = bySymbol.reduce((sum, item) => sum + item.unrealizedPnlUsd, 0);
