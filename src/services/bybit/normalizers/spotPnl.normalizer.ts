@@ -65,6 +65,10 @@ function isStableQuotedSymbol(parts: SymbolParts): boolean {
   return STABLE_QUOTES.has(parts.quoteAsset.toUpperCase());
 }
 
+export function isStableSpotQuoteSymbol(symbol: string): boolean {
+  return isStableQuotedSymbol(inferSymbolParts(symbol));
+}
+
 function estimateFeeUsdForStableQuote(
   fee: number,
   feeCurrencyRaw: string,

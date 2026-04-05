@@ -5,7 +5,7 @@ import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizePnlReport } from "./normalizers/pnl.normalizer";
-import { normalizeSpotPnlReport } from "./normalizers/spotPnl.normalizer";
+import { isStableSpotQuoteSymbol, normalizeSpotPnlReport } from "./normalizers/spotPnl.normalizer";
 import { normalizeRoi } from "../normalizers/roi.normalizer";
 import type {
   DataCompleteness,
@@ -97,7 +97,12 @@ function extractSpotSellSymbols(rows: Array<Record<string, unknown>>): string[] 
       continue;
     }
 
-    symbols.add(String(row.symbol ?? "UNKNOWN").toUpperCase());
+    const symbol = String(row.symbol ?? "UNKNOWN").toUpperCase();
+    if (!isStableSpotQuoteSymbol(symbol)) {
+      continue;
+    }
+
+    symbols.add(symbol);
   }
 
   return Array.from(symbols.values()).sort((left, right) => left.localeCompare(right));
