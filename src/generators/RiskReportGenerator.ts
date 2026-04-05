@@ -4,6 +4,7 @@ import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
 import { fmtPct, fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { getUnsupportedFeatureIssueMessage } from "../services/reliability/dataCompleteness";
 
 export const RISK_SCHEMA_VERSION = "risk-markdown-v1";
 
@@ -32,6 +33,49 @@ export class RiskReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const account = await this.accountService.getAccountSnapshot(context);
+    const unsupportedMessage = getUnsupportedFeatureIssueMessage(account.dataCompleteness, "positions");
+    if (unsupportedMessage) {
+      const sections: ReportDocument["sections"] = [
+        section("overview", {
+          kpis: [
+            { label: "Weighted Avg Leverage", value: "unsupported" },
+            { label: "Max Leverage Used", value: "unsupported" },
+            { label: "Notional / Equity", value: "unsupported" }
+          ]
+        }),
+        section("positionSizing", {
+          kpis: [
+            { label: "Largest Position", value: "unsupported" },
+            { label: "Largest Position Notional", value: "unsupported" },
+            { label: "Largest Position % Equity", value: "unsupported" }
+          ]
+        }),
+        section("unrealizedLoss", {
+          kpis: [
+            { label: "Unrealized Loss", value: "unsupported" },
+            { label: "Loss / Equity", value: "unsupported" },
+            { label: "Worst Position", value: "unsupported" },
+            { label: "Worst Position Loss", value: "unsupported" }
+          ]
+        }),
+        section("alerts", {
+          alerts: [{ severity: "critical", message: unsupportedMessage }]
+        }),
+        section("dataCompleteness", {
+          alerts: buildDataCompletenessAlerts(account.dataCompleteness)
+        })
+      ];
+
+      return {
+        command: "risk",
+        title: "Risk Analytics",
+        schemaVersion: RISK_SCHEMA_VERSION,
+        generatedAt: new Date().toISOString(),
+        sections,
+        dataCompleteness: account.dataCompleteness
+      };
+    }
+
     const report = this.analyzer.analyze(account, account.positions);
     const sections: ReportDocument["sections"] = [
       section("overview", {

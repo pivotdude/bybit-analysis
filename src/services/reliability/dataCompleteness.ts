@@ -1,4 +1,8 @@
-import type { DataCompleteness, DataCompletenessIssue } from "../../types/domain.types";
+import type {
+  DataCompleteness,
+  DataCompletenessIssue,
+  DataCompletenessScope
+} from "../../types/domain.types";
 
 function issueKey(issue: DataCompletenessIssue): string {
   return `${issue.code}|${issue.scope}|${issue.severity}|${issue.message}`;
@@ -23,6 +27,39 @@ export function degradedDataCompleteness(issues: DataCompletenessIssue[]): DataC
     warnings,
     issues: unique
   };
+}
+
+export function buildUnsupportedFeatureIssue(args: {
+  scope: DataCompletenessScope;
+  message: string;
+}): DataCompletenessIssue {
+  return {
+    code: "unsupported_feature",
+    scope: args.scope,
+    severity: "critical",
+    criticality: "critical",
+    message: args.message
+  };
+}
+
+export function getUnsupportedFeatureIssueMessage(
+  dataCompleteness: DataCompleteness,
+  scope?: DataCompletenessScope
+): string | undefined {
+  return dataCompleteness.issues.find(
+    (issue) => issue.code === "unsupported_feature" && (scope ? issue.scope === scope : true)
+  )?.message;
+}
+
+export function filterDataCompletenessIssues(
+  dataCompleteness: DataCompleteness,
+  predicate: (issue: DataCompletenessIssue) => boolean
+): DataCompleteness {
+  const filteredIssues = dataCompleteness.issues.filter(predicate);
+  if (filteredIssues.length === 0) {
+    return completeDataCompleteness();
+  }
+  return degradedDataCompleteness(filteredIssues);
 }
 
 export function mergeDataCompleteness(...items: DataCompleteness[]): DataCompleteness {

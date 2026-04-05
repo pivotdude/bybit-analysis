@@ -7,6 +7,7 @@ import type { BotReport, DataCompleteness } from "../types/domain.types";
 import { fmtPct, fmtUsd } from "./formatters";
 import {
   degradedDataCompleteness,
+  getUnsupportedFeatureIssueMessage,
   mergeDataCompleteness
 } from "../services/reliability/dataCompleteness";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
@@ -87,6 +88,7 @@ export class SummaryReportGenerator {
     const bot = await this.loadBotReport(context);
     const botReport = bot.report;
     const summary = this.analyzer.analyze(account, pnl, botReport);
+    const unsupportedExposureRiskReason = getUnsupportedFeatureIssueMessage(account.dataCompleteness, "positions");
 
     const tradedSymbols = pnl.bySymbol.length;
     const totalTrades = pnl.bySymbol.reduce((sum, item) => sum + (item.tradesCount ?? 0), 0);
@@ -155,11 +157,10 @@ export class SummaryReportGenerator {
       severity: alert.severity,
       message: alert.message
     }));
-
-    if (context.category === "spot") {
+    if (unsupportedExposureRiskReason) {
       alerts.push({
-        severity: "info",
-        message: "Spot category usually has no derivatives positions, so exposure/risk metrics can be zero."
+        severity: "critical",
+        message: unsupportedExposureRiskReason
       });
     }
 
@@ -196,6 +197,9 @@ export class SummaryReportGenerator {
           `Source mode: ${context.sourceMode}`,
           `Period: ${pnl.periodFrom} -> ${pnl.periodTo}`,
           `ROI status: ${summary.performance.roiStatus}`,
+          ...(unsupportedExposureRiskReason
+            ? [`Exposure/risk status: unsupported (${unsupportedExposureRiskReason})`]
+            : []),
           ...(summary.performance.roiStatus === "unsupported"
             ? [
                 `ROI unsupported code: ${summary.performance.roiUnsupportedReasonCode ?? "unknown"}`,
@@ -210,8 +214,11 @@ export class SummaryReportGenerator {
           { label: "Total Equity", value: fmtUsd(summary.balance.snapshot.totalEquityUsd) },
           { label: "Net PnL", value: fmtUsd(summary.pnl.netPnlUsd) },
           { label: "ROI", value: roi },
-          { label: "Gross Exposure", value: fmtUsd(summary.exposure.grossExposureUsd) },
-          { label: "Risk Alerts", value: String(summary.risk.alerts.length) },
+          {
+            label: "Gross Exposure",
+            value: unsupportedExposureRiskReason ? "unsupported" : fmtUsd(summary.exposure.grossExposureUsd)
+          },
+          { label: "Risk Alerts", value: unsupportedExposureRiskReason ? "unsupported" : String(summary.risk.alerts.length) },
           { label: "Tracked Bots", value: String(botReport?.bots.length ?? 0) }
         ]
       }),
@@ -238,25 +245,40 @@ export class SummaryReportGenerator {
       }),
       section("exposure", {
         kpis: [
-          { label: "Long", value: fmtUsd(summary.exposure.longExposureUsd) },
-          { label: "Short", value: fmtUsd(summary.exposure.shortExposureUsd) },
-          { label: "Net", value: fmtUsd(summary.exposure.netExposureUsd) },
-          { label: "Concentration Band", value: summary.exposure.concentration.band }
+          { label: "Long", value: unsupportedExposureRiskReason ? "unsupported" : fmtUsd(summary.exposure.longExposureUsd) },
+          { label: "Short", value: unsupportedExposureRiskReason ? "unsupported" : fmtUsd(summary.exposure.shortExposureUsd) },
+          { label: "Net", value: unsupportedExposureRiskReason ? "unsupported" : fmtUsd(summary.exposure.netExposureUsd) },
+          {
+            label: "Concentration Band",
+            value: unsupportedExposureRiskReason ? "unsupported" : summary.exposure.concentration.band
+          }
         ]
       }),
       section("risk", {
         kpis: [
-          { label: "Weighted Avg Leverage", value: `${summary.risk.leverageUsage.weightedAvgLeverage.toFixed(2)}x` },
-          { label: "Max Leverage", value: `${summary.risk.leverageUsage.maxLeverageUsed.toFixed(2)}x` },
-          { label: "Notional / Equity", value: fmtPct(summary.risk.leverageUsage.notionalToEquityPct) },
-          { label: "Unrealized Loss / Equity", value: fmtPct(summary.risk.unrealizedLossRisk.unrealizedLossToEquityPct) },
-          { label: "Capital Efficiency", value: capitalEfficiency }
+          {
+            label: "Weighted Avg Leverage",
+            value: unsupportedExposureRiskReason ? "unsupported" : `${summary.risk.leverageUsage.weightedAvgLeverage.toFixed(2)}x`
+          },
+          {
+            label: "Max Leverage",
+            value: unsupportedExposureRiskReason ? "unsupported" : `${summary.risk.leverageUsage.maxLeverageUsed.toFixed(2)}x`
+          },
+          {
+            label: "Notional / Equity",
+            value: unsupportedExposureRiskReason ? "unsupported" : fmtPct(summary.risk.leverageUsage.notionalToEquityPct)
+          },
+          {
+            label: "Unrealized Loss / Equity",
+            value: unsupportedExposureRiskReason ? "unsupported" : fmtPct(summary.risk.unrealizedLossRisk.unrealizedLossToEquityPct)
+          },
+          { label: "Capital Efficiency", value: unsupportedExposureRiskReason ? "unsupported" : capitalEfficiency }
         ]
       }),
       section("positions", {
         table: {
           headers: ["Symbol", "Side", "Notional", "UPnL", "Leverage", "Price Source"],
-          rows: positionsRows
+          rows: unsupportedExposureRiskReason ? [] : positionsRows
         }
       }),
       section("holdings", {

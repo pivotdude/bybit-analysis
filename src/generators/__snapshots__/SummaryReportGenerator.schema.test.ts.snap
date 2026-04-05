@@ -344,6 +344,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
       "Source mode: market",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
       "ROI status: supported",
+      "Exposure/risk status: unsupported (Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.)",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
     "title": "Summary Contract",
@@ -366,11 +367,11 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
       },
       {
         "label": "Gross Exposure",
-        "value": "$0.00",
+        "value": "unsupported",
       },
       {
         "label": "Risk Alerts",
-        "value": "0",
+        "value": "unsupported",
       },
       {
         "label": "Tracked Bots",
@@ -439,19 +440,19 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
     "kpis": [
       {
         "label": "Long",
-        "value": "$0.00",
+        "value": "unsupported",
       },
       {
         "label": "Short",
-        "value": "$0.00",
+        "value": "unsupported",
       },
       {
         "label": "Net",
-        "value": "$0.00",
+        "value": "unsupported",
       },
       {
         "label": "Concentration Band",
-        "value": "low",
+        "value": "unsupported",
       },
     ],
     "title": "Exposure",
@@ -462,19 +463,19 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
     "kpis": [
       {
         "label": "Weighted Avg Leverage",
-        "value": "0.00x",
+        "value": "unsupported",
       },
       {
         "label": "Max Leverage",
-        "value": "0.00x",
+        "value": "unsupported",
       },
       {
         "label": "Notional / Equity",
-        "value": "0.00%",
+        "value": "unsupported",
       },
       {
         "label": "Unrealized Loss / Equity",
-        "value": "0.00%",
+        "value": "unsupported",
       },
       {
         "label": "Capital Efficiency",
@@ -565,8 +566,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "alerts": [
       {
-        "message": "Spot category usually has no derivatives positions, so exposure/risk metrics can be zero.",
-        "severity": "info",
+        "message": "Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
+        "severity": "critical",
       },
     ],
     "id": "summary.alerts",
@@ -576,8 +577,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "alerts": [
       {
-        "message": "No data completeness warnings.",
-        "severity": "info",
+        "message": "unsupported_feature (positions): Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
+        "severity": "critical",
       },
     ],
     "id": "summary.data_completeness",

@@ -5,6 +5,7 @@ import type { ReportSectionType } from "../types/report.types";
 import type { ServiceRequestContext } from "../services/contracts/AccountDataService";
 import { fmtPct, fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { getUnsupportedFeatureIssueMessage } from "../services/reliability/dataCompleteness";
 
 export const EXPOSURE_SCHEMA_VERSION = "exposure-markdown-v1";
 
@@ -31,6 +32,47 @@ export class ExposureReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const positionsResult = await this.positionsService.getOpenPositions(context);
+    const unsupportedMessage = getUnsupportedFeatureIssueMessage(positionsResult.dataCompleteness, "positions");
+    if (unsupportedMessage) {
+      const sections: ReportDocument["sections"] = [
+        section("overview", {
+          kpis: [
+            { label: "Long Exposure", value: "unsupported" },
+            { label: "Short Exposure", value: "unsupported" },
+            { label: "Gross Exposure", value: "unsupported" },
+            { label: "Net Exposure", value: "unsupported" }
+          ]
+        }),
+        section("perAsset", {
+          table: {
+            headers: ["Asset", "Exposure", "Exposure %", "Long", "Short", "Symbols"],
+            rows: [["N/A", "unsupported", "unsupported", "unsupported", "unsupported", unsupportedMessage]]
+          }
+        }),
+        section("concentration", {
+          kpis: [
+            { label: "Top1 Asset", value: "unsupported" },
+            { label: "Top1 %", value: "unsupported" },
+            { label: "Top3 %", value: "unsupported" },
+            { label: "HHI", value: "unsupported" },
+            { label: "Risk Band", value: "unsupported" }
+          ]
+        }),
+        section("dataCompleteness", {
+          alerts: buildDataCompletenessAlerts(positionsResult.dataCompleteness)
+        })
+      ];
+
+      return {
+        command: "exposure",
+        title: "Exposure Analytics",
+        schemaVersion: EXPOSURE_SCHEMA_VERSION,
+        generatedAt: new Date().toISOString(),
+        sections,
+        dataCompleteness: positionsResult.dataCompleteness
+      };
+    }
+
     const report = this.analyzer.analyze(positionsResult.positions, positionsResult.source);
     const sections: ReportDocument["sections"] = [
       section("overview", {

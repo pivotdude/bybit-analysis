@@ -17,9 +17,15 @@ import {
   buildPageFetchIssue,
   buildPaginationIssue
 } from "./partialFailurePolicy";
-import { completeDataCompleteness, degradedDataCompleteness } from "../reliability/dataCompleteness";
+import {
+  buildUnsupportedFeatureIssue,
+  completeDataCompleteness,
+  degradedDataCompleteness
+} from "../reliability/dataCompleteness";
 
 const POSITIONS_TTL_MS = 15_000;
+const SPOT_MARKET_POSITIONS_UNSUPPORTED_MESSAGE =
+  "Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.";
 
 function toPositionSide(side: string | undefined): "long" | "short" {
   if (side === "short") {
@@ -96,7 +102,12 @@ export class BybitPositionService implements PositionDataService {
         source: "bybit",
         exchange: "bybit",
         positions: [],
-        dataCompleteness: completeDataCompleteness()
+        dataCompleteness: degradedDataCompleteness([
+          buildUnsupportedFeatureIssue({
+            scope: "positions",
+            message: SPOT_MARKET_POSITIONS_UNSUPPORTED_MESSAGE
+          })
+        ])
       };
     }
 

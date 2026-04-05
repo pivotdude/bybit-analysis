@@ -113,6 +113,7 @@ export type DataCompletenessIssueCode =
   | "page_fetch_failed"
   | "pagination_limit_reached"
   | "spot_cost_basis_incomplete"
+  | "unsupported_feature"
   | "invalid_request_window";
 export type DataCompletenessScope =
   | "unknown"

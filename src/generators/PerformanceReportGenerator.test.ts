@@ -97,4 +97,88 @@ describe("PerformanceReportGenerator", () => {
     expect(pnlRequest?.roiMissingStartReasonCode).toBe("equity_history_unavailable");
     expect(pnlRequest?.context).toEqual(context);
   });
+
+  it("does not propagate spot exposure/risk unsupported issue into performance data completeness", async () => {
+    const executionService: ExecutionDataService = {
+      getPnlReport: async () => ({
+        source: "bybit",
+        generatedAt: new Date().toISOString(),
+        periodFrom: context.from,
+        periodTo: context.to,
+        realizedPnlUsd: 100,
+        unrealizedPnlUsd: 0,
+        fees: {
+          tradingFeesUsd: 0,
+          fundingFeesUsd: 0
+        },
+        netPnlUsd: 100,
+        roiStatus: "supported",
+        roiUnsupportedReason: undefined,
+        roiStartEquityUsd: 1_000,
+        roiEndEquityUsd: 1_100,
+        roiPct: 10,
+        bySymbol: [],
+        bestSymbols: [],
+        worstSymbols: [],
+        dataCompleteness: {
+          state: "complete",
+          partial: false,
+          warnings: [],
+          issues: []
+        }
+      })
+    };
+
+    const accountService: AccountDataService = {
+      getAccountSnapshot: async () => ({
+        source: "bybit",
+        exchange: "bybit",
+        category: "spot",
+        capturedAt: new Date().toISOString(),
+        totalEquityUsd: 1_100,
+        walletBalanceUsd: 1_100,
+        availableBalanceUsd: 1_100,
+        unrealizedPnlUsd: 0,
+        positions: [],
+        balances: [],
+        dataCompleteness: {
+          state: "degraded",
+          partial: true,
+          warnings: ["Spot market exposure/risk is unsupported."],
+          issues: [
+            {
+              code: "unsupported_feature",
+              scope: "positions",
+              severity: "critical",
+              criticality: "critical",
+              message: "Spot market exposure/risk is unsupported."
+            }
+          ]
+        }
+      }),
+      checkHealth: async () => ({
+        connectivity: "ok",
+        auth: "ok",
+        latencyMs: 1,
+        diagnostics: []
+      }),
+      getApiKeyPermissionInfo: async () => ({
+        apiKeyStatus: "present",
+        apiKeyDisplay: "<redacted>",
+        readOnly: true,
+        ipWhitelistRestricted: false,
+        ipWhitelistCount: 0,
+        ipWhitelistDisplay: "not configured",
+        permissions: {}
+      })
+    };
+
+    const report = await new PerformanceReportGenerator(accountService, executionService).generate({
+      ...context,
+      category: "spot"
+    });
+
+    expect(report.dataCompleteness?.state).toBe("complete");
+    expect(report.dataCompleteness?.issues).toHaveLength(0);
+  });
 });
