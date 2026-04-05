@@ -80,16 +80,21 @@ function normalizeEquityHistory(input: unknown): EquitySnapshot[] | undefined {
   return history.length > 0 ? history : undefined;
 }
 
+export interface AccountSnapshotNormalizationOptions {
+  equityHistoryInput?: unknown;
+}
+
 export function normalizeAccountSnapshot(
   input: unknown,
   category: MarketCategory,
   positions: Position[],
-  dataCompleteness: DataCompleteness = completeDataCompleteness()
+  dataCompleteness: DataCompleteness = completeDataCompleteness(),
+  options: AccountSnapshotNormalizationOptions = {}
 ): AccountSnapshot {
-  const wallet = input as { list?: Array<Record<string, unknown>>; equityHistory?: unknown } | undefined;
+  const wallet = input as { list?: Array<Record<string, unknown>> } | undefined;
   const row = wallet?.list?.[0] ?? {};
   const balances = normalizeBalances(input);
-  const equityHistory = normalizeEquityHistory(wallet?.equityHistory ?? row.equityHistory);
+  const equityHistory = normalizeEquityHistory(options.equityHistoryInput);
 
   return {
     source: "bybit",

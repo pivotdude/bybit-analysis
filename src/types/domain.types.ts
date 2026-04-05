@@ -113,7 +113,8 @@ export type DataCompletenessScope =
   | "positions"
   | "closed_pnl"
   | "execution_window"
-  | "opening_inventory";
+  | "opening_inventory"
+  | "equity_history";
 
 export interface DataCompletenessIssue {
   code: DataCompletenessIssueCode;

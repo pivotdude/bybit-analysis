@@ -34,7 +34,11 @@ export class BalanceReportGenerator {
     const snapshot = await this.accountService.getAccountSnapshot(context);
     const dataCompleteness = filterDataCompletenessIssues(
       snapshot.dataCompleteness,
-      (issue) => !(issue.code === "unsupported_feature" && issue.scope === "positions")
+      (issue) =>
+        !(
+          issue.code === "unsupported_feature" &&
+          (issue.scope === "positions" || issue.scope === "equity_history")
+        )
     );
     const analysis = this.analyzer.analyze(snapshot);
     const assetBalanceRows = analysis.balances.map((balance) => [

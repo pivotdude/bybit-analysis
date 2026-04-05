@@ -11,11 +11,38 @@ import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeAccountSnapshot } from "./normalizers/accountSnapshot.normalizer";
 import type { AccountSnapshot } from "../../types/domain.types";
 import { redactIpWhitelist, redactSecretValue } from "../../security/redaction";
+import {
+  buildUnsupportedFeatureIssue,
+  degradedDataCompleteness,
+  mergeDataCompleteness
+} from "../reliability/dataCompleteness";
 
 const WALLET_TTL_MS = 15_000;
 const SERVER_TIME_TTL_MS = 10_000;
 const API_KEY_INFO_TTL_MS = 15_000;
+const ROI_CAPITAL_EFFICIENCY_UNSUPPORTED_MESSAGE =
+  "ROI and capital efficiency are unsupported: historical equity source is unavailable in Bybit account snapshots.";
 
+function withExplicitRoiUnsupported(snapshot: AccountSnapshot): AccountSnapshot {
+  const hasEquityHistory = Array.isArray(snapshot.equityHistory) && snapshot.equityHistory.length > 0;
+  if (hasEquityHistory) {
+    return snapshot;
+  }
+
+  return {
+    ...snapshot,
+    equityHistory: undefined,
+    dataCompleteness: mergeDataCompleteness(
+      snapshot.dataCompleteness,
+      degradedDataCompleteness([
+        buildUnsupportedFeatureIssue({
+          scope: "equity_history",
+          message: ROI_CAPITAL_EFFICIENCY_UNSUPPORTED_MESSAGE
+        })
+      ])
+    )
+  };
+}
 export class BybitAccountService implements AccountDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
@@ -39,11 +66,13 @@ export class BybitAccountService implements AccountDataService {
     }
 
     const positionsResult = await this.positionsService.getOpenPositions(context);
-    return normalizeAccountSnapshot(
-      walletPayload,
-      context.category,
-      positionsResult.positions,
-      positionsResult.dataCompleteness
+    return withExplicitRoiUnsupported(
+      normalizeAccountSnapshot(
+        walletPayload,
+        context.category,
+        positionsResult.positions,
+        positionsResult.dataCompleteness
+      )
     );
   }
 
