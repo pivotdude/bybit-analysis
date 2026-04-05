@@ -35,7 +35,7 @@ export class PermissionsReportGenerator {
     const info = await this.accountService.getApiKeyPermissionInfo(context);
     const permissionRows = Object.entries(info.permissions)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([scope, values]) => [scope, values.join(", ") || "<none>"]);
+      .map(([scope, values]) => [scope, [...values].sort((left, right) => left.localeCompare(right)).join(", ") || "<none>"]);
 
     const hasSpotTrade = hasPermission(info.permissions, "Spot", "SpotTrade");
     const hasContractOrder = hasPermission(info.permissions, "ContractTrade", "Order");

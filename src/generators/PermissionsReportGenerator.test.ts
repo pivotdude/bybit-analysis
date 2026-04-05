@@ -49,4 +49,40 @@ describe("PermissionsReportGenerator", () => {
       ["ipWhitelist", "configured (2 entries)"]
     ]);
   });
+
+  it("sorts permission scopes and values deterministically", async () => {
+    const accountService: AccountDataService = {
+      async getAccountSnapshot() {
+        throw new Error("not used");
+      },
+      async checkHealth() {
+        throw new Error("not used");
+      },
+      async getApiKeyPermissionInfo() {
+        return {
+          apiKeyStatus: "present",
+          apiKeyDisplay: "<redacted>",
+          readOnly: false,
+          isMaster: true,
+          ipWhitelistRestricted: false,
+          ipWhitelistCount: 0,
+          ipWhitelistDisplay: "not configured",
+          permissions: {
+            ContractTrade: ["Position", "Order"],
+            Spot: ["WalletTransfer", "SpotTrade"]
+          }
+        };
+      }
+    };
+
+    const generator = new PermissionsReportGenerator(accountService);
+    const report = await generator.generate(context);
+    const permissionsSection = report.sections.find((section) => section.title === "Permissions");
+
+    expect(permissionsSection?.type).toBe("table");
+    expect(permissionsSection && permissionsSection.type === "table" ? permissionsSection.table.rows : undefined).toEqual([
+      ["ContractTrade", "Order, Position"],
+      ["Spot", "SpotTrade, WalletTransfer"]
+    ]);
+  });
 });
