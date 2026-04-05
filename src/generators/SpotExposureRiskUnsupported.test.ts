@@ -37,13 +37,43 @@ const positionService: PositionDataService = {
   getOpenPositions: async () => ({
     source: "bybit",
     exchange: "bybit",
+    capturedAt: new Date().toISOString(),
     positions: [],
     dataCompleteness: unsupportedCompleteness
   })
 };
 
+const linearPositionService: PositionDataService = {
+  getOpenPositions: async () => ({
+    source: "bybit",
+    exchange: "bybit",
+    capturedAt: new Date().toISOString(),
+    positions: [
+      {
+        source: "bybit",
+        exchange: "bybit",
+        category: "linear",
+        symbol: "BTCUSDT",
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        side: "long",
+        marginMode: "cross",
+        quantity: 1,
+        entryPrice: 100,
+        valuationPrice: 100,
+        priceSource: "mark",
+        notionalUsd: 100,
+        leverage: 1,
+        unrealizedPnlUsd: 0,
+        updatedAt: new Date().toISOString()
+      }
+    ],
+    dataCompleteness: completeDataCompleteness()
+  })
+};
+
 const accountService: AccountDataService = {
-  getAccountSnapshot: async () => ({
+  getWalletSnapshot: async () => ({
     source: "bybit",
     exchange: "bybit",
     category: "spot",
@@ -52,7 +82,6 @@ const accountService: AccountDataService = {
     walletBalanceUsd: 8_000,
     availableBalanceUsd: 8_000,
     unrealizedPnlUsd: 0,
-    positions: [],
     balances: [
       { asset: "USDT", walletBalance: 5_000, availableBalance: 5_000, usdValue: 5_000 },
       { asset: "SOL", walletBalance: 30, availableBalance: 30, usdValue: 3_000 }
@@ -89,11 +118,15 @@ const executionService: ExecutionDataService = {
       fundingFeesUsd: 0
     },
     netPnlUsd: 65,
-    roiStatus: "supported",
-    roiUnsupportedReason: undefined,
+    endStateStatus: "unsupported",
+    endStateUnsupportedReason: "Historical period end-state is unavailable",
+    endStateUnsupportedReasonCode: "historical_end_state_unavailable",
+    roiStatus: "unsupported",
+    roiUnsupportedReason: "ending equity is unavailable for the requested period window",
+    roiUnsupportedReasonCode: "ending_equity_unavailable",
     roiStartEquityUsd: 8_000,
-    roiEndEquityUsd: 8_065,
-    roiPct: 0.8125,
+    roiEndEquityUsd: undefined,
+    roiPct: undefined,
     bySymbol: [
       {
         symbol: "SOLUSDT",
@@ -156,7 +189,7 @@ describe("Spot exposure/risk fail-closed reports", () => {
   });
 
   it("renders risk report as unsupported for spot exposure/risk path", async () => {
-    const report = await new RiskReportGenerator(accountService).generate(context);
+    const report = await new RiskReportGenerator(accountService, positionService).generate(context);
 
     const overview = getSection(report, "risk.overview");
     const alerts = getSection(report, "risk.alerts");
@@ -171,7 +204,7 @@ describe("Spot exposure/risk fail-closed reports", () => {
 
   it("does not propagate ROI-only equity-history unsupported issue into risk data completeness", async () => {
     const roiOnlyAccountService: AccountDataService = {
-      getAccountSnapshot: async () => ({
+      getWalletSnapshot: async () => ({
         source: "bybit",
         exchange: "bybit",
         category: "linear",
@@ -180,7 +213,6 @@ describe("Spot exposure/risk fail-closed reports", () => {
         walletBalanceUsd: 8_000,
         availableBalanceUsd: 8_000,
         unrealizedPnlUsd: 0,
-        positions: [],
         balances: [{ asset: "USDT", walletBalance: 8_000, availableBalance: 8_000, usdValue: 8_000 }],
         dataCompleteness: degradedDataCompleteness([
           buildUnsupportedFeatureIssue({
@@ -206,7 +238,7 @@ describe("Spot exposure/risk fail-closed reports", () => {
       })
     };
 
-    const report = await new RiskReportGenerator(roiOnlyAccountService).generate({
+    const report = await new RiskReportGenerator(roiOnlyAccountService, linearPositionService).generate({
       ...context,
       category: "linear"
     });
@@ -219,7 +251,9 @@ describe("Spot exposure/risk fail-closed reports", () => {
   });
 
   it("renders summary report with unsupported exposure/risk instead of zero metrics", async () => {
-    const report = await new SummaryReportGenerator(accountService, executionService, botService).generate(context);
+    const report = await new SummaryReportGenerator(accountService, executionService, positionService, botService).generate(
+      context
+    );
 
     const overview = getSection(report, "summary.overview");
     const risk = getSection(report, "summary.risk");

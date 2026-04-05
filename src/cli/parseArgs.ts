@@ -15,18 +15,21 @@ const COMMANDS: CommandName[] = [
   "health"
 ];
 const COMMAND_DESCRIPTIONS: Record<CommandName, string> = {
-  summary: "Full account analytics snapshot",
-  balance: "Wallet/equity/margin balances",
-  pnl: "Realized/unrealized PnL analysis",
-  positions: "Open position inventory and status",
-  exposure: "Exposure and concentration analysis",
-  performance: "ROI and capital efficiency analysis",
-  risk: "Leverage and downside risk analysis",
-  bots: "Optional bot/copy-trading analytics",
-  permissions: "API key permissions diagnostics",
+  summary: "Period analytics summary (mixes live snapshot and period metrics explicitly)",
+  balance: "Live wallet/equity/margin balances",
+  pnl: "Period PnL analysis",
+  positions: "Live open position inventory and status",
+  exposure: "Live exposure and concentration analysis",
+  performance: "Period ROI and capital efficiency analysis",
+  risk: "Live leverage and downside risk analysis",
+  bots: "Bot/copy-trading analytics",
+  permissions: "Live API key permissions diagnostics",
   config: "Effective runtime config (redacted)",
-  health: "API/connectivity/readiness checks"
+  health: "Live API/connectivity/readiness checks"
 };
+const LIVE_COMMAND_HELP: CommandName[] = ["balance", "positions", "exposure", "risk", "permissions", "health"];
+const PERIOD_COMMAND_HELP: CommandName[] = ["summary", "pnl", "performance", "bots"];
+
 function isTruthyEnvValue(value: string | undefined): boolean {
   if (!value) {
     return false;
@@ -283,11 +286,12 @@ function renderOptionsSection(): string[] {
     "  --source <market|bot>",
     "  --fgrid-bot-ids <id1,id2,...>",
     "  --spot-grid-ids <id1,id2,...>",
-    "  --format <md|compact>",
+    "  --format <md|compact|json>",
     "    compact is lossless and only changes markdown presentation density",
-    "  --from <ISO8601>",
-    "  --to <ISO8601>",
-    "  --window <7d|30d|90d>",
+    "    json emits a versioned machine-readable report document",
+    "  --from <ISO8601>  period commands only: summary, pnl, performance, bots",
+    "  --to <ISO8601>  period commands only: summary, pnl, performance, bots",
+    "  --window <7d|30d|90d>  period commands only: summary, pnl, performance, bots",
     "  --timeout-ms <number>",
     "  --positions-max-pages <number>",
     "  --executions-max-pages-per-chunk <number>",
@@ -322,6 +326,7 @@ function renderGlobalHelp(): string {
     "  General runtime fields: CLI args -> profile (if applicable) -> env -> defaults.",
     "  Credentials: profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults.",
     "  Time range: --from + --to -> --window -> BYBIT_WINDOW -> default 30d window.",
+    "  Live snapshot commands reject explicit historical intent from --from/--to/--window and BYBIT_WINDOW.",
     `  Ambient env can be disabled with --no-env or ${ENV_VARS.disableEnv}=1.`,
     "",
     "Credential input (recommended):",
@@ -342,7 +347,7 @@ function renderGlobalHelp(): string {
     `  ${ENV_VARS.sourceMode}=<market|bot>`,
     `  ${ENV_VARS.futuresGridBotIds}=<id1,id2,...>`,
     `  ${ENV_VARS.spotGridBotIds}=<id1,id2,...>`,
-    `  ${ENV_VARS.format}=<md|compact>`,
+    `  ${ENV_VARS.format}=<md|compact|json>`,
     `  ${ENV_VARS.timeoutMs}=<number>`,
     `  ${ENV_VARS.window}=<7d|30d|90d>`,
     `  ${ENV_VARS.positionsMaxPages}=<number>`,
@@ -361,6 +366,12 @@ function renderCommandHelp(command: CommandName): string {
     `# bybit-analysis ${command}`,
     "",
     COMMAND_DESCRIPTIONS[command],
+    "",
+    LIVE_COMMAND_HELP.includes(command)
+      ? "Command type: live snapshot (explicit historical time flags are rejected)"
+      : PERIOD_COMMAND_HELP.includes(command)
+        ? "Command type: period analytics"
+        : "Command type: diagnostic/utility",
     "",
     "Usage:",
     `  bybit-analysis ${command} [options]`,

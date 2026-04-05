@@ -4,7 +4,7 @@ import { MemoryCacheStore } from "../services/cache/MemoryCacheStore";
 import { createServiceBundle } from "../services/composition/createServiceBundle";
 import type { ParsedCliArgs } from "../types/command.types";
 import type { ReportDocument } from "../types/report.types";
-import { MarkdownRenderer } from "../renderers/MarkdownRenderer";
+import { DefaultReportRenderer } from "../renderers/DefaultReportRenderer";
 import { classifyReportExitCode } from "./exitCodes";
 import { balanceHandler } from "./commandHandlers/balance.handler";
 import { botsHandler } from "./commandHandlers/bots.handler";
@@ -21,9 +21,11 @@ import { toServiceContext, type HandlerDeps } from "./commandHandlers/shared";
 
 export class UsageError extends Error {}
 export interface CommandExecutionResult {
-  markdown: string;
+  output: string;
   exitCode: number;
 }
+
+const LIVE_SNAPSHOT_COMMANDS = new Set(["balance", "positions", "exposure", "risk", "health", "permissions"]);
 
 function buildDeps(
   parsed: ParsedCliArgs,
@@ -43,7 +45,7 @@ function buildDeps(
 
   return {
     config,
-    renderer: new MarkdownRenderer(),
+    renderer: new DefaultReportRenderer(),
     accountService,
     positionService,
     executionService,
@@ -77,7 +79,7 @@ export async function executeCommandWithOutcome(
 ): Promise<CommandExecutionResult> {
   const { report, deps } = await generateReport(parsed, env, ambientEnv);
   return {
-    markdown: deps.renderer.render(report, deps.config.format),
+    output: deps.renderer.render(report, deps.config.format),
     exitCode: classifyReportExitCode(report)
   };
 }
@@ -99,6 +101,12 @@ async function generateReport(
     deps = buildDeps(parsed, env, ambientEnv);
   } catch (error) {
     throw new UsageError(error instanceof Error ? error.message : String(error));
+  }
+
+  if (LIVE_SNAPSHOT_COMMANDS.has(parsed.command) && deps.config.sources.timeRange !== "default") {
+    throw new UsageError(
+      `Command ${parsed.command} is a live snapshot command and does not accept historical time flags or BYBIT_WINDOW.`
+    );
   }
 
   if (parsed.command !== "config" && parsed.command !== "health") {

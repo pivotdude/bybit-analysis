@@ -33,6 +33,9 @@ const basePnl: PnLReport = {
     fundingFeesUsd: 0
   },
   netPnlUsd: 200,
+  endStateStatus: "unsupported",
+  endStateUnsupportedReason: "Historical period end-state is unavailable",
+  endStateUnsupportedReasonCode: "historical_end_state_unavailable",
   roiStatus: "unsupported",
   roiUnsupportedReason: "starting equity is unavailable for the requested period window",
   roiUnsupportedReasonCode: "starting_equity_unavailable",

@@ -5,6 +5,7 @@ import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
 import { fmtPct, fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const BOTS_SCHEMA_VERSION = "bots-markdown-v1";
 
@@ -35,6 +36,7 @@ export class BotsReportGenerator {
     const report = await this.botService.getBotReport(context, {
       requirement: context.sourceMode === "bot" ? "required" : "optional"
     });
+    const generatedAt = new Date().toISOString();
     const analysis = this.analyzer.analyze(report);
 
     const sections: ReportDocument["sections"] = [
@@ -93,9 +95,22 @@ export class BotsReportGenerator {
       command: "bots",
       title: "Bots Analytics",
       schemaVersion: BOTS_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
       sections,
-      dataCompleteness: report.dataCompleteness
+      dataCompleteness: report.dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "bot_report",
+          kind: "bot_report",
+          provider: report.source,
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: report.generatedAt,
+          periodFrom: context.from,
+          periodTo: context.to
+        })
+      ],
+      data: analysis
     };
   }
 }

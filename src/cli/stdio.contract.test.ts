@@ -114,4 +114,12 @@ describe("CLI stdout/stderr contract", () => {
     expect(result.stderr).toContain("Option --api-key is insecure and disabled by default");
     expect(result.stderr).toContain("Option --api-secret is insecure and disabled by default");
   });
+
+  it("rejects explicit historical time flags for live snapshot commands", () => {
+    const result = runCli(["balance", "--window", "7d"]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("Command balance is a live snapshot command");
+  });
 });

@@ -40,6 +40,7 @@ export class BybitPositionService implements PositionDataService {
       return {
         source: "bybit",
         exchange: "bybit",
+        capturedAt: new Date().toISOString(),
         positions: [],
         dataCompleteness: degradedDataCompleteness([
           buildUnsupportedFeatureIssue({
@@ -120,11 +121,16 @@ export class BybitPositionService implements PositionDataService {
       }
     }
 
+    const normalized = normalizePositions({ list: allRows }, context.category);
     const result: PositionDataResult = {
       source: "bybit",
       exchange: "bybit",
-      positions: normalizePositions({ list: allRows }, context.category),
-      dataCompleteness: issues.length > 0 ? degradedDataCompleteness(issues) : completeDataCompleteness()
+      capturedAt: new Date().toISOString(),
+      positions: normalized.positions,
+      dataCompleteness:
+        issues.length > 0 || normalized.issues.length > 0
+          ? degradedDataCompleteness([...issues, ...normalized.issues])
+          : completeDataCompleteness()
     };
 
     this.cache.set(key, result, POSITIONS_TTL_MS);

@@ -5,58 +5,88 @@ export const CLI_EXIT_CODE = {
   SUCCESS: 0,
   RUNTIME_ERROR: 1,
   USAGE_ERROR: 2,
-  PARTIAL_DATA: 3,
-  HEALTH_CHECK_FAILED: 4
+  PARTIAL_OPTIONAL: 3,
+  CRITICAL_INCOMPLETE: 4,
+  HEALTH_CHECK_FAILED: 5
 } as const;
 
 export const CLI_EXIT_CODE_LABEL: Record<number, string> = {
   [CLI_EXIT_CODE.SUCCESS]: "success",
   [CLI_EXIT_CODE.RUNTIME_ERROR]: "runtime_error",
   [CLI_EXIT_CODE.USAGE_ERROR]: "usage_error",
-  [CLI_EXIT_CODE.PARTIAL_DATA]: "partial_data",
+  [CLI_EXIT_CODE.PARTIAL_OPTIONAL]: "partial_optional",
+  [CLI_EXIT_CODE.CRITICAL_INCOMPLETE]: "critical_incomplete",
   [CLI_EXIT_CODE.HEALTH_CHECK_FAILED]: "health_check_failed"
 };
 
-export type ReportOutcomeStatus = "success" | "degraded_success" | "failed";
+export type ReportOutcomeStatus =
+  | "success"
+  | "partial_optional"
+  | "critical_incomplete"
+  | "failed";
 
 export interface ReportOutcome {
   status: ReportOutcomeStatus;
   exitCode: number;
   exitCodeLabel: string;
-  dataCompletenessState: DataCompletenessState | "unsupported";
-  partialData: boolean | "unsupported";
+  dataCompletenessState: DataCompletenessState;
   healthStatus: ReportDocument["healthStatus"] | "n/a";
 }
 
-export function classifyReportExitCode(report: ReportDocument): number {
+function resolveReportOutcomeStatus(report: ReportDocument): ReportOutcomeStatus {
   if (report.command === "health" && report.healthStatus === "failed") {
-    return CLI_EXIT_CODE.HEALTH_CHECK_FAILED;
+    return "failed";
   }
 
-  if (report.dataCompleteness?.partial) {
-    return CLI_EXIT_CODE.PARTIAL_DATA;
+  const dataCompleteness = report.dataCompleteness;
+  if (!dataCompleteness) {
+    return "success";
   }
 
-  return CLI_EXIT_CODE.SUCCESS;
+  if (dataCompleteness.state === "unsupported" && dataCompleteness.issues.length === 0) {
+    return "success";
+  }
+
+  switch (dataCompleteness.state) {
+    case "complete":
+      return "success";
+    case "partial_optional":
+      return "partial_optional";
+    case "partial_critical":
+    case "unsupported":
+    case "failed":
+      return "critical_incomplete";
+    default:
+      return "critical_incomplete";
+  }
+}
+
+export function classifyReportExitCode(report: ReportDocument): number {
+  const status = resolveReportOutcomeStatus(report);
+  switch (status) {
+    case "success":
+      return CLI_EXIT_CODE.SUCCESS;
+    case "partial_optional":
+      return CLI_EXIT_CODE.PARTIAL_OPTIONAL;
+    case "critical_incomplete":
+      return CLI_EXIT_CODE.CRITICAL_INCOMPLETE;
+    case "failed":
+      return CLI_EXIT_CODE.HEALTH_CHECK_FAILED;
+    default:
+      return CLI_EXIT_CODE.CRITICAL_INCOMPLETE;
+  }
 }
 
 export function classifyReportOutcome(report: ReportDocument): ReportOutcome {
+  const status = resolveReportOutcomeStatus(report);
   const exitCode = classifyReportExitCode(report);
   const exitCodeLabel = CLI_EXIT_CODE_LABEL[exitCode] ?? "unknown";
-  const status: ReportOutcomeStatus =
-    exitCode === CLI_EXIT_CODE.PARTIAL_DATA
-      ? "degraded_success"
-      : exitCode === CLI_EXIT_CODE.SUCCESS
-        ? "success"
-        : "failed";
 
   return {
     status,
     exitCode,
     exitCodeLabel,
     dataCompletenessState: report.dataCompleteness?.state ?? "unsupported",
-    partialData:
-      report.dataCompleteness?.partial !== undefined ? report.dataCompleteness.partial : "unsupported",
     healthStatus: report.command === "health" ? (report.healthStatus ?? "ok") : "n/a"
   };
 }

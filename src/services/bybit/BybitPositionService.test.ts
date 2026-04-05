@@ -33,7 +33,9 @@ function createClient(totalPages: number): { client: BybitReadonlyClient; getCal
             avgPrice: "90",
             positionValue: "100",
             leverage: "2",
-            unrealisedPnl: "5"
+            unrealisedPnl: "5",
+            createdTime: "1712000000000",
+            updatedTime: "1712000600000"
           }
         ],
         nextPageCursor
@@ -134,13 +136,15 @@ describe("BybitPositionService pagination", () => {
               {
                 symbol: "BTCUSDT",
                 size: "1",
-                side: "Buy",
-                markPrice: "100",
-                avgPrice: "90",
-                positionValue: "100",
-                leverage: "2",
-                unrealisedPnl: "5"
-              }
+              side: "Buy",
+              markPrice: "100",
+              avgPrice: "90",
+              positionValue: "100",
+              leverage: "2",
+              unrealisedPnl: "5",
+              createdTime: "1712000000000",
+              updatedTime: "1712000600000"
+            }
             ],
             nextPageCursor: "next-cursor"
           };
@@ -170,7 +174,9 @@ describe("BybitPositionService pagination", () => {
             avgPrice: "90",
             positionValue: "100",
             leverage: "2",
-            unrealisedPnl: "5"
+            unrealisedPnl: "5",
+            createdTime: "1712000000000",
+            updatedTime: "1712000600000"
           },
           {
             symbol: "ETHUSDC",
@@ -180,7 +186,9 @@ describe("BybitPositionService pagination", () => {
             avgPrice: "210",
             positionValue: "400",
             leverage: "3",
-            unrealisedPnl: "-10"
+            unrealisedPnl: "-10",
+            createdTime: "1712000100000",
+            updatedTime: "1712000700000"
           }
         ],
         nextPageCursor: undefined
@@ -207,7 +215,9 @@ describe("BybitPositionService pagination", () => {
             avgPrice: "90",
             positionValue: "100",
             leverage: "2",
-            unrealisedPnl: "5"
+            unrealisedPnl: "5",
+            createdTime: "1712000000000",
+            updatedTime: "1712000600000"
           }
         ],
         nextPageCursor: undefined
@@ -245,7 +255,7 @@ describe("BybitPositionService pagination", () => {
 
     expect(calls).toBe(0);
     expect(result.positions).toHaveLength(0);
-    expect(result.dataCompleteness.state).toBe("degraded");
+    expect(result.dataCompleteness.state).toBe("unsupported");
     expect(result.dataCompleteness.partial).toBe(true);
     expect(result.dataCompleteness.issues[0]?.code).toBe("unsupported_feature");
     expect(result.dataCompleteness.issues[0]?.scope).toBe("positions");

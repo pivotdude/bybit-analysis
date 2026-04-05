@@ -127,6 +127,28 @@ describe("CLI smoke/integration", () => {
     expect(result.stdout).toContain("# Runtime Configuration");
   });
 
+  it("supports json output mode with machine-readable contract metadata", () => {
+    const result = runCli([
+      "config",
+      "--format",
+      "json",
+      "--from",
+      "2026-01-01T00:00:00.000Z",
+      "--to",
+      "2026-01-02T00:00:00.000Z"
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    const payload = JSON.parse(result.stdout) as Record<string, unknown>;
+    expect(payload.jsonSchemaVersion).toBe("report-json-v1");
+    expect(payload.command).toBe("config");
+    expect(payload.reportSchemaVersion).toBe("config-markdown-v1");
+    expect(Array.isArray(payload.sources)).toBe(true);
+    expect(Array.isArray(payload.sections)).toBe(true);
+    expect(typeof payload.data).toBe("object");
+  });
+
   it("reports hermetic ambient env mode and used env vars", () => {
     const result = runCli([
       "config",

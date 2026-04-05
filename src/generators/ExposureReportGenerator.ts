@@ -6,6 +6,7 @@ import type { ServiceRequestContext } from "../services/contracts/AccountDataSer
 import { fmtPct, fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { getUnsupportedFeatureIssueMessage } from "../services/reliability/dataCompleteness";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const EXPOSURE_SCHEMA_VERSION = "exposure-markdown-v1";
 
@@ -32,6 +33,7 @@ export class ExposureReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const positionsResult = await this.positionsService.getOpenPositions(context);
+    const generatedAt = new Date().toISOString();
     const unsupportedMessage = getUnsupportedFeatureIssueMessage(positionsResult.dataCompleteness, "positions");
     if (unsupportedMessage) {
       const sections: ReportDocument["sections"] = [
@@ -67,9 +69,26 @@ export class ExposureReportGenerator {
         command: "exposure",
         title: "Exposure Analytics",
         schemaVersion: EXPOSURE_SCHEMA_VERSION,
-        generatedAt: new Date().toISOString(),
+        generatedAt,
+        asOf: positionsResult.capturedAt,
         sections,
-        dataCompleteness: positionsResult.dataCompleteness
+        dataCompleteness: positionsResult.dataCompleteness,
+        sources: [
+          createSourceMetadata({
+            id: "positions_snapshot",
+            kind: "positions_snapshot",
+            provider: positionsResult.source,
+            exchange: positionsResult.exchange,
+            category: context.category,
+            sourceMode: context.sourceMode,
+            fetchedAt: positionsResult.capturedAt,
+            capturedAt: positionsResult.capturedAt
+          })
+        ],
+        data: {
+          unsupportedReason: unsupportedMessage,
+          perAsset: []
+        }
       };
     }
 
@@ -114,9 +133,23 @@ export class ExposureReportGenerator {
       command: "exposure",
       title: "Exposure Analytics",
       schemaVersion: EXPOSURE_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
+      asOf: positionsResult.capturedAt,
       sections,
-      dataCompleteness: positionsResult.dataCompleteness
+      dataCompleteness: positionsResult.dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "positions_snapshot",
+          kind: "positions_snapshot",
+          provider: positionsResult.source,
+          exchange: positionsResult.exchange,
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: positionsResult.capturedAt,
+          capturedAt: positionsResult.capturedAt
+        })
+      ],
+      data: report
     };
   }
 }

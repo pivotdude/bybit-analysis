@@ -3,6 +3,7 @@ import { SummaryReportGenerator } from "./SummaryReportGenerator";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
+import type { PositionDataService } from "../services/contracts/PositionDataService";
 import type { ReportSection } from "../types/report.types";
 
 const linearContext: ServiceRequestContext = {
@@ -20,8 +21,40 @@ const botContext: ServiceRequestContext = {
   providerContext: { bybit: { botStrategyIds: { futuresGridBotIds: ["fgrid-1"], spotGridBotIds: [] } } }
 };
 
+const positionsResult = {
+  source: "bybit" as const,
+  exchange: "bybit" as const,
+  capturedAt: new Date().toISOString(),
+  positions: [
+    {
+      source: "bybit" as const,
+      exchange: "bybit" as const,
+      category: "linear" as const,
+      symbol: "BTCUSDT",
+      baseAsset: "BTC",
+      quoteAsset: "USDT",
+      side: "long" as const,
+      marginMode: "cross" as const,
+      quantity: 0.2,
+      entryPrice: 99_000,
+      valuationPrice: 100_000,
+      priceSource: "mark" as const,
+      notionalUsd: 20_000,
+      leverage: 2,
+      unrealizedPnlUsd: 100,
+      updatedAt: new Date().toISOString()
+    }
+  ],
+  dataCompleteness: {
+    state: "complete" as const,
+    partial: false,
+    warnings: [],
+    issues: []
+  }
+};
+
 const accountService: AccountDataService = {
-  getAccountSnapshot: async () => ({
+  getWalletSnapshot: async () => ({
     source: "bybit",
     exchange: "bybit",
     category: "linear",
@@ -30,26 +63,6 @@ const accountService: AccountDataService = {
     walletBalanceUsd: 21_000,
     availableBalanceUsd: 19_000,
     unrealizedPnlUsd: 100,
-    positions: [
-      {
-        source: "bybit",
-        exchange: "bybit",
-        category: "linear",
-        symbol: "BTCUSDT",
-        baseAsset: "BTC",
-        quoteAsset: "USDT",
-        side: "long",
-        marginMode: "cross",
-        quantity: 0.2,
-        entryPrice: 99_000,
-        valuationPrice: 100_000,
-        priceSource: "mark",
-        notionalUsd: 20_000,
-        leverage: 2,
-        unrealizedPnlUsd: 100,
-        updatedAt: new Date().toISOString()
-      }
-    ],
     balances: [{ asset: "USDT", walletBalance: 21_000, availableBalance: 19_000, usdValue: 21_000 }],
     dataCompleteness: {
       state: "complete",
@@ -75,6 +88,10 @@ const accountService: AccountDataService = {
   })
 };
 
+const positionService: PositionDataService = {
+  getOpenPositions: async () => positionsResult
+};
+
 const executionService: ExecutionDataService = {
   getPnlReport: async () => ({
     source: "bybit",
@@ -88,11 +105,15 @@ const executionService: ExecutionDataService = {
       fundingFeesUsd: 5
     },
     netPnlUsd: 1_145,
-    roiStatus: "supported",
-    roiUnsupportedReason: undefined,
+    endStateStatus: "unsupported",
+    endStateUnsupportedReason: "Historical period end-state is unavailable",
+    endStateUnsupportedReasonCode: "historical_end_state_unavailable",
+    roiStatus: "unsupported",
+    roiUnsupportedReason: "ending equity is unavailable for the requested period window",
+    roiUnsupportedReasonCode: "ending_equity_unavailable",
     roiStartEquityUsd: 20_000,
-    roiEndEquityUsd: 21_145,
-    roiPct: 5.725,
+    roiEndEquityUsd: undefined,
+    roiPct: undefined,
     bySymbol: [
       {
         symbol: "BTCUSDT",
@@ -190,7 +211,7 @@ function assertSectionSchema(section: ReportSection): void {
 
 describe("SummaryReportGenerator", () => {
   it("returns a schema-valid summary report document", async () => {
-    const generator = new SummaryReportGenerator(accountService, executionService, availableBotService);
+    const generator = new SummaryReportGenerator(accountService, executionService, positionService, availableBotService);
 
     const report = await generator.generate(linearContext);
 
@@ -208,14 +229,14 @@ describe("SummaryReportGenerator", () => {
   });
 
   it("continues generating linear summary when optional bot report fetch fails", async () => {
-    const generator = new SummaryReportGenerator(accountService, executionService, failingBotService);
+    const generator = new SummaryReportGenerator(accountService, executionService, positionService, failingBotService);
 
     const report = await generator.generate(linearContext);
     const alertsSection = report.sections.find((section) => section.type === "alerts" && section.title === "Alerts");
 
     expect(report.command).toBe("summary");
     expect(report.sections.some((section) => section.title === "Overview")).toBe(true);
-    expect(report.dataCompleteness?.state).toBe("degraded");
+    expect(report.dataCompleteness?.state).toBe("partial_optional");
     expect(
       alertsSection && alertsSection.type === "alerts"
         ? alertsSection.alerts.some((alert) => alert.message.includes("bot endpoint unavailable"))
@@ -232,7 +253,7 @@ describe("SummaryReportGenerator", () => {
   });
 
   it("fails summary generation when bot report fetch fails for bot source mode", async () => {
-    const generator = new SummaryReportGenerator(accountService, executionService, failingBotService);
+    const generator = new SummaryReportGenerator(accountService, executionService, positionService, failingBotService);
 
     await expect(generator.generate(botContext)).rejects.toThrow("bot endpoint unavailable");
   });
@@ -240,7 +261,7 @@ describe("SummaryReportGenerator", () => {
   it("does not infer holdings from bot metadata when token balances are unavailable", async () => {
     const accountServiceWithoutTokenBalances: AccountDataService = {
       ...accountService,
-      getAccountSnapshot: async () => ({
+      getWalletSnapshot: async () => ({
         source: "bybit",
         exchange: "bybit",
         category: "linear",
@@ -249,7 +270,6 @@ describe("SummaryReportGenerator", () => {
         walletBalanceUsd: 12_000,
         availableBalanceUsd: 9_500,
         unrealizedPnlUsd: 0,
-        positions: [],
         balances: [],
         dataCompleteness: {
           state: "complete",
@@ -260,7 +280,12 @@ describe("SummaryReportGenerator", () => {
       })
     };
 
-    const generator = new SummaryReportGenerator(accountServiceWithoutTokenBalances, executionService, availableBotService);
+    const generator = new SummaryReportGenerator(
+      accountServiceWithoutTokenBalances,
+      executionService,
+      positionService,
+      availableBotService
+    );
     const report = await generator.generate(botContext);
 
     const allocation = report.sections.find((section) => section.id === "summary.allocation");
@@ -276,7 +301,7 @@ describe("SummaryReportGenerator", () => {
   });
 
   it("labels symbol net column as realized net in market mode", async () => {
-    const generator = new SummaryReportGenerator(accountService, executionService, availableBotService);
+    const generator = new SummaryReportGenerator(accountService, executionService, positionService, availableBotService);
     const report = await generator.generate(linearContext);
     const symbolPnl = report.sections.find((section) => section.id === "summary.symbol_pnl");
 
@@ -285,7 +310,7 @@ describe("SummaryReportGenerator", () => {
   });
 
   it("keeps generic net label for symbol pnl in bot mode", async () => {
-    const generator = new SummaryReportGenerator(accountService, executionService, availableBotService);
+    const generator = new SummaryReportGenerator(accountService, executionService, positionService, availableBotService);
     const report = await generator.generate(botContext);
     const symbolPnl = report.sections.find((section) => section.id === "summary.symbol_pnl");
 

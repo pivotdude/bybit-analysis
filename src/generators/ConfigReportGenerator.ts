@@ -2,8 +2,10 @@ import { toRedactedConfigView } from "../config";
 import type { RuntimeConfig } from "../types/config.types";
 import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
+import { unsupportedDataCompleteness } from "../services/reliability/dataCompleteness";
 import { fmtIso } from "./formatters";
 import { buildUnsupportedDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const CONFIG_SCHEMA_VERSION = "config-markdown-v1";
 
@@ -26,12 +28,30 @@ const section = createSectionBuilder(CONFIG_SECTION_CONTRACT);
 export class ConfigReportGenerator {
   generate(config: RuntimeConfig): ReportDocument {
     const view = toRedactedConfigView(config);
+    const generatedAt = new Date().toISOString();
+    const dataCompleteness = unsupportedDataCompleteness(
+      "Data completeness is not tracked for static runtime configuration reports."
+    );
 
     return {
       command: "config",
       title: "Runtime Configuration",
       schemaVersion: CONFIG_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
+      dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "runtime_config",
+          kind: "runtime_config",
+          provider: "bybit",
+          category: view.category,
+          sourceMode: view.sourceMode,
+          fetchedAt: generatedAt
+        })
+      ],
+      data: {
+        config: view
+      },
       sections: [
         section("effective", {
           table: {
@@ -75,9 +95,7 @@ export class ConfigReportGenerator {
           ]
         }),
         section("dataCompleteness", {
-          alerts: buildUnsupportedDataCompletenessAlerts(
-            "Data completeness is not tracked for static runtime configuration reports."
-          )
+          alerts: buildUnsupportedDataCompletenessAlerts(dataCompleteness.warnings[0]!)
         })
       ]
     };

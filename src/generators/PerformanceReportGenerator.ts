@@ -8,6 +8,7 @@ import { filterDataCompletenessIssues, mergeDataCompleteness } from "../services
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
 import { resolveRoiContract } from "./roiContractResolver";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const PERFORMANCE_SCHEMA_VERSION = "performance-markdown-v1";
 
@@ -38,18 +39,18 @@ export class PerformanceReportGenerator {
   ) {}
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
-    const account = await this.accountService.getAccountSnapshot(context);
-    const startingEquity = resolveStartingEquity(account, context.from);
+    const walletSnapshot = await this.accountService.getWalletSnapshot(context);
+    const generatedAt = new Date().toISOString();
+    const startingEquity = resolveStartingEquity(walletSnapshot, context.from);
     const pnl = await this.executionService.getPnlReport({
       context,
       equityStartUsd: startingEquity.equityStartUsd,
-      equityEndUsd: account.totalEquityUsd,
       roiMissingStartReason: startingEquity.missingStartReason,
-      roiMissingStartReasonCode: startingEquity.missingStartReasonCode,
-      accountSnapshot: { unrealizedPnlUsd: account.unrealizedPnlUsd }
+      roiMissingStartReasonCode: startingEquity.missingStartReasonCode
     });
-    const analysis = this.analyzer.analyze(account, pnl);
+    const analysis = this.analyzer.analyze(walletSnapshot, pnl);
     const roi = resolveRoiContract(analysis);
+    const periodEndStateUnsupported = analysis.endStateStatus === "unsupported";
     const capitalEfficiency =
       analysis.capitalEfficiencyStatus === "supported" && typeof analysis.capitalEfficiencyPct === "number"
         ? fmtPct(analysis.capitalEfficiencyPct)
@@ -64,7 +65,10 @@ export class PerformanceReportGenerator {
       }),
       section("roi", {
         kpis: [
-          { label: "Period Net PnL", value: fmtUsd(analysis.periodNetPnlUsd) },
+          {
+            label: periodEndStateUnsupported ? "Realized Net PnL" : "Period Net PnL",
+            value: fmtUsd(analysis.periodNetPnlUsd)
+          },
           { label: "ROI", value: roi.roiKpiValue }
         ]
       }),
@@ -77,6 +81,8 @@ export class PerformanceReportGenerator {
       section("interpretation", {
         text: [
           ...roi.narrativeLines,
+          `Period end-state status: ${analysis.endStateStatus}`,
+          ...(analysis.endStateUnsupportedReason ? [`Period end-state reason: ${analysis.endStateUnsupportedReason}`] : []),
           `Interpretation: ${analysis.interpretation}`,
           analysis.capitalEfficiencyStatus === "unsupported"
             ? `Capital efficiency status: unsupported (${analysis.capitalEfficiencyReason ?? "equity history is unavailable"})`
@@ -86,7 +92,7 @@ export class PerformanceReportGenerator {
     ];
 
     const accountCompleteness = filterDataCompletenessIssues(
-      account.dataCompleteness,
+      walletSnapshot.dataCompleteness,
       (issue) => !(issue.code === "unsupported_feature" && issue.scope === "positions")
     );
     const dataCompleteness = mergeDataCompleteness(accountCompleteness, pnl.dataCompleteness);
@@ -100,9 +106,56 @@ export class PerformanceReportGenerator {
       command: "performance",
       title: "Performance Analytics",
       schemaVersion: PERFORMANCE_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
       sections,
-      dataCompleteness
+      dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "wallet_snapshot",
+          kind: "wallet_snapshot",
+          provider: walletSnapshot.source,
+          exchange: walletSnapshot.exchange,
+          category: walletSnapshot.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: walletSnapshot.capturedAt,
+          capturedAt: walletSnapshot.capturedAt
+        }),
+        createSourceMetadata({
+          id: "period_pnl",
+          kind: "period_pnl_snapshot",
+          provider: pnl.source,
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: pnl.generatedAt,
+          periodFrom: pnl.periodFrom,
+          periodTo: pnl.periodTo
+        })
+      ],
+      data: {
+        periodFrom: analysis.periodFrom,
+        periodTo: analysis.periodTo,
+        periodNetPnlUsd: analysis.periodNetPnlUsd,
+        roi: {
+          status: analysis.roiStatus,
+          reason: analysis.roiUnsupportedReason,
+          reasonCode: analysis.roiUnsupportedReasonCode,
+          startEquityUsd: analysis.roiStartEquityUsd,
+          endEquityUsd: analysis.roiEndEquityUsd,
+          roiPct: analysis.roiPct
+        },
+        capitalEfficiency: {
+          status: analysis.capitalEfficiencyStatus,
+          reason: analysis.capitalEfficiencyReason,
+          avgDeployedCapitalUsd: analysis.avgDeployedCapitalUsd,
+          capitalEfficiencyPct: analysis.capitalEfficiencyPct
+        },
+        endState: {
+          status: analysis.endStateStatus,
+          reason: analysis.endStateUnsupportedReason,
+          reasonCode: analysis.endStateUnsupportedReasonCode
+        },
+        interpretation: analysis.interpretation
+      }
     };
   }
 }

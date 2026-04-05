@@ -1,6 +1,6 @@
 # bybit-analysis
 
-Read-only analytics CLI for Bybit accounts. Outputs structured Markdown optimized for human and LLM consumption.
+Read-only analytics CLI for Bybit accounts. Outputs schema-stable Markdown for operators and versioned JSON for automation and agent consumption.
 
 ## Exchange Readiness Status
 
@@ -34,8 +34,9 @@ bun run src/index.ts <command> --help
 ## Exit Codes (Automation Contract)
 
 - `0` complete success (and for `health`, connectivity/auth checks passed)
-- `3` degraded success (report generated, but `dataCompleteness.partial=true`)
-- `4` health-check failure (`health` command returned failed connectivity and/or auth)
+- `3` optional partial success (report generated, but only optional enrichment/data degraded)
+- `4` critical incomplete / unsupported analytics (report generated, but output is not safely actionable for automation)
+- `5` health-check failure (`health` command returned failed connectivity and/or auth)
 - `1` runtime failure (unexpected execution error)
 - `2` usage/config failure (invalid args or runtime validation error)
 
@@ -61,30 +62,31 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 
 ## Commands
 
-- `summary` - Full account analytics snapshot
-- `balance` - Wallet/equity/margin balances
-- `pnl` - Realized/unrealized PnL analysis
-- `positions` - Open position inventory and status
-- `exposure` - Exposure and concentration analysis
-- `performance` - ROI and capital efficiency analysis
-- `risk` - Leverage and downside risk analysis
+- `summary` - Period analytics summary (explicitly mixes period metrics with current snapshot context)
+- `balance` - Live wallet/equity/margin balances
+- `pnl` - Period PnL analysis
+- `positions` - Live open position inventory and status
+- `exposure` - Live exposure and concentration analysis
+- `performance` - Period ROI and capital efficiency analysis
+- `risk` - Live leverage and downside risk analysis
 - `bots` - Optional bot/copy-trading analytics
-- `permissions` - API key permission diagnostics
+- `permissions` - Live API key permission diagnostics
 - `config` - Effective runtime config (redacted)
-- `health` - API/connectivity/readiness checks
+- `health` - Live API/connectivity/readiness checks
 
 ## Markdown Schema Contracts (All Commands)
 
 All commands now expose schema-stable Markdown contracts:
 
 - Report-level `Schema: <command>-markdown-v1` is present for every command.
-- Report metadata lines are fixed and ordered: `Generated at`, `Schema`, `Command`, `Outcome`, `Exit Code`, `Data Completeness`, `Partial Data`, `Health Status`.
+- Report metadata lines are fixed and ordered: `Generated at`, `As Of` (for live snapshot reports when available), `Schema`, `Command`, `Outcome`, `Exit Code`, `Data Completeness`, `Health Status`, `Source Freshness`.
 - Every section has a fixed `id` and is rendered as `## [section.id] Title`.
 - Section order and section type are fixed per command contract.
 - Sections are never removed because of missing data; reports use deterministic placeholders (`<empty>` table rows), `N/A`, `0`, `unsupported`, or info alerts.
 - `Data Completeness` is a fixed section in every command contract:
   - Data-backed commands render merged completeness issues in that section.
   - Non data-backed commands (for example `config`, `health`, `permissions`) render explicit `unsupported` completeness status.
+- `Data Completeness` states are machine-classified as `complete`, `partial_optional`, `partial_critical`, `unsupported`, or `failed`.
 
 ## Summary Markdown Contract (`summary-markdown-v1`)
 
@@ -122,7 +124,7 @@ Fixed section order:
 
 - Cost basis method: `weighted_average`.
 - Opening inventory at `--from` is reconstructed from pre-window spot executions (lookback: last 365 days) for symbols sold inside the window.
-- If sell quantity cannot be matched to reconstructed inventory, the report is marked `dataCompleteness.partial=true`, and unmatched quantity is excluded from realized PnL (no fallback to sell execution price).
+- If sell quantity cannot be matched to reconstructed inventory, the report is marked `dataCompleteness.state=partial_optional`, and unmatched quantity is excluded from realized PnL (no fallback to sell execution price).
 
 ## PnL ROI Contract
 
@@ -148,10 +150,10 @@ Example (`pnl` section):
 - `--source <market|bot>`
 - `--fgrid-bot-ids <id1,id2,...>`
 - `--spot-grid-ids <id1,id2,...>`
-- `--format <md|compact>`
-- `--from <ISO8601>`
-- `--to <ISO8601>`
-- `--window <7d|30d|90d>`
+- `--format <md|compact|json>`
+- `--from <ISO8601>` period commands only: `summary`, `pnl`, `performance`, `bots`
+- `--to <ISO8601>` period commands only: `summary`, `pnl`, `performance`, `bots`
+- `--window <7d|30d|90d>` period commands only: `summary`, `pnl`, `performance`, `bots`
 - `--timeout-ms <number>`
 - `--positions-max-pages <number>`
 - `--executions-max-pages-per-chunk <number>`
@@ -187,6 +189,7 @@ Precedence rules:
 - General runtime fields: `CLI args -> profile (if applicable) -> env -> defaults`
 - Credentials: `profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
 - Time range: `--from + --to -> --window -> BYBIT_WINDOW -> default 30d window`
+- Live snapshot commands reject explicit historical intent from `--from`, `--to`, `--window`, and `BYBIT_WINDOW`
 - Ambient env loading can be disabled with `--no-env` or `BYBIT_DISABLE_ENV=1`
 
 Legacy hidden aliases are intentionally removed and not supported:
@@ -212,6 +215,21 @@ Output formats:
 
 - `md` - standard Markdown layout.
 - `compact` - lossless Markdown layout with tighter spacing (presentation-only; no row/text truncation).
+- `json` - versioned machine-readable envelope with report metadata, outcome classification, source freshness, stable sections, and structured `data`.
+
+## JSON Contract
+
+- `--format json` emits `report-json-v1`.
+- JSON includes:
+  - `jsonSchemaVersion`
+  - `reportSchemaVersion`
+  - `command`, `title`, `generatedAt`, `asOf`
+  - `outcome` (status, exit code, label, completeness class, health status)
+  - `dataCompleteness`
+  - `sources`
+  - `sections`
+  - `data` with machine-usable numeric/report payloads
+- `sources` entries expose provider/exchange context, `kind`, `fetchedAt`, optional `capturedAt`, optional `exchangeServerTime`, optional period window, and cache status when known.
 
 ## Credentials (Secure Default)
 

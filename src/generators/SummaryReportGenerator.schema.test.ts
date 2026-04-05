@@ -4,6 +4,7 @@ import { MarkdownRenderer } from "../renderers/MarkdownRenderer";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
 import type { ExecutionDataService } from "../services/contracts/ExecutionDataService";
 import type { BotDataService } from "../services/contracts/BotDataService";
+import type { PositionDataService } from "../services/contracts/PositionDataService";
 import type { IntegrationMode, MarketCategory } from "../types/domain.types";
 
 const BASE_CONTEXT = {
@@ -23,7 +24,7 @@ function createContext(category: MarketCategory, sourceMode: IntegrationMode = "
 }
 
 const accountService: AccountDataService = {
-  getAccountSnapshot: async (context) => {
+  getWalletSnapshot: async (context: ServiceRequestContext) => {
     if (context.sourceMode === "bot") {
       return {
         source: "bybit",
@@ -34,12 +35,11 @@ const accountService: AccountDataService = {
         walletBalanceUsd: 12_000,
         availableBalanceUsd: 9_500,
         unrealizedPnlUsd: 0,
-        positions: [],
         balances: [
           { asset: "USDT", walletBalance: 12_000, availableBalance: 9_500, usdValue: 12_000 }
         ],
         dataCompleteness: {
-          state: "degraded",
+          state: "partial_optional",
           partial: true,
           warnings: ["Bot equity source lagged by one polling interval"],
           issues: [
@@ -65,6 +65,77 @@ const accountService: AccountDataService = {
         walletBalanceUsd: 9_700,
         availableBalanceUsd: 7_000,
         unrealizedPnlUsd: 300,
+        balances: [
+          { asset: "USDT", walletBalance: 6_000, availableBalance: 4_500, usdValue: 6_000 },
+          { asset: "BTC", walletBalance: 0.08, availableBalance: 0.04, usdValue: 3_600 },
+          { asset: "ETH", walletBalance: 0.2, availableBalance: 0.1, usdValue: 400 }
+        ],
+        dataCompleteness: {
+          state: "complete",
+          partial: false,
+          warnings: [],
+          issues: []
+        }
+      };
+    }
+
+    if (context.category === "spot") {
+      return {
+        source: "bybit",
+        exchange: "bybit",
+        category: "spot",
+        capturedAt: "2026-01-31T00:00:00.000Z",
+        totalEquityUsd: 8_000,
+        walletBalanceUsd: 8_000,
+        availableBalanceUsd: 8_000,
+        unrealizedPnlUsd: 0,
+        balances: [
+          { asset: "USDT", walletBalance: 5_000, availableBalance: 5_000, usdValue: 5_000 },
+          { asset: "SOL", walletBalance: 30, availableBalance: 30, usdValue: 3_000 }
+        ],
+        dataCompleteness: {
+          state: "unsupported",
+          partial: true,
+          warnings: ["Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."],
+          issues: [
+            {
+              code: "unsupported_feature",
+              scope: "positions",
+              severity: "critical",
+              criticality: "critical",
+              message: "Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."
+            }
+          ]
+        }
+      };
+    }
+
+    throw new Error(`Unexpected category: ${context.category}`);
+  },
+  checkHealth: async () => ({
+    connectivity: "ok",
+    auth: "ok",
+    latencyMs: 1,
+    diagnostics: []
+  }),
+  getApiKeyPermissionInfo: async () => ({
+    apiKeyStatus: "present",
+    apiKeyDisplay: "<redacted>",
+    readOnly: true,
+    ipWhitelistRestricted: false,
+    ipWhitelistCount: 0,
+    ipWhitelistDisplay: "not configured",
+    permissions: {}
+  })
+};
+
+const positionService: PositionDataService = {
+  getOpenPositions: async (context) => {
+    if (context.category === "linear") {
+      return {
+        source: "bybit",
+        exchange: "bybit",
+        capturedAt: "2026-01-31T00:00:00.000Z",
         positions: [
           {
             source: "bybit",
@@ -103,11 +174,6 @@ const accountService: AccountDataService = {
             updatedAt: "2026-01-31T00:00:00.000Z"
           }
         ],
-        balances: [
-          { asset: "USDT", walletBalance: 6_000, availableBalance: 4_500, usdValue: 6_000 },
-          { asset: "BTC", walletBalance: 0.08, availableBalance: 0.04, usdValue: 3_600 },
-          { asset: "ETH", walletBalance: 0.2, availableBalance: 0.1, usdValue: 400 }
-        ],
         dataCompleteness: {
           state: "complete",
           partial: false,
@@ -117,55 +183,38 @@ const accountService: AccountDataService = {
       };
     }
 
-    if (context.category === "spot") {
-      return {
-        source: "bybit",
-        exchange: "bybit",
-        category: "spot",
-        capturedAt: "2026-01-31T00:00:00.000Z",
-        totalEquityUsd: 8_000,
-        walletBalanceUsd: 8_000,
-        availableBalanceUsd: 8_000,
-        unrealizedPnlUsd: 0,
-        positions: [],
-        balances: [
-          { asset: "USDT", walletBalance: 5_000, availableBalance: 5_000, usdValue: 5_000 },
-          { asset: "SOL", walletBalance: 30, availableBalance: 30, usdValue: 3_000 }
-        ],
-        dataCompleteness: {
-          state: "degraded",
-          partial: true,
-          warnings: ["Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."],
-          issues: [
-            {
-              code: "unsupported_feature",
-              scope: "positions",
-              severity: "critical",
-              criticality: "critical",
-              message: "Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."
+    return {
+      source: "bybit",
+      exchange: "bybit",
+      capturedAt: "2026-01-31T00:00:00.000Z",
+      positions: [],
+      dataCompleteness:
+        context.category === "spot"
+          ? {
+              state: "unsupported",
+              partial: true,
+              warnings: [
+                "Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."
+              ],
+              issues: [
+                {
+                  code: "unsupported_feature",
+                  scope: "positions",
+                  severity: "critical",
+                  criticality: "critical",
+                  message:
+                    "Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."
+                }
+              ]
             }
-          ]
-        }
-      };
-    }
-
-    throw new Error(`Unexpected category: ${context.category}`);
-  },
-  checkHealth: async () => ({
-    connectivity: "ok",
-    auth: "ok",
-    latencyMs: 1,
-    diagnostics: []
-  }),
-  getApiKeyPermissionInfo: async () => ({
-    apiKeyStatus: "present",
-    apiKeyDisplay: "<redacted>",
-    readOnly: true,
-    ipWhitelistRestricted: false,
-    ipWhitelistCount: 0,
-    ipWhitelistDisplay: "not configured",
-    permissions: {}
-  })
+          : {
+              state: "complete",
+              partial: false,
+              warnings: [],
+              issues: []
+            }
+    };
+  }
 };
 
 const executionService: ExecutionDataService = {
@@ -185,11 +234,15 @@ const executionService: ExecutionDataService = {
           fundingFeesUsd: -4
         },
         netPnlUsd: 439,
-        roiStatus: "supported",
-        roiUnsupportedReason: undefined,
+        endStateStatus: "unsupported",
+        endStateUnsupportedReason: "Historical period end-state is unavailable",
+        endStateUnsupportedReasonCode: "historical_end_state_unavailable",
+        roiStatus: "unsupported",
+        roiUnsupportedReason: "ending equity is unavailable for the requested period window",
+        roiUnsupportedReasonCode: "ending_equity_unavailable",
         roiStartEquityUsd: 10_000,
-        roiEndEquityUsd: 10_439,
-        roiPct: 4.39,
+        roiEndEquityUsd: undefined,
+        roiPct: undefined,
         bySymbol: [
           {
             symbol: "BTCUSDT",
@@ -230,11 +283,15 @@ const executionService: ExecutionDataService = {
           fundingFeesUsd: 0
         },
         netPnlUsd: 65,
-        roiStatus: "supported",
-        roiUnsupportedReason: undefined,
+        endStateStatus: "unsupported",
+        endStateUnsupportedReason: "Historical period end-state is unavailable",
+        endStateUnsupportedReasonCode: "historical_end_state_unavailable",
+        roiStatus: "unsupported",
+        roiUnsupportedReason: "ending equity is unavailable for the requested period window",
+        roiUnsupportedReasonCode: "ending_equity_unavailable",
         roiStartEquityUsd: 8_000,
-        roiEndEquityUsd: 8_065,
-        roiPct: 0.8125,
+        roiEndEquityUsd: undefined,
+        roiPct: undefined,
         bySymbol: [
           {
             symbol: "SOLUSDT",
@@ -267,16 +324,19 @@ const executionService: ExecutionDataService = {
         fundingFeesUsd: 0
       },
       netPnlUsd: 115,
+      endStateStatus: "unsupported",
+      endStateUnsupportedReason: "Historical period end-state is unavailable",
+      endStateUnsupportedReasonCode: "historical_end_state_unavailable",
       roiStatus: "unsupported",
       roiUnsupportedReason: "starting equity is unavailable for the requested period window",
       roiUnsupportedReasonCode: "starting_equity_unavailable",
       roiStartEquityUsd: undefined,
-      roiEndEquityUsd: 12_000,
+      roiEndEquityUsd: undefined,
       bySymbol: [],
       bestSymbols: [],
       worstSymbols: [],
       dataCompleteness: {
-        state: "degraded",
+        state: "partial_critical",
         partial: true,
         warnings: ["Execution history truncated at configured safety limit"],
         issues: [
@@ -344,7 +404,7 @@ const botService: BotDataService = {
 };
 
 async function generateByContext(category: MarketCategory, sourceMode: IntegrationMode = "market") {
-  const generator = new SummaryReportGenerator(accountService, executionService, botService);
+  const generator = new SummaryReportGenerator(accountService, executionService, positionService, botService);
   return generator.generate(createContext(category, sourceMode));
 }
 
@@ -408,7 +468,7 @@ describe("SummaryReportGenerator schema stability", () => {
       fallbackAlertsSection && fallbackAlertsSection.type === "alerts"
         ? fallbackAlertsSection.alerts[0]?.message
         : undefined
-    ).toBe("No active alerts");
+    ).toContain("Largest position exceeds");
 
     expect(SUMMARY_SECTION_CONTRACT.alerts.id).not.toBe(SUMMARY_SECTION_CONTRACT.dataCompleteness.id);
     expect(SUMMARY_SECTION_CONTRACT.alerts.title).not.toBe(SUMMARY_SECTION_CONTRACT.dataCompleteness.title);

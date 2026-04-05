@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { MemoryCacheStore } from "../cache/MemoryCacheStore";
 import type { ServiceRequestContext } from "../contracts/AccountDataService";
-import type { PositionDataService } from "../contracts/PositionDataService";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { BybitAccountService } from "./BybitAccountService";
 import { loadRealBybitFixture } from "./realFixtureLoader.test-util";
@@ -15,13 +14,6 @@ const context: ServiceRequestContext = {
   timeoutMs: 5_000
 };
 
-const completeDataCompleteness = {
-  state: "complete" as const,
-  partial: false,
-  warnings: [],
-  issues: []
-};
-
 describe("BybitAccountService real fixture contracts", () => {
   it("normalizes wallet-balance core capture into account snapshot contract", async () => {
     const walletFixture = await loadRealBybitFixture<Record<string, unknown>>("wallet-balance.unified.linear.core");
@@ -30,17 +22,8 @@ describe("BybitAccountService real fixture contracts", () => {
       getWalletBalance: async () => walletFixture
     } as unknown as BybitReadonlyClient;
 
-    const positionsService: PositionDataService = {
-      getOpenPositions: async () => ({
-        source: "bybit",
-        exchange: "bybit",
-        positions: [],
-        dataCompleteness: completeDataCompleteness
-      })
-    };
-
-    const service = new BybitAccountService(client, positionsService, new MemoryCacheStore());
-    const snapshot = await service.getAccountSnapshot(context);
+    const service = new BybitAccountService(client, new MemoryCacheStore());
+    const snapshot = await service.getWalletSnapshot(context);
 
     expect(snapshot.totalEquityUsd).toBeCloseTo(18452.6617);
     expect(snapshot.walletBalanceUsd).toBeCloseTo(17391.3311);
@@ -56,17 +39,8 @@ describe("BybitAccountService real fixture contracts", () => {
       getWalletBalance: async () => walletFixture
     } as unknown as BybitReadonlyClient;
 
-    const positionsService: PositionDataService = {
-      getOpenPositions: async () => ({
-        source: "bybit",
-        exchange: "bybit",
-        positions: [],
-        dataCompleteness: completeDataCompleteness
-      })
-    };
-
-    const service = new BybitAccountService(client, positionsService, new MemoryCacheStore());
-    const snapshot = await service.getAccountSnapshot(context);
+    const service = new BybitAccountService(client, new MemoryCacheStore());
+    const snapshot = await service.getWalletSnapshot(context);
 
     expect(snapshot.accountId).toBeUndefined();
     expect(snapshot.totalEquityUsd).toBe(0);
@@ -78,40 +52,18 @@ describe("BybitAccountService real fixture contracts", () => {
   it("tolerates malformed wallet fields without breaking account contract", async () => {
     const walletFixture = await loadRealBybitFixture<Record<string, unknown>>("wallet-balance.unified.linear.malformed");
 
-    const positionsService: PositionDataService = {
-      getOpenPositions: async () => ({
-        source: "bybit",
-        exchange: "bybit",
-        positions: [],
-        dataCompleteness: {
-          state: "degraded",
-          partial: true,
-          warnings: ["positions degraded"],
-          issues: [
-            {
-              code: "page_fetch_failed",
-              scope: "positions",
-              severity: "warning",
-              criticality: "optional",
-              message: "positions degraded"
-            }
-          ]
-        }
-      })
-    };
-
     const client = {
       getWalletBalance: async () => walletFixture
     } as unknown as BybitReadonlyClient;
 
-    const service = new BybitAccountService(client, positionsService, new MemoryCacheStore());
-    const snapshot = await service.getAccountSnapshot(context);
+    const service = new BybitAccountService(client, new MemoryCacheStore());
+    const snapshot = await service.getWalletSnapshot(context);
 
     expect(snapshot.totalEquityUsd).toBe(0);
     expect(snapshot.walletBalanceUsd).toBe(0);
     expect(snapshot.availableBalanceUsd).toBe(0);
-    expect(snapshot.balances.map((item) => item.asset)).toEqual(["77", "USDT"]);
-    expect(snapshot.balances[0]?.usdValue).toBeCloseTo(50.4);
+    expect(snapshot.balances).toEqual([]);
     expect(snapshot.dataCompleteness.partial).toBe(true);
+    expect(snapshot.dataCompleteness.state).toBe("unsupported");
   });
 });

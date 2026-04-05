@@ -62,7 +62,14 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
       "Category: linear",
       "Source mode: market",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
-      "ROI status: supported",
+      "Live snapshot as of: 2026-01-31T00:00:00.000Z",
+      "Live snapshot metrics: balance, holdings, exposure, risk, and open positions.",
+      "Period metrics: trading activity and realized PnL over the requested window.",
+      "Period end-state status: unsupported",
+      "Period end-state reason: Historical period end-state is unavailable",
+      "ROI status: unsupported",
+      "ROI unsupported code: ending_equity_unavailable",
+      "ROI unsupported reason: ending equity is unavailable for the requested period window",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
     "title": "Summary Contract",
@@ -76,12 +83,12 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
         "value": "$10,000.00",
       },
       {
-        "label": "Net PnL",
+        "label": "Realized Net PnL",
         "value": "$439.00",
       },
       {
         "label": "ROI",
-        "value": "4.39%",
+        "value": "unsupported",
       },
       {
         "label": "Gross Exposure",
@@ -351,7 +358,14 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
       "Category: spot",
       "Source mode: market",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
-      "ROI status: supported",
+      "Live snapshot as of: 2026-01-31T00:00:00.000Z",
+      "Live snapshot metrics: balance, holdings, exposure, risk, and open positions.",
+      "Period metrics: trading activity and realized PnL over the requested window.",
+      "Period end-state status: unsupported",
+      "Period end-state reason: Historical period end-state is unavailable",
+      "ROI status: unsupported",
+      "ROI unsupported code: ending_equity_unavailable",
+      "ROI unsupported reason: ending equity is unavailable for the requested period window",
       "Exposure/risk status: unsupported (Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.)",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
@@ -366,12 +380,12 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
         "value": "$8,000.00",
       },
       {
-        "label": "Net PnL",
+        "label": "Realized Net PnL",
         "value": "$65.00",
       },
       {
         "label": "ROI",
-        "value": "0.81%",
+        "value": "unsupported",
       },
       {
         "label": "Gross Exposure",
@@ -585,8 +599,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "alerts": [
       {
-        "message": "State: degraded",
-        "severity": "warning",
+        "message": "State: unsupported",
+        "severity": "critical",
       },
       {
         "message": "Issues: 1",
@@ -613,7 +627,14 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
       "Category: linear",
       "Source mode: bot",
       "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
-      "ROI status: supported",
+      "Live snapshot as of: 2026-01-31T00:00:00.000Z",
+      "Live snapshot metrics: balance, holdings, exposure, risk, and open positions.",
+      "Period metrics: trading activity and realized PnL over the requested window.",
+      "Period end-state status: unsupported",
+      "Period end-state reason: Historical period end-state is unavailable",
+      "ROI status: unsupported",
+      "ROI unsupported code: ending_equity_unavailable",
+      "ROI unsupported reason: ending equity is unavailable for the requested period window",
       "All summary section IDs, order, and section types are stable across categories.",
     ],
     "title": "Summary Contract",
@@ -627,20 +648,20 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
         "value": "$12,000.00",
       },
       {
-        "label": "Net PnL",
+        "label": "Realized Net PnL",
         "value": "$439.00",
       },
       {
         "label": "ROI",
-        "value": "4.39%",
+        "value": "unsupported",
       },
       {
         "label": "Gross Exposure",
-        "value": "$0.00",
+        "value": "$7,950.00",
       },
       {
         "label": "Risk Alerts",
-        "value": "0",
+        "value": "1",
       },
       {
         "label": "Tracked Bots",
@@ -709,19 +730,19 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
     "kpis": [
       {
         "label": "Long",
-        "value": "$0.00",
+        "value": "$5,400.00",
       },
       {
         "label": "Short",
-        "value": "$0.00",
+        "value": "$2,550.00",
       },
       {
         "label": "Net",
-        "value": "$0.00",
+        "value": "$2,850.00",
       },
       {
         "label": "Concentration Band",
-        "value": "low",
+        "value": "high",
       },
     ],
     "title": "Exposure",
@@ -732,15 +753,15 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
     "kpis": [
       {
         "label": "Weighted Avg Leverage",
-        "value": "0.00x",
+        "value": "2.68x",
       },
       {
         "label": "Max Leverage",
-        "value": "0.00x",
+        "value": "3.00x",
       },
       {
         "label": "Notional / Equity",
-        "value": "0.00%",
+        "value": "66.25%",
       },
       {
         "label": "Unrealized Loss / Equity",
@@ -765,7 +786,24 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
         "Leverage",
         "Price Source",
       ],
-      "rows": [],
+      "rows": [
+        [
+          "BTCUSDT",
+          "long",
+          "$5,400.00",
+          "$120.00",
+          "3.00x",
+          "mark",
+        ],
+        [
+          "ETHUSDT",
+          "short",
+          "-$2,550.00",
+          "$60.00",
+          "2.00x",
+          "mark",
+        ],
+      ],
     },
     "title": "Open Positions",
     "type": "table",
@@ -846,8 +884,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "alerts": [
       {
-        "message": "No active alerts",
-        "severity": "info",
+        "message": "Largest position exceeds 35% of equity",
+        "severity": "warning",
       },
     ],
     "id": "summary.alerts",
@@ -857,7 +895,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "alerts": [
       {
-        "message": "State: degraded",
+        "message": "State: partial_optional",
         "severity": "warning",
       },
       {

@@ -6,6 +6,7 @@ import type { ServiceRequestContext } from "../services/contracts/AccountDataSer
 import { fmtUsd } from "./formatters";
 import { buildDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
 import { getUnsupportedFeatureIssueMessage } from "../services/reliability/dataCompleteness";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const POSITIONS_SCHEMA_VERSION = "positions-markdown-v1";
 
@@ -34,6 +35,7 @@ export class PositionsReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const positionsResult = await this.positionsService.getOpenPositions(context);
+    const generatedAt = new Date().toISOString();
     const unsupportedMessage = getUnsupportedFeatureIssueMessage(positionsResult.dataCompleteness, "positions");
     if (unsupportedMessage) {
       const sections: ReportDocument["sections"] = [
@@ -69,9 +71,26 @@ export class PositionsReportGenerator {
         command: "positions",
         title: "Positions Analytics",
         schemaVersion: POSITIONS_SCHEMA_VERSION,
-        generatedAt: new Date().toISOString(),
+        generatedAt,
+        asOf: positionsResult.capturedAt,
         sections,
-        dataCompleteness: positionsResult.dataCompleteness
+        dataCompleteness: positionsResult.dataCompleteness,
+        sources: [
+          createSourceMetadata({
+            id: "positions_snapshot",
+            kind: "positions_snapshot",
+            provider: positionsResult.source,
+            exchange: positionsResult.exchange,
+            category: context.category,
+            sourceMode: context.sourceMode,
+            fetchedAt: positionsResult.capturedAt,
+            capturedAt: positionsResult.capturedAt
+          })
+        ],
+        data: {
+          unsupportedReason: unsupportedMessage,
+          positions: []
+        }
       };
     }
 
@@ -127,9 +146,33 @@ export class PositionsReportGenerator {
       command: "positions",
       title: "Positions Analytics",
       schemaVersion: POSITIONS_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
+      asOf: positionsResult.capturedAt,
       sections,
-      dataCompleteness: positionsResult.dataCompleteness
+      dataCompleteness: positionsResult.dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "positions_snapshot",
+          kind: "positions_snapshot",
+          provider: positionsResult.source,
+          exchange: positionsResult.exchange,
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: positionsResult.capturedAt,
+          capturedAt: positionsResult.capturedAt
+        })
+      ],
+      data: {
+        positions: analysis.positions,
+        summary: {
+          totalPositions: analysis.totalPositions,
+          longCount: analysis.longCount,
+          shortCount: analysis.shortCount,
+          totalNotionalUsd: analysis.totalNotionalUsd
+        },
+        largestPositions: analysis.largestPositions,
+        priceSourceAlert: analysis.priceSourceAlert
+      }
     };
   }
 }

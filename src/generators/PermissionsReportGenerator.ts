@@ -1,7 +1,9 @@
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
+import { unsupportedDataCompleteness } from "../services/reliability/dataCompleteness";
 import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
 import { buildUnsupportedDataCompletenessAlerts, createSectionBuilder } from "./reportContract";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const PERMISSIONS_SCHEMA_VERSION = "permissions-markdown-v1";
 
@@ -33,6 +35,10 @@ export class PermissionsReportGenerator {
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
     const info = await this.accountService.getApiKeyPermissionInfo(context);
+    const generatedAt = new Date().toISOString();
+    const dataCompleteness = unsupportedDataCompleteness(
+      "Data completeness is not tracked for API permission metadata reports."
+    );
     const permissionRows = Object.entries(info.permissions)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([scope, values]) => [scope, [...values].sort((left, right) => left.localeCompare(right)).join(", ") || "<none>"]);
@@ -71,7 +77,24 @@ export class PermissionsReportGenerator {
       command: "permissions",
       title: "API Key Permissions",
       schemaVersion: PERMISSIONS_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
+      asOf: generatedAt,
+      dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "api_key_permissions",
+          kind: "api_key_permissions",
+          provider: "bybit",
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: generatedAt
+        })
+      ],
+      data: {
+        info,
+        botReadiness,
+        hasTradePermissions
+      },
       sections: [
         section("summary", {
           kpis: [
@@ -103,9 +126,7 @@ export class PermissionsReportGenerator {
           text: notes
         }),
         section("dataCompleteness", {
-          alerts: buildUnsupportedDataCompletenessAlerts(
-            "Data completeness is not tracked for API permission metadata reports."
-          )
+          alerts: buildUnsupportedDataCompletenessAlerts(dataCompleteness.warnings[0]!)
         })
       ]
     };

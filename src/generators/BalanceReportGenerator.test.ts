@@ -23,7 +23,7 @@ const spotContext: ServiceRequestContext = {
 describe("BalanceReportGenerator", () => {
   it("renders neutral asset balance fields in bot source mode", async () => {
     const accountService: AccountDataService = {
-      getAccountSnapshot: async () => ({
+      getWalletSnapshot: async () => ({
         source: "bybit",
         exchange: "bybit",
         category: "linear",
@@ -32,7 +32,6 @@ describe("BalanceReportGenerator", () => {
         walletBalanceUsd: 2_400,
         availableBalanceUsd: 2_100,
         unrealizedPnlUsd: 50,
-        positions: [],
         balances: [{ asset: "USDT", walletBalance: 2_400, availableBalance: 2_100, usdValue: 2_450 }],
         dataCompleteness: {
           state: "complete",
@@ -78,7 +77,7 @@ describe("BalanceReportGenerator", () => {
 
   it("does not propagate spot exposure/risk unsupported issue into balance data completeness", async () => {
     const accountService: AccountDataService = {
-      getAccountSnapshot: async () => ({
+      getWalletSnapshot: async () => ({
         source: "bybit",
         exchange: "bybit",
         category: "spot",
@@ -87,10 +86,9 @@ describe("BalanceReportGenerator", () => {
         walletBalanceUsd: 1_000,
         availableBalanceUsd: 1_000,
         unrealizedPnlUsd: 0,
-        positions: [],
         balances: [{ asset: "USDT", walletBalance: 1_000, availableBalance: 1_000, usdValue: 1_000 }],
         dataCompleteness: {
-          state: "degraded",
+          state: "unsupported",
           partial: true,
           warnings: ["Spot market exposure/risk is unsupported."],
           issues: [
@@ -128,7 +126,7 @@ describe("BalanceReportGenerator", () => {
 
   it("does not propagate ROI-only equity-history unsupported issue into balance data completeness", async () => {
     const accountService: AccountDataService = {
-      getAccountSnapshot: async () => ({
+      getWalletSnapshot: async () => ({
         source: "bybit",
         exchange: "bybit",
         category: "linear",
@@ -137,10 +135,9 @@ describe("BalanceReportGenerator", () => {
         walletBalanceUsd: 1_200,
         availableBalanceUsd: 1_100,
         unrealizedPnlUsd: 50,
-        positions: [],
         balances: [{ asset: "USDT", walletBalance: 1_250, availableBalance: 1_100, usdValue: 1_250 }],
         dataCompleteness: {
-          state: "degraded",
+          state: "unsupported",
           partial: true,
           warnings: ["ROI and capital efficiency are unsupported: historical equity source is unavailable."],
           issues: [

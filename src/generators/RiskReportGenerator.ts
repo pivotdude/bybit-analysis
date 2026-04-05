@@ -1,5 +1,7 @@
 import { RiskAnalyzer } from "../analyzers/orchestrators/RiskAnalyzer";
 import type { AccountDataService, ServiceRequestContext } from "../services/contracts/AccountDataService";
+import type { PositionDataService } from "../services/contracts/PositionDataService";
+import { composeAccountSnapshot } from "../services/contracts/accountSnapshot";
 import type { ReportDocument } from "../types/report.types";
 import type { ReportSectionType } from "../types/report.types";
 import { fmtPct, fmtUsd } from "./formatters";
@@ -8,6 +10,7 @@ import {
   filterDataCompletenessIssues,
   getUnsupportedFeatureIssueMessage
 } from "../services/reliability/dataCompleteness";
+import { createSourceMetadata } from "./sourceMetadata";
 
 export const RISK_SCHEMA_VERSION = "risk-markdown-v1";
 
@@ -32,10 +35,16 @@ const section = createSectionBuilder(RISK_SECTION_CONTRACT);
 export class RiskReportGenerator {
   private readonly analyzer = new RiskAnalyzer();
 
-  constructor(private readonly accountService: AccountDataService) {}
+  constructor(
+    private readonly accountService: AccountDataService,
+    private readonly positionService: PositionDataService
+  ) {}
 
   async generate(context: ServiceRequestContext): Promise<ReportDocument> {
-    const account = await this.accountService.getAccountSnapshot(context);
+    const walletSnapshot = await this.accountService.getWalletSnapshot(context);
+    const positionsResult = await this.positionService.getOpenPositions(context);
+    const account = composeAccountSnapshot(walletSnapshot, positionsResult);
+    const generatedAt = new Date().toISOString();
     const dataCompleteness = filterDataCompletenessIssues(
       account.dataCompleteness,
       (issue) => !(issue.code === "unsupported_feature" && issue.scope === "equity_history")
@@ -77,9 +86,35 @@ export class RiskReportGenerator {
         command: "risk",
         title: "Risk Analytics",
         schemaVersion: RISK_SCHEMA_VERSION,
-        generatedAt: new Date().toISOString(),
+        generatedAt,
+        asOf: account.capturedAt,
         sections,
-        dataCompleteness
+        dataCompleteness,
+        sources: [
+          createSourceMetadata({
+            id: "wallet_snapshot",
+            kind: "wallet_snapshot",
+            provider: account.source,
+            exchange: account.exchange,
+            category: account.category,
+            sourceMode: context.sourceMode,
+            fetchedAt: account.capturedAt,
+            capturedAt: account.capturedAt
+          }),
+          createSourceMetadata({
+            id: "positions_snapshot",
+            kind: "positions_snapshot",
+            provider: positionsResult.source,
+            exchange: positionsResult.exchange,
+            category: context.category,
+            sourceMode: context.sourceMode,
+            fetchedAt: positionsResult.capturedAt,
+            capturedAt: positionsResult.capturedAt
+          })
+        ],
+        data: {
+          unsupportedReason: unsupportedMessage
+        }
       };
     }
 
@@ -122,9 +157,33 @@ export class RiskReportGenerator {
       command: "risk",
       title: "Risk Analytics",
       schemaVersion: RISK_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
+      asOf: account.capturedAt,
       sections,
-      dataCompleteness
+      dataCompleteness,
+      sources: [
+        createSourceMetadata({
+          id: "wallet_snapshot",
+          kind: "wallet_snapshot",
+          provider: account.source,
+          exchange: account.exchange,
+          category: account.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: account.capturedAt,
+          capturedAt: account.capturedAt
+        }),
+        createSourceMetadata({
+          id: "positions_snapshot",
+          kind: "positions_snapshot",
+          provider: positionsResult.source,
+          exchange: positionsResult.exchange,
+          category: context.category,
+          sourceMode: context.sourceMode,
+          fetchedAt: positionsResult.capturedAt,
+          capturedAt: positionsResult.capturedAt
+        })
+      ],
+      data: report
     };
   }
 }

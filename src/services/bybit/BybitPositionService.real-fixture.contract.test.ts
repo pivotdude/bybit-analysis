@@ -59,12 +59,9 @@ describe("BybitPositionService real fixture contracts", () => {
     const service = new BybitPositionService(client, new MemoryCacheStore());
     const result = await service.getOpenPositions(context);
 
-    expect(result.positions).toHaveLength(1);
-    expect(result.positions[0]?.symbol).toBe("UNKNOWN");
-    expect(result.positions[0]?.side).toBe("short");
-    expect(result.positions[0]?.quantity).toBe(2);
-    expect(result.positions[0]?.leverage).toBe(1);
-    expect(result.positions[0]?.valuationPrice).toBe(0.9);
+    expect(result.positions).toEqual([]);
+    expect(result.dataCompleteness.state).toBe("partial_critical");
+    expect(result.dataCompleteness.issues[0]?.code).toBe("invalid_payload_row");
   });
 
   it("returns partial position data when a later page fails after fixture-backed page 1", async () => {

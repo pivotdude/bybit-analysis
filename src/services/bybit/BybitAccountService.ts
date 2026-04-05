@@ -4,12 +4,11 @@ import type {
   HealthCheckResult,
   ServiceRequestContext
 } from "../contracts/AccountDataService";
-import type { PositionDataService } from "../contracts/PositionDataService";
 import type { CacheStore } from "../cache/CacheStore";
 import { cacheKeys } from "../cache/cacheKeys";
 import type { BybitReadonlyClient } from "./BybitClientFactory";
 import { normalizeAccountSnapshot } from "./normalizers/accountSnapshot.normalizer";
-import type { AccountSnapshot } from "../../types/domain.types";
+import type { LiveAccountSnapshot } from "../../types/domain.types";
 import { redactIpWhitelist, redactSecretValue } from "../../security/redaction";
 import {
   buildUnsupportedFeatureIssue,
@@ -23,7 +22,7 @@ const API_KEY_INFO_TTL_MS = 15_000;
 const ROI_CAPITAL_EFFICIENCY_UNSUPPORTED_MESSAGE =
   "ROI and capital efficiency are unsupported: historical equity source is unavailable in Bybit account snapshots.";
 
-function withExplicitRoiUnsupported(snapshot: AccountSnapshot): AccountSnapshot {
+function withExplicitRoiUnsupported(snapshot: LiveAccountSnapshot): LiveAccountSnapshot {
   const hasEquityHistory = Array.isArray(snapshot.equityHistory) && snapshot.equityHistory.length > 0;
   if (hasEquityHistory) {
     return snapshot;
@@ -46,11 +45,10 @@ function withExplicitRoiUnsupported(snapshot: AccountSnapshot): AccountSnapshot 
 export class BybitAccountService implements AccountDataService {
   constructor(
     private readonly client: BybitReadonlyClient,
-    private readonly positionsService: PositionDataService,
     private readonly cache: CacheStore
   ) {}
 
-  async getAccountSnapshot(context: ServiceRequestContext): Promise<AccountSnapshot> {
+  async getWalletSnapshot(context: ServiceRequestContext): Promise<LiveAccountSnapshot> {
     const key = cacheKeys.walletBalance(context.category);
     const cached = this.cache.get<unknown>(key);
 
@@ -65,13 +63,10 @@ export class BybitAccountService implements AccountDataService {
       this.cache.set(key, walletPayload, WALLET_TTL_MS);
     }
 
-    const positionsResult = await this.positionsService.getOpenPositions(context);
     return withExplicitRoiUnsupported(
       normalizeAccountSnapshot(
         walletPayload,
-        context.category,
-        positionsResult.positions,
-        positionsResult.dataCompleteness
+        context.category
       )
     );
   }

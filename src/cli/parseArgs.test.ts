@@ -63,10 +63,10 @@ describe("parseArgs CLI conventions", () => {
     },
     {
       name: "applies last-value-wins for repeated scalar options",
-      argv: ["summary", "--format", "md", "--format", "compact"],
+      argv: ["summary", "--format", "md", "--format", "json"],
       assert: (parsed) => {
         expect(parsed.errors).toEqual([]);
-        expect(parsed.options.format).toBe("compact");
+        expect(parsed.options.format).toBe("json");
       }
     },
     {
@@ -121,6 +121,8 @@ describe("renderHelp", () => {
     expect(help).toContain("--no-env  disable ambient BYBIT_* env resolution for deterministic runs");
     expect(help).toContain("BYBIT_ALLOW_INSECURE_CLI_SECRETS=1");
     expect(help).toContain("--config-diagnostics  show expanded config diagnostics (sensitive identifiers)");
+    expect(help).toContain("--format <md|compact|json>");
+    expect(help).toContain("json emits a versioned machine-readable report document");
     expect(help).toContain("BYBIT_CONFIG_DIAGNOSTICS=1 enables expanded config details");
     expect(help).toContain("BYBIT_DISABLE_ENV=1 disables ambient BYBIT_* env loading");
     expect(help).not.toContain("--lang");
@@ -130,7 +132,15 @@ describe("renderHelp", () => {
     const help = renderHelp("summary");
 
     expect(help).toContain("# bybit-analysis summary");
+    expect(help).toContain("Command type: period analytics");
     expect(help).toContain("bybit-analysis summary [options]");
     expect(help).toContain("CLI conventions:");
+  });
+
+  it("documents live snapshot commands as rejecting historical time flags", () => {
+    const help = renderHelp("balance");
+
+    expect(help).toContain("Command type: live snapshot");
+    expect(help).toContain("period commands only: summary, pnl, performance, bots");
   });
 });

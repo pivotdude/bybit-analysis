@@ -29,12 +29,15 @@ describe("PerformanceReportGenerator", () => {
             tradingFeesUsd: 0,
             fundingFeesUsd: 0
           },
-          netPnlUsd: 100,
-          roiStatus: "unsupported",
-          roiUnsupportedReason: "starting equity is unavailable for the requested period window",
-          roiUnsupportedReasonCode: "starting_equity_unavailable",
-          roiStartEquityUsd: undefined,
-          roiEndEquityUsd: 1_000,
+        netPnlUsd: 100,
+        endStateStatus: "unsupported",
+        endStateUnsupportedReason: "Historical period end-state is unavailable",
+        endStateUnsupportedReasonCode: "historical_end_state_unavailable",
+        roiStatus: "unsupported",
+        roiUnsupportedReason: "starting equity is unavailable for the requested period window",
+        roiUnsupportedReasonCode: "starting_equity_unavailable",
+        roiStartEquityUsd: undefined,
+        roiEndEquityUsd: undefined,
           bySymbol: [],
           bestSymbols: [],
           worstSymbols: [],
@@ -49,7 +52,7 @@ describe("PerformanceReportGenerator", () => {
     };
 
     const accountService: AccountDataService = {
-      getAccountSnapshot: async () => ({
+      getWalletSnapshot: async () => ({
         source: "bybit",
         exchange: "bybit",
         category: "linear",
@@ -58,7 +61,6 @@ describe("PerformanceReportGenerator", () => {
         walletBalanceUsd: 1_000,
         availableBalanceUsd: 1_000,
         unrealizedPnlUsd: 17,
-        positions: [],
         balances: [],
         dataCompleteness: {
           state: "complete",
@@ -91,9 +93,8 @@ describe("PerformanceReportGenerator", () => {
     expect(section?.type).toBe("kpi");
     expect(section && section.type === "kpi" ? section.kpis[0]?.value : undefined).toBe("unsupported");
     expect(section && section.type === "kpi" ? section.kpis[1]?.value : undefined).toBe("unsupported");
-    expect(pnlRequest?.accountSnapshot?.unrealizedPnlUsd).toBe(17);
+    expect(pnlRequest?.endingState).toBeUndefined();
     expect(pnlRequest?.equityStartUsd).toBeUndefined();
-    expect(pnlRequest?.equityEndUsd).toBe(1_000);
     expect(pnlRequest?.roiMissingStartReason).toBe("equity history is unavailable");
     expect(pnlRequest?.roiMissingStartReasonCode).toBe("equity_history_unavailable");
     expect(pnlRequest?.context).toEqual(context);
@@ -113,11 +114,15 @@ describe("PerformanceReportGenerator", () => {
           fundingFeesUsd: 0
         },
         netPnlUsd: 100,
-        roiStatus: "supported",
-        roiUnsupportedReason: undefined,
+        endStateStatus: "unsupported",
+        endStateUnsupportedReason: "Historical period end-state is unavailable",
+        endStateUnsupportedReasonCode: "historical_end_state_unavailable",
+        roiStatus: "unsupported",
+        roiUnsupportedReason: "ending equity is unavailable for the requested period window",
+        roiUnsupportedReasonCode: "ending_equity_unavailable",
         roiStartEquityUsd: 1_000,
-        roiEndEquityUsd: 1_100,
-        roiPct: 10,
+        roiEndEquityUsd: undefined,
+        roiPct: undefined,
         bySymbol: [],
         bestSymbols: [],
         worstSymbols: [],
@@ -131,7 +136,7 @@ describe("PerformanceReportGenerator", () => {
     };
 
     const accountService: AccountDataService = {
-      getAccountSnapshot: async () => ({
+      getWalletSnapshot: async () => ({
         source: "bybit",
         exchange: "bybit",
         category: "spot",
@@ -140,10 +145,9 @@ describe("PerformanceReportGenerator", () => {
         walletBalanceUsd: 1_100,
         availableBalanceUsd: 1_100,
         unrealizedPnlUsd: 0,
-        positions: [],
         balances: [],
         dataCompleteness: {
-          state: "degraded",
+          state: "unsupported",
           partial: true,
           warnings: ["Spot market exposure/risk is unsupported."],
           issues: [

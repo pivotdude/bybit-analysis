@@ -7,7 +7,7 @@ export type DataSource = "bybit" | "freqtrade" | "portfolio";
 export type PriceSource = "mark" | "last" | "index";
 export type ExchangeId = "bybit" | (string & {});
 
-export interface AccountSnapshot {
+export interface LiveAccountSnapshot {
   source: DataSource;
   exchange: ExchangeId;
   category: MarketCategory;
@@ -21,9 +21,12 @@ export interface AccountSnapshot {
   totalMaintenanceMarginUsd?: number;
   unrealizedPnlUsd: number;
   equityHistory?: EquitySnapshot[];
-  positions: Position[];
   balances: AssetBalance[];
   dataCompleteness: DataCompleteness;
+}
+
+export interface AccountSnapshot extends LiveAccountSnapshot {
+  positions: Position[];
 }
 
 export interface EquitySnapshot {
@@ -89,6 +92,22 @@ export interface RoiContract {
   roiPct?: number;
 }
 
+export type HistoricalBoundarySupportStatus = "supported" | "unsupported";
+export type HistoricalBoundaryUnsupportedReasonCode = "historical_end_state_unavailable";
+
+export interface HistoricalBoundaryState {
+  asOf: string;
+  totalEquityUsd: number;
+  unrealizedPnlUsd?: number;
+}
+
+export interface HistoricalBoundaryContract {
+  endStateStatus: HistoricalBoundarySupportStatus;
+  endState?: HistoricalBoundaryState;
+  endStateUnsupportedReason?: string;
+  endStateUnsupportedReasonCode?: HistoricalBoundaryUnsupportedReasonCode;
+}
+
 export interface SymbolPnL {
   symbol: string;
   realizedPnlUsd: number;
@@ -97,10 +116,17 @@ export interface SymbolPnL {
   tradesCount?: number;
 }
 
-export type DataCompletenessState = "complete" | "degraded";
+export type DataCompletenessState =
+  | "complete"
+  | "partial_optional"
+  | "partial_critical"
+  | "unsupported"
+  | "failed";
 export type DataCriticality = "critical" | "optional";
 export type DataCompletenessIssueSeverity = "warning" | "critical";
 export type DataCompletenessIssueCode =
+  | "invalid_payload_field"
+  | "invalid_payload_row"
   | "optional_item_failed"
   | "page_fetch_failed"
   | "pagination_limit_reached"
@@ -109,6 +135,7 @@ export type DataCompletenessIssueCode =
   | "invalid_request_window";
 export type DataCompletenessScope =
   | "unknown"
+  | "wallet_snapshot"
   | "bots"
   | "positions"
   | "closed_pnl"
@@ -131,7 +158,7 @@ export interface DataCompleteness {
   issues: DataCompletenessIssue[];
 }
 
-export interface PnLReport extends RoiContract {
+export interface PnLReport extends RoiContract, HistoricalBoundaryContract {
   source: DataSource;
   generatedAt: string;
   periodFrom: string;

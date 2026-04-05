@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { CLI_EXIT_CODE, classifyReportExitCode, classifyReportOutcome } from "./exitCodes";
+import { completeDataCompleteness } from "../services/reliability/dataCompleteness";
 import type { ReportDocument } from "../types/report.types";
+import { CLI_EXIT_CODE, classifyReportExitCode, classifyReportOutcome } from "./exitCodes";
 
 function baseReport(overrides: Partial<ReportDocument> = {}): ReportDocument {
   return {
@@ -9,6 +10,7 @@ function baseReport(overrides: Partial<ReportDocument> = {}): ReportDocument {
     generatedAt: "2026-01-01T00:00:00.000Z",
     schemaVersion: "test-v1",
     sections: [],
+    dataCompleteness: completeDataCompleteness(),
     ...overrides
   };
 }
@@ -19,25 +21,46 @@ describe("classifyReportExitCode", () => {
     expect(classifyReportExitCode(report)).toBe(CLI_EXIT_CODE.SUCCESS);
   });
 
-  it("returns partial-data exit code for degraded reports", () => {
+  it("returns optional-partial exit code for optional degradation", () => {
     const report = baseReport({
       dataCompleteness: {
-        state: "degraded",
+        state: "partial_optional",
         partial: true,
-        warnings: ["Position pagination limit reached"],
+        warnings: ["Optional bot enrichment failed"],
         issues: [
           {
-            code: "pagination_limit_reached",
-            scope: "positions",
+            code: "optional_item_failed",
+            scope: "bots",
             severity: "warning",
-            criticality: "critical",
-            message: "Position pagination limit reached"
+            criticality: "optional",
+            message: "Optional bot enrichment failed"
           }
         ]
       }
     });
 
-    expect(classifyReportExitCode(report)).toBe(CLI_EXIT_CODE.PARTIAL_DATA);
+    expect(classifyReportExitCode(report)).toBe(CLI_EXIT_CODE.PARTIAL_OPTIONAL);
+  });
+
+  it("returns critical-incomplete exit code for unsupported analytics", () => {
+    const report = baseReport({
+      dataCompleteness: {
+        state: "unsupported",
+        partial: true,
+        warnings: ["Spot exposure analytics are unsupported"],
+        issues: [
+          {
+            code: "unsupported_feature",
+            scope: "positions",
+            severity: "critical",
+            criticality: "critical",
+            message: "Spot exposure analytics are unsupported"
+          }
+        ]
+      }
+    });
+
+    expect(classifyReportExitCode(report)).toBe(CLI_EXIT_CODE.CRITICAL_INCOMPLETE);
   });
 
   it("returns health-failed exit code for failed health reports", () => {
@@ -54,7 +77,7 @@ describe("classifyReportExitCode", () => {
       command: "health",
       healthStatus: "failed",
       dataCompleteness: {
-        state: "degraded",
+        state: "partial_critical",
         partial: true,
         warnings: ["placeholder"],
         issues: [
@@ -80,24 +103,23 @@ describe("classifyReportOutcome", () => {
       status: "success",
       exitCode: CLI_EXIT_CODE.SUCCESS,
       exitCodeLabel: "success",
-      dataCompletenessState: "unsupported",
-      partialData: "unsupported",
+      dataCompletenessState: "complete",
       healthStatus: "n/a"
     });
   });
 
-  it("returns deterministic degraded metadata for partial report", () => {
+  it("returns deterministic optional-partial metadata for optional report", () => {
     const report = baseReport({
       dataCompleteness: {
-        state: "degraded",
+        state: "partial_optional",
         partial: true,
         warnings: ["partial snapshot"],
         issues: [
           {
-            code: "pagination_limit_reached",
-            scope: "positions",
+            code: "optional_item_failed",
+            scope: "bots",
             severity: "warning",
-            criticality: "critical",
+            criticality: "optional",
             message: "partial snapshot"
           }
         ]
@@ -105,11 +127,10 @@ describe("classifyReportOutcome", () => {
     });
 
     expect(classifyReportOutcome(report)).toEqual({
-      status: "degraded_success",
-      exitCode: CLI_EXIT_CODE.PARTIAL_DATA,
-      exitCodeLabel: "partial_data",
-      dataCompletenessState: "degraded",
-      partialData: true,
+      status: "partial_optional",
+      exitCode: CLI_EXIT_CODE.PARTIAL_OPTIONAL,
+      exitCodeLabel: "partial_optional",
+      dataCompletenessState: "partial_optional",
       healthStatus: "n/a"
     });
   });
@@ -124,8 +145,7 @@ describe("classifyReportOutcome", () => {
       status: "failed",
       exitCode: CLI_EXIT_CODE.HEALTH_CHECK_FAILED,
       exitCodeLabel: "health_check_failed",
-      dataCompletenessState: "unsupported",
-      partialData: "unsupported",
+      dataCompletenessState: "complete",
       healthStatus: "failed"
     });
   });

@@ -14,7 +14,7 @@ const context: ServiceRequestContext = {
 describe("PermissionsReportGenerator", () => {
   it("prints only redacted API key and whitelist summary", async () => {
     const accountService: AccountDataService = {
-      async getAccountSnapshot() {
+      async getWalletSnapshot() {
         throw new Error("not used");
       },
       async checkHealth() {
@@ -52,7 +52,7 @@ describe("PermissionsReportGenerator", () => {
 
   it("sorts permission scopes and values deterministically", async () => {
     const accountService: AccountDataService = {
-      async getAccountSnapshot() {
+      async getWalletSnapshot() {
         throw new Error("not used");
       },
       async checkHealth() {

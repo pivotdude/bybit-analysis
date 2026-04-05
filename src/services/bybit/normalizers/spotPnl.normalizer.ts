@@ -1,5 +1,10 @@
 import type Decimal from "decimal.js";
-import type { PnLReport, RoiUnsupportedReasonCode, SymbolPnL } from "../../../types/domain.types";
+import type {
+  HistoricalBoundaryState,
+  PnLReport,
+  RoiUnsupportedReasonCode,
+  SymbolPnL
+} from "../../../types/domain.types";
 import { dec, decUnknown, safeDiv, toFiniteNumber } from "../../math/decimal";
 import { completeDataCompleteness, degradedDataCompleteness } from "../../reliability/dataCompleteness";
 import { normalizeRoi } from "../../normalizers/roi.normalizer";
@@ -151,7 +156,7 @@ export function normalizeSpotPnlReport(
   periodFrom: string,
   periodTo: string,
   equityStartUsd?: number,
-  equityEndUsd?: number,
+  endingState?: HistoricalBoundaryState,
   options: SpotPnlNormalizationOptions = {},
   roiMissingStartReason?: string,
   roiMissingStartReasonCode?: RoiUnsupportedReasonCode
@@ -285,7 +290,7 @@ export function normalizeSpotPnlReport(
   const netPnlUsd = toFiniteNumber(realizedPnlUsd.minus(tradingFeesUsd));
   const roi = normalizeRoi({
     equityStartUsd,
-    equityEndUsd,
+    equityEndUsd: endingState?.totalEquityUsd,
     missingStartReason: roiMissingStartReason,
     missingStartReasonCode: roiMissingStartReasonCode
   });
@@ -331,6 +336,12 @@ export function normalizeSpotPnlReport(
       fundingFeesUsd: 0
     },
     netPnlUsd,
+    endStateStatus: endingState ? "supported" : "unsupported",
+    endState: endingState,
+    endStateUnsupportedReason: endingState
+      ? undefined
+      : "Historical period end-state is unavailable: period end unrealized PnL and ending-equity metrics are unsupported.",
+    endStateUnsupportedReasonCode: endingState ? undefined : "historical_end_state_unavailable",
     ...roi,
     bySymbol,
     bestSymbols: bySymbol.slice(0, 5),

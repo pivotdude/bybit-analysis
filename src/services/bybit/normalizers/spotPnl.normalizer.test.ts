@@ -38,7 +38,10 @@ describe("normalizeSpotPnlReport", () => {
       periodFrom,
       periodTo,
       1_000,
-      1_100
+      {
+        asOf: periodTo,
+        totalEquityUsd: 1_100
+      }
     );
 
     expect(report.roiStatus).toBe("supported");
@@ -172,6 +175,7 @@ describe("normalizeSpotPnlReport", () => {
     expect(report.netPnlUsd).toBe(0);
     expect(report.fees.tradingFeesUsd).toBe(0);
     expect(report.bySymbol).toEqual([]);
+    expect(report.dataCompleteness.state).toBe("unsupported");
     expect(report.dataCompleteness.partial).toBe(true);
     expect(
       report.dataCompleteness.issues.some(
@@ -199,6 +203,7 @@ describe("normalizeSpotPnlReport", () => {
     expect(report.realizedPnlUsd).toBeCloseTo(20);
     expect(report.fees.tradingFeesUsd).toBe(0);
     expect(report.bySymbol[0]?.netPnlUsd).toBeCloseTo(20);
+    expect(report.dataCompleteness.state).toBe("unsupported");
     expect(report.dataCompleteness.partial).toBe(true);
     expect(
       report.dataCompleteness.issues.some(
