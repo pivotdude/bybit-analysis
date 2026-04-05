@@ -129,6 +129,7 @@ Fixed section order:
 - ROI is `supported` only when both start and end equity are available.
 - Start equity is resolved from `account.equityHistory` using the latest sample at or before `--from`.
 - If start equity is unavailable, ROI KPI is rendered as `unsupported`, and the report includes an explicit reason in `ROI Status`.
+- In the current Bybit account snapshot flow, historical equity is not fetched from a dedicated endpoint, so ROI/capital efficiency are explicitly marked `unsupported`.
 
 Example (`pnl` section):
 

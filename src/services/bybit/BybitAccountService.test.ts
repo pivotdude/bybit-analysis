@@ -69,7 +69,7 @@ describe("BybitAccountService#getApiKeyPermissionInfo", () => {
 });
 
 describe("BybitAccountService#getAccountSnapshot", () => {
-  it("propagates equity history through normalizer into the domain snapshot", async () => {
+  it("marks ROI/capital efficiency as unsupported when historical equity source is unavailable", async () => {
     const client = {
       getWalletBalance: async () => ({
         list: [
@@ -87,12 +87,6 @@ describe("BybitAccountService#getAccountSnapshot", () => {
             totalEquityUsd: "1450",
             grossExposureUsd: "2400",
             netExposureUsd: "1000"
-          },
-          {
-            timestamp: "2026-01-01T00:00:00.000Z",
-            totalEquityUsd: "1400",
-            grossExposureUsd: "2000",
-            netExposureUsd: "900"
           }
         ]
       })
@@ -116,12 +110,12 @@ describe("BybitAccountService#getAccountSnapshot", () => {
     const service = new BybitAccountService(client, positionsService, botService, createMemoryCache());
     const snapshot = await service.getAccountSnapshot(requestContext);
 
-    expect(snapshot.equityHistory?.map((item) => item.timestamp)).toEqual([
-      "2026-01-01T00:00:00.000Z",
-      "2026-01-02T00:00:00.000Z"
-    ]);
-    expect(snapshot.equityHistory?.[0]?.grossExposureUsd).toBe(2000);
-    expect(snapshot.equityHistory?.[1]?.grossExposureUsd).toBe(2400);
+    expect(snapshot.equityHistory).toBeUndefined();
+    expect(snapshot.dataCompleteness.state).toBe("degraded");
+    expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
+    expect(snapshot.dataCompleteness.warnings.some((warning) => warning.includes("historical equity source is unavailable"))).toBe(
+      true
+    );
   });
 
   it("requests required bot data in bot source mode", async () => {
@@ -191,5 +185,8 @@ describe("BybitAccountService#getAccountSnapshot", () => {
         equityUsd: 110
       }
     ]);
+    expect(snapshot.equityHistory).toBeUndefined();
+    expect(snapshot.dataCompleteness.state).toBe("degraded");
+    expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
   });
 });
