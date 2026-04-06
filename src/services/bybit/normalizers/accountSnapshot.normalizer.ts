@@ -94,7 +94,15 @@ function normalizeBalances(input: unknown, issues: DataCompletenessIssue[]): Ass
     .map((coin, index): AssetBalance | undefined => {
       const asset = typeof coin.coin === "string" ? coin.coin.trim() : "";
       const walletBalance = parseNumber(coin.walletBalance);
-      const availableBalance = parseNumber(coin.availableToWithdraw ?? coin.free);
+      const lockedValue = parseNumber(coin.locked);
+      let availableBalance: NumberParseResult;
+      const rawAvailable = coin.availableToWithdraw ?? coin.free;
+      const hasAvailable = rawAvailable !== undefined && rawAvailable !== null && rawAvailable !== "";
+      if (!hasAvailable && walletBalance.valid && lockedValue.valid) {
+        availableBalance = { value: walletBalance.value! - lockedValue.value!, valid: true };
+      } else {
+        availableBalance = parseNumber(rawAvailable);
+      }
       const usdValue = parseNumber(coin.usdValue ?? coin.equity);
 
       if (!asset || !walletBalance.valid || !availableBalance.valid || !usdValue.valid) {

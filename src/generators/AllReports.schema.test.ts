@@ -117,6 +117,15 @@ const accountService: AccountDataService = {
       { asset: "USDT", walletBalance: 9_000, availableBalance: 8_000, usdValue: 9_000 },
       { asset: "BTC", walletBalance: 0.02, availableBalance: 0.01, usdValue: 1_000 }
     ],
+    equityHistory: [
+      {
+        timestamp: "2026-01-01T00:00:00.000Z",
+        totalEquityUsd: 9_800,
+        totalExposureUsd: 9_800,
+        grossExposureUsd: 9_800,
+        netExposureUsd: 9_800
+      }
+    ],
     dataCompleteness: degradedDataCompleteness([
       {
         code: "pagination_limit_reached",
@@ -160,11 +169,12 @@ const executionService: ExecutionDataService = {
     endStateStatus: "unsupported",
     endStateUnsupportedReason: "Historical period end-state is unavailable",
     endStateUnsupportedReasonCode: "historical_end_state_unavailable",
-    roiStatus: "unsupported",
-    roiUnsupportedReason: "starting equity is unavailable for the requested period window",
-    roiUnsupportedReasonCode: "equity_history_unavailable",
-    roiStartEquityUsd: undefined,
-    roiEndEquityUsd: undefined,
+    roiStatus: "supported",
+    roiPct: 2.04,
+    roiStartEquityUsd: 9_800,
+    roiEndEquityUsd: 10_000,
+    roiUnsupportedReason: undefined,
+    roiUnsupportedReasonCode: undefined,
     bySymbol: [],
     bestSymbols: [],
     worstSymbols: [],

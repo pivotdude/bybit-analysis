@@ -64,6 +64,6 @@ describe("BybitAccountService real fixture contracts", () => {
     expect(snapshot.availableBalanceUsd).toBe(0);
     expect(snapshot.balances).toEqual([]);
     expect(snapshot.dataCompleteness.partial).toBe(true);
-    expect(snapshot.dataCompleteness.state).toBe("unsupported");
+    expect(snapshot.dataCompleteness.state).toBe("partial_critical");
   });
 });

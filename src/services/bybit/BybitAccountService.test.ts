@@ -158,8 +158,9 @@ describe("BybitAccountService#getWalletSnapshot", () => {
 
     expect(snapshot.equityHistory).toBeUndefined();
     expect(snapshot.cacheStatus).toBe("miss");
-    expect(snapshot.dataCompleteness.state).toBe("unsupported");
+    expect(snapshot.dataCompleteness.partial).toBe(true);
     expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
+    expect(snapshot.dataCompleteness.issues.some((issue) => issue.criticality === "optional")).toBe(true);
     expect(snapshot.dataCompleteness.warnings.some((warning) => warning.includes("historical equity source is unavailable"))).toBe(
       true
     );
@@ -193,7 +194,7 @@ describe("BybitAccountService#getWalletSnapshot", () => {
     expect(snapshot.availableBalanceUsd).toBe(1200);
     expect(snapshot.balances).toEqual([]);
     expect(snapshot.equityHistory).toBeUndefined();
-    expect(snapshot.dataCompleteness.state).toBe("unsupported");
+    expect(snapshot.dataCompleteness.partial).toBe(true);
     expect(snapshot.dataCompleteness.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
   });
 });

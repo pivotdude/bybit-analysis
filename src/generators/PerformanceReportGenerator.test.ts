@@ -88,11 +88,12 @@ describe("PerformanceReportGenerator", () => {
 
     const generator = new PerformanceReportGenerator(accountService, executionService);
     const report = await generator.generate(context);
-    const section = report.sections.find((item) => item.title === "Capital Efficiency");
+    const capitalEffSection = report.sections.find((item) => item.title === "Capital Efficiency");
+    const interpSection = report.sections.find((item) => item.title === "Interpretation");
 
-    expect(section?.type).toBe("kpi");
-    expect(section && section.type === "kpi" ? section.kpis[0]?.value : undefined).toBe("unsupported");
-    expect(section && section.type === "kpi" ? section.kpis[1]?.value : undefined).toBe("unsupported");
+    expect(capitalEffSection).toBeUndefined();
+    expect(interpSection?.type).toBe("text");
+    expect(interpSection && interpSection.type === "text" ? interpSection.text.some((line) => line.includes("Capital efficiency: unsupported")) : false).toBe(true);
     expect(pnlRequest?.endingState).toBeUndefined();
     expect(pnlRequest?.equityStartUsd).toBeUndefined();
     expect(pnlRequest?.roiMissingStartReason).toBe("equity history is unavailable");

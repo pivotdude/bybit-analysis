@@ -51,45 +51,54 @@ export class PerformanceReportGenerator {
     const analysis = this.analyzer.analyze(walletSnapshot, pnl);
     const roi = resolveRoiContract(analysis);
     const periodEndStateUnsupported = analysis.endStateStatus === "unsupported";
-    const capitalEfficiency =
-      analysis.capitalEfficiencyStatus === "supported" && typeof analysis.capitalEfficiencyPct === "number"
-        ? fmtPct(analysis.capitalEfficiencyPct)
-        : "unsupported";
-    const avgDeployedCapital =
-      analysis.capitalEfficiencyStatus === "supported" && typeof analysis.avgDeployedCapitalUsd === "number"
-        ? fmtUsd(analysis.avgDeployedCapitalUsd)
-        : "unsupported";
+    const roiSupported = analysis.roiStatus === "supported";
+    const capitalEffSupported = analysis.capitalEfficiencyStatus === "supported";
+
     const sections: ReportDocument["sections"] = [
       section("overview", {
         text: [`From: ${fmtIso(analysis.periodFrom)}`, `To: ${fmtIso(analysis.periodTo)}`]
-      }),
-      section("roi", {
-        kpis: [
-          {
-            label: periodEndStateUnsupported ? "Realized Net PnL" : "Period Net PnL",
-            value: fmtUsd(analysis.periodNetPnlUsd)
-          },
-          { label: "ROI", value: roi.roiKpiValue }
-        ]
-      }),
-      section("capitalEfficiency", {
-        kpis: [
-          { label: "Capital Efficiency", value: capitalEfficiency },
-          { label: "Avg Deployed Capital", value: avgDeployedCapital }
-        ]
-      }),
-      section("interpretation", {
-        text: [
-          ...roi.narrativeLines,
-          `Period end-state status: ${analysis.endStateStatus}`,
-          ...(analysis.endStateUnsupportedReason ? [`Period end-state reason: ${analysis.endStateUnsupportedReason}`] : []),
-          `Interpretation: ${analysis.interpretation}`,
-          analysis.capitalEfficiencyStatus === "unsupported"
-            ? `Capital efficiency status: unsupported (${analysis.capitalEfficiencyReason ?? "equity history is unavailable"})`
-            : "Capital efficiency status: supported"
-        ]
       })
     ];
+
+    const capitalEfficiency = capitalEffSupported
+      ? fmtPct(analysis.capitalEfficiencyPct)
+      : "unsupported";
+    const avgDeployedCapital = capitalEffSupported
+      ? fmtUsd(analysis.avgDeployedCapitalUsd)
+      : "unsupported";
+
+    sections.push(
+      section("roi", {
+        kpis: [
+          { label: periodEndStateUnsupported ? "Realized Net PnL" : "Period Net PnL", value: fmtUsd(analysis.periodNetPnlUsd) },
+          ...(roiSupported ? [{ label: "ROI", value: roi.roiKpiValue as string }] : [])
+        ]
+      })
+    );
+
+    if (roiSupported || capitalEffSupported) {
+      sections.push(
+        section("capitalEfficiency", {
+          kpis: [
+            { label: "Capital Efficiency", value: capitalEfficiency },
+            { label: "Avg Deployed Capital", value: avgDeployedCapital }
+          ]
+        })
+      );
+    }
+
+    sections.push(
+      section("interpretation", {
+        text: [
+          ...(roiSupported
+            ? [`Interpretation: ${analysis.interpretation}`]
+            : [`ROI status: unsupported`, `ROI unsupported code: ${analysis.roiUnsupportedReasonCode ?? "unknown"}`]),
+          !capitalEffSupported
+            ? `Capital efficiency: unsupported (${analysis.capitalEfficiencyReason ?? "equity history unavailable"})`
+            : `Capital efficiency: ${fmtPct(analysis.capitalEfficiencyPct)}`
+        ]
+      })
+    );
 
     const accountCompleteness = filterDataCompletenessIssues(
       walletSnapshot.dataCompleteness,

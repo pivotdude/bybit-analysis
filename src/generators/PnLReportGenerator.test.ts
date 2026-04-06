@@ -119,11 +119,8 @@ describe("PnLReportGenerator", () => {
     expect(passedStartEquity).toBe(1_000);
     expect(passedEndingState).toBeUndefined();
     expect(summary?.type).toBe("kpi");
-    expect(summary && summary.type === "kpi" ? summary.kpis.find((kpi) => kpi.label === "ROI")?.value : undefined).toBe(
-      "unsupported"
-    );
-    expect(roiStatus?.type).toBe("text");
-    expect(roiStatus && roiStatus.type === "text" ? roiStatus.text[0] : undefined).toBe("Status: unsupported");
+    expect(summary && summary.type === "kpi" ? summary.kpis.find((kpi) => kpi.label === "ROI") : undefined).toBeUndefined();
+    expect(roiStatus).toBeUndefined();
   });
 
   it("renders unsupported ROI with explicit reason when starting equity is unavailable", async () => {
@@ -178,13 +175,8 @@ describe("PnLReportGenerator", () => {
     expect(passedStartEquity).toBeUndefined();
     expect(passedEndingState).toBeUndefined();
     expect(summary?.type).toBe("kpi");
-    expect(summary && summary.type === "kpi" ? summary.kpis.find((kpi) => kpi.label === "ROI")?.value : undefined).toBe(
-      "unsupported"
-    );
-    expect(roiStatus?.type).toBe("text");
-    expect(roiStatus && roiStatus.type === "text" ? roiStatus.text[0] : undefined).toBe("Status: unsupported");
-    expect(roiStatus && roiStatus.type === "text" ? roiStatus.text[1] : undefined).toBe("Code: equity_history_unavailable");
-    expect(roiStatus && roiStatus.type === "text" ? roiStatus.text[2] : undefined).toContain("equity history is unavailable");
+    expect(summary && summary.type === "kpi" ? summary.kpis.find((kpi) => kpi.label === "ROI") : undefined).toBeUndefined();
+    expect(roiStatus).toBeUndefined();
   });
 
   it("does not propagate spot exposure/risk unsupported issue into pnl data completeness", async () => {

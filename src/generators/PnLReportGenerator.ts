@@ -88,25 +88,19 @@ export class PnLReportGenerator {
       section("summary", {
         kpis: [
           { label: "Realized PnL", value: fmtUsd(analysis.realizedPnlUsd) },
-          {
-            label: "Period End-State UPnL",
-            value: periodEndStateUnsupported ? "unsupported" : fmtUsd(analysis.unrealizedPnlUsd)
-          },
+          ...(periodEndStateUnsupported ? [] : [{ label: "Period End-State UPnL", value: fmtUsd(analysis.unrealizedPnlUsd) }]),
           { label: "Fees", value: fmtUsd(analysis.totalFeesUsd) },
-          {
-            label: periodEndStateUnsupported ? "Realized Net PnL" : "Net PnL",
-            value: fmtUsd(analysis.netPnlUsd)
-          },
-          { label: "ROI", value: roi.roiKpiValue }
+          { label: periodEndStateUnsupported ? "Realized Net PnL" : "Net PnL", value: fmtUsd(analysis.netPnlUsd) },
+          ...(analysis.roiStatus === "supported" ? [{ label: "ROI", value: roi.roiKpiValue }] : [])
         ]
       }),
-      section("roiStatus", {
+      ...(analysis.roiStatus === "supported" ? [section("roiStatus", {
         text: [
           ...roi.pnlStatusLines,
           `Period end-state: ${analysis.endStateStatus}`,
           ...(analysis.endStateUnsupportedReason ? [`End-state reason: ${analysis.endStateUnsupportedReason}`] : [])
         ]
-      }),
+      })] : []),
       section("symbolBreakdown", {
         table: {
           headers: symbolBreakdownHeaders,

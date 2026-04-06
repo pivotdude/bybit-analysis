@@ -171,8 +171,8 @@ describe("ROI contract consistency across commands", () => {
     expect(requests).toHaveLength(3);
     expect(requests.map((request) => request.equityStartUsd)).toEqual([1_000, 1_000, 1_000]);
     expect(requests.map((request) => request.endingState)).toEqual([undefined, undefined, undefined]);
-    expect(pnlRoi).toBe("unsupported");
-    expect(perfRoi).toBe("unsupported");
+    expect(pnlRoi).toBeUndefined();
+    expect(perfRoi).toBeUndefined();
     expect(summaryRoi).toBe("unsupported");
   });
 
@@ -198,19 +198,16 @@ describe("ROI contract consistency across commands", () => {
       "equity_history_unavailable",
       "equity_history_unavailable"
     ]);
-    expect(pnlRoi).toBe("unsupported");
-    expect(perfRoi).toBe("unsupported");
+    expect(pnlRoi).toBeUndefined();
+    expect(perfRoi).toBeUndefined();
     expect(summaryRoi).toBe("unsupported");
 
-    const pnlRoiStatus = pnlReport.sections.find((section) => section.title === "ROI Status");
     const perfInterpretation = performanceReport.sections.find((section) => section.title === "Interpretation");
     const summaryContract = summaryReport.sections.find((section) => section.title === "Summary Contract");
 
-    expect(pnlRoiStatus?.type).toBe("text");
-    expect(pnlRoiStatus && pnlRoiStatus.type === "text" ? pnlRoiStatus.text[0] : undefined).toBe("Status: unsupported");
-    expect(pnlRoiStatus && pnlRoiStatus.type === "text" ? pnlRoiStatus.text[1] : undefined).toBe(
-      "Code: equity_history_unavailable"
-    );
+    // PnL no longer shows ROI status when unsupported
+    const pnlRoiStatusSection = pnlReport.sections.find((section) => section.title === "ROI Status");
+    expect(pnlRoiStatusSection).toBeUndefined();
 
     expect(perfInterpretation?.type).toBe("text");
     expect(perfInterpretation && perfInterpretation.type === "text" ? perfInterpretation.text : []).toContain(

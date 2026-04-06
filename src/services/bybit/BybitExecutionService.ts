@@ -216,6 +216,7 @@ export class BybitExecutionService implements ExecutionDataService {
       purpose: SpotExecutionFetchPurpose;
     }
   ): Promise<ExecutionHistoryFetchResult> {
+    const chunks = splitRangeByMaxWindow(range.from, range.to);
     const rows: Array<Record<string, unknown>> = [];
     const issues: DataCompleteness["issues"] = [];
     const policyKey = options.purpose === "opening_inventory" ? "opening_inventory" : "execution_window";
@@ -223,7 +224,7 @@ export class BybitExecutionService implements ExecutionDataService {
     let haltedByRetriedFailure = false;
     let cacheStatus: ExecutionHistoryFetchResult["cacheStatus"] = "hit";
 
-    for (const chunk of splitRangeByMaxWindow(range.from, range.to)) {
+    for (const chunk of chunks) {
       if (haltedByRetriedFailure) {
         break;
       }
@@ -360,9 +361,10 @@ export class BybitExecutionService implements ExecutionDataService {
 
       const openingExecutions: Array<Record<string, unknown>> = [];
       const openingRange = toSpotOpeningInventoryRange(context.from);
-      const soldSymbols = periodExecutions.haltedByRetriedFailure ? [] : extractSpotSellSymbols(periodExecutions.rows);
       const openingIssues: DataCompleteness["issues"] = [];
       const openingCacheStatuses: ExecutionHistoryFetchResult["cacheStatus"][] = [];
+      let spotHaltedByRetriedFailure = periodExecutions.haltedByRetriedFailure;
+      let soldSymbols = spotHaltedByRetriedFailure ? [] : extractSpotSellSymbols(periodExecutions.rows);
 
       if (soldSymbols.length > 0) {
         if (!openingRange) {
@@ -375,22 +377,39 @@ export class BybitExecutionService implements ExecutionDataService {
             })
           );
         } else {
-          for (const symbol of soldSymbols) {
-            const openingHistory = await this.fetchSpotExecutionHistory(
-              context,
-              openingRange,
-              {
-                symbol,
-                purpose: "opening_inventory"
+          const symbolResults = await Promise.all(
+            soldSymbols.map(async (symbol) => {
+              try {
+                const openingHistory = await this.fetchSpotExecutionHistory(
+                  context,
+                  openingRange,
+                  {
+                    symbol,
+                    purpose: "opening_inventory"
+                  }
+                );
+                return { symbol, result: openingHistory, haltedByRetriedFailure: false, error: null as unknown };
+              } catch (error) {
+                return { symbol, result: null as ExecutionHistoryFetchResult | null, haltedByRetriedFailure: getRetryAttempts(error) > 1, error };
               }
-            );
-            openingExecutions.push(...openingHistory.rows);
-            openingIssues.push(...openingHistory.dataCompleteness.issues);
-            openingCacheStatuses.push(openingHistory.cacheStatus);
-            if (openingHistory.haltedByRetriedFailure) {
-              break;
+            })
+          );
+
+          let anyHaltedByRetriedFailure = false;
+          for (const { result, haltedByRetriedFailure } of symbolResults) {
+            if (!result) {
+              anyHaltedByRetriedFailure = anyHaltedByRetriedFailure || haltedByRetriedFailure;
+              continue;
             }
+            openingExecutions.push(...result.rows);
+            openingIssues.push(...result.dataCompleteness.issues);
+            openingCacheStatuses.push(result.cacheStatus);
+            anyHaltedByRetriedFailure = anyHaltedByRetriedFailure || result.haltedByRetriedFailure;
           }
+          if (anyHaltedByRetriedFailure) {
+            soldSymbols = [];
+          }
+          spotHaltedByRetriedFailure = anyHaltedByRetriedFailure;
         }
       }
 

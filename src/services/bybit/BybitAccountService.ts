@@ -34,10 +34,13 @@ function withExplicitRoiUnsupported(snapshot: LiveAccountSnapshot): LiveAccountS
     dataCompleteness: mergeDataCompleteness(
       snapshot.dataCompleteness,
       degradedDataCompleteness([
-        buildUnsupportedFeatureIssue({
+        {
+          code: "unsupported_feature",
           scope: "equity_history",
+          severity: "warning",
+          criticality: "optional",
           message: ROI_CAPITAL_EFFICIENCY_UNSUPPORTED_MESSAGE
-        })
+        }
       ])
     )
   };
