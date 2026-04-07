@@ -300,21 +300,57 @@ describe("SummaryReportGenerator", () => {
     expect(holdings && holdings.type === "table" ? holdings.table.rows : []).toEqual([]);
   });
 
-  it("labels symbol net column as realized net in market mode", async () => {
+  it("uses a consistent symbol pnl table schema", async () => {
     const generator = new SummaryReportGenerator(accountService, executionService, positionService, availableBotService);
     const report = await generator.generate(linearContext);
     const symbolPnl = report.sections.find((section) => section.id === "summary.symbol_pnl");
 
     expect(symbolPnl?.type).toBe("table");
-    expect(symbolPnl && symbolPnl.type === "table" ? symbolPnl.table.headers[2] : undefined).toBe("Realized Net");
+    expect(symbolPnl && symbolPnl.type === "table" ? symbolPnl.table.headers : []).toEqual([
+      "Symbol",
+      "Realized",
+      "Unrealized",
+      "Net",
+      "Trades"
+    ]);
   });
 
-  it("keeps generic net label for symbol pnl in bot mode", async () => {
+  it("uses bot-oriented overview and activity KPIs in bot mode", async () => {
     const generator = new SummaryReportGenerator(accountService, executionService, positionService, availableBotService);
     const report = await generator.generate(botContext);
-    const symbolPnl = report.sections.find((section) => section.id === "summary.symbol_pnl");
+    const overview = report.sections.find((section) => section.id === "summary.overview");
+    const activity = report.sections.find((section) => section.id === "summary.activity");
 
-    expect(symbolPnl?.type).toBe("table");
-    expect(symbolPnl && symbolPnl.type === "table" ? symbolPnl.table.headers[2] : undefined).toBe("Net");
+    expect(overview?.type).toBe("kpi");
+    expect(overview && overview.type === "kpi" ? overview.kpis.map((item) => item.label) : []).toEqual([
+      "Wallet Equity",
+      "Bot Allocated",
+      "Bot Exposure",
+      "Bot Net PnL",
+      "Tracked Bots",
+      "ROI"
+    ]);
+
+    expect(activity?.type).toBe("kpi");
+    expect(activity && activity.type === "kpi" ? activity.kpis.map((item) => item.label) : []).toEqual([
+      "Tracked Symbols",
+      "Running Bots",
+      "Bots in Profit",
+      "Bots in Loss",
+      "Open Positions",
+      "Bot Win Rate"
+    ]);
+  });
+
+  it("downgrades intrinsic spot limitations in summary data completeness", async () => {
+    const generator = new SummaryReportGenerator(accountService, executionService, positionService, availableBotService);
+    const report = await generator.generate({ ...linearContext, category: "spot" });
+    const dataCompleteness = report.sections.find((section) => section.id === "summary.data_completeness");
+
+    expect(report.dataCompleteness?.state).toBe("complete");
+    expect(dataCompleteness?.type).toBe("alerts");
+    expect(dataCompleteness && dataCompleteness.type === "alerts"
+      ? dataCompleteness.alerts.some((alert) => alert.message === "State: complete")
+      : false).toBe(true);
   });
 });

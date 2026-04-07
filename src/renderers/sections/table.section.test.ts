@@ -60,12 +60,33 @@ describe("renderTable", () => {
     expect(lines[2]!.includes("...")).toBe(false);
   });
 
-  it("renders a deterministic placeholder row when table has no data rows", () => {
+  it("renders only headers when table has no data rows", () => {
     const lines = renderTable({
       headers: ["Field", "Value"],
       rows: []
     });
 
-    expect(lines[2]).toBe("| <empty> | <empty> |");
+    expect(lines).toEqual(["| Field | Value |", "| --- | --- |"]);
+  });
+
+  it("renders an explicit empty message with headers by default", () => {
+    const lines = renderTable({
+      headers: ["Field", "Value"],
+      rows: [],
+      emptyMessage: "No data"
+    });
+
+    expect(lines).toEqual(["| Field | Value |", "| --- | --- |", "> No data"]);
+  });
+
+  it("renders only an empty message when message_only mode is requested", () => {
+    const lines = renderTable({
+      headers: ["Field", "Value"],
+      rows: [],
+      emptyMessage: "No data",
+      emptyMode: "message_only"
+    });
+
+    expect(lines).toEqual(["> No data"]);
   });
 });

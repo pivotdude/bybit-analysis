@@ -58,21 +58,18 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
   {
     "id": "summary.contract",
     "text": [
-      "Schema version: summary-markdown-v1",
-      "Category: linear",
-      "Source mode: market",
-      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "Summary scope: market activity account review.",
+      "Context: linear / market",
       "Live snapshot as of: 2026-01-31T00:00:00.000Z",
-      "Live snapshot metrics: balance, holdings, exposure, risk, and open positions.",
-      "Period metrics: trading activity and realized PnL over the requested window.",
-      "Period end-state status: unsupported",
-      "Period end-state reason: Historical period end-state is unavailable",
+      "Coverage: trading activity and account PnL over the requested window",
+      "Live metrics: balances, holdings, exposure, risk, and open positions.",
+      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "Period end-state: unsupported — Historical period end-state is unavailable",
       "ROI status: unsupported",
-      "ROI unsupported code: ending_equity_unavailable",
       "ROI unsupported reason: ending equity is unavailable for the requested period window",
-      "All summary section IDs, order, and section types are stable across categories.",
+      "This summary emphasizes account equity, trading activity, and period PnL.",
     ],
-    "title": "Summary Contract",
+    "title": "Summary Context",
     "type": "text",
   },
   {
@@ -83,20 +80,20 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
         "value": "$10,000.00",
       },
       {
-        "label": "Realized Net PnL",
+        "label": "Net PnL",
         "value": "$439.00",
+      },
+      {
+        "label": "Realized PnL",
+        "value": "$280.00",
+      },
+      {
+        "label": "Unrealized PnL",
+        "value": "$180.00",
       },
       {
         "label": "ROI",
         "value": "unsupported",
-      },
-      {
-        "label": "Gross Exposure",
-        "value": "$7,950.00",
-      },
-      {
-        "label": "Risk Alerts",
-        "value": "1",
       },
       {
         "label": "Tracked Bots",
@@ -213,6 +210,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
   {
     "id": "summary.open_positions",
     "table": {
+      "emptyMessage": "No open positions",
+      "emptyMode": "message_only",
       "headers": [
         "Symbol",
         "Side",
@@ -246,6 +245,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
   {
     "id": "summary.top_holdings",
     "table": {
+      "emptyMessage": "No token holdings",
       "headers": [
         "Asset",
         "USD Value",
@@ -275,22 +275,26 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
   {
     "id": "summary.symbol_pnl",
     "table": {
+      "emptyMessage": "No symbol PnL in the selected period",
       "headers": [
         "Symbol",
         "Realized",
-        "Realized Net",
+        "Unrealized",
+        "Net",
         "Trades",
       ],
       "rows": [
         [
           "BTCUSDT",
           "$300.00",
+          "$120.00",
           "$420.00",
           "8",
         ],
         [
           "ETHUSDT",
           "-$20.00",
+          "$60.00",
           "$40.00",
           "5",
         ],
@@ -302,6 +306,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
   {
     "id": "summary.bots",
     "table": {
+      "emptyMessage": "No tracked bots",
+      "emptyMode": "message_only",
       "headers": [
         "Bot",
         "Status",
@@ -354,22 +360,19 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "id": "summary.contract",
     "text": [
-      "Schema version: summary-markdown-v1",
-      "Category: spot",
-      "Source mode: market",
-      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "Summary scope: market activity account review.",
+      "Context: spot / market",
       "Live snapshot as of: 2026-01-31T00:00:00.000Z",
-      "Live snapshot metrics: balance, holdings, exposure, risk, and open positions.",
-      "Period metrics: trading activity and realized PnL over the requested window.",
-      "Period end-state status: unsupported",
-      "Period end-state reason: Historical period end-state is unavailable",
+      "Coverage: trading activity and account PnL over the requested window",
+      "Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
+      "Live metrics: balances, holdings, exposure, risk, and open positions.",
+      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "Period end-state: unsupported — Historical period end-state is unavailable",
       "ROI status: unsupported",
-      "ROI unsupported code: ending_equity_unavailable",
       "ROI unsupported reason: ending equity is unavailable for the requested period window",
-      "Exposure/risk status: unsupported (Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.)",
-      "All summary section IDs, order, and section types are stable across categories.",
+      "This summary emphasizes account equity, trading activity, and period PnL.",
     ],
-    "title": "Summary Contract",
+    "title": "Summary Context",
     "type": "text",
   },
   {
@@ -380,19 +383,19 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
         "value": "$8,000.00",
       },
       {
-        "label": "Realized Net PnL",
+        "label": "Net PnL",
         "value": "$65.00",
       },
       {
+        "label": "Realized PnL",
+        "value": "$70.00",
+      },
+      {
+        "label": "Unrealized PnL",
+        "value": "$0.00",
+      },
+      {
         "label": "ROI",
-        "value": "unsupported",
-      },
-      {
-        "label": "Gross Exposure",
-        "value": "unsupported",
-      },
-      {
-        "label": "Risk Alerts",
         "value": "unsupported",
       },
       {
@@ -510,6 +513,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "id": "summary.open_positions",
     "table": {
+      "emptyMessage": "Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
+      "emptyMode": "message_only",
       "headers": [
         "Symbol",
         "Side",
@@ -526,6 +531,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "id": "summary.top_holdings",
     "table": {
+      "emptyMessage": "No token holdings",
       "headers": [
         "Asset",
         "USD Value",
@@ -550,16 +556,19 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "id": "summary.symbol_pnl",
     "table": {
+      "emptyMessage": "No symbol PnL in the selected period",
       "headers": [
         "Symbol",
         "Realized",
-        "Realized Net",
+        "Unrealized",
+        "Net",
         "Trades",
       ],
       "rows": [
         [
           "SOLUSDT",
           "$70.00",
+          "$0.00",
           "$65.00",
           "6",
         ],
@@ -571,6 +580,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "id": "summary.bots",
     "table": {
+      "emptyMessage": "No tracked bots",
+      "emptyMode": "message_only",
       "headers": [
         "Bot",
         "Status",
@@ -588,8 +599,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "alerts": [
       {
-        "message": "Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
-        "severity": "critical",
+        "message": "Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
+        "severity": "warning",
       },
     ],
     "id": "summary.alerts",
@@ -599,16 +610,20 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "alerts": [
       {
-        "message": "State: unsupported",
-        "severity": "critical",
-      },
-      {
-        "message": "Issues: 1",
+        "message": "State: complete",
         "severity": "info",
       },
       {
-        "message": "unsupported_feature (positions, critical): Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
-        "severity": "critical",
+        "message": "Issues: 0",
+        "severity": "info",
+      },
+      {
+        "message": "No data completeness issues.",
+        "severity": "info",
+      },
+      {
+        "message": "Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
+        "severity": "info",
       },
     ],
     "id": "summary.data_completeness",
@@ -623,49 +638,47 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "id": "summary.contract",
     "text": [
-      "Schema version: summary-markdown-v1",
-      "Category: linear",
-      "Source mode: bot",
-      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "Summary scope: bot-oriented account review.",
+      "Context: linear / bot",
       "Live snapshot as of: 2026-01-31T00:00:00.000Z",
-      "Live snapshot metrics: balance, holdings, exposure, risk, and open positions.",
-      "Period metrics: trading activity and realized PnL over the requested window.",
-      "Period end-state status: unsupported",
-      "Period end-state reason: Historical period end-state is unavailable",
+      "Coverage: bot performance and account PnL over the requested window",
+      "Note: wallet equity may exclude capital currently managed inside bot allocations.",
+      "Live metrics: wallet balances, holdings, bot exposure, and bot status.",
+      "Period: 2026-01-01T00:00:00.000Z -> 2026-01-31T00:00:00.000Z",
+      "Period end-state: unsupported — Historical period end-state is unavailable",
       "ROI status: unsupported",
-      "ROI unsupported code: ending_equity_unavailable",
       "ROI unsupported reason: ending equity is unavailable for the requested period window",
-      "All summary section IDs, order, and section types are stable across categories.",
+      "This summary emphasizes bot capital, bot PnL, and wallet context.",
     ],
-    "title": "Summary Contract",
+    "title": "Summary Context",
     "type": "text",
   },
   {
     "id": "summary.overview",
     "kpis": [
       {
-        "label": "Total Equity",
+        "label": "Wallet Equity",
         "value": "$12,000.00",
       },
       {
-        "label": "Realized Net PnL",
-        "value": "$439.00",
+        "label": "Bot Allocated",
+        "value": "$1,500.00",
       },
       {
-        "label": "ROI",
-        "value": "unsupported",
+        "label": "Bot Exposure",
+        "value": "$1,850.00",
       },
       {
-        "label": "Gross Exposure",
-        "value": "$7,950.00",
-      },
-      {
-        "label": "Risk Alerts",
-        "value": "1",
+        "label": "Bot Net PnL",
+        "value": "$95.00",
       },
       {
         "label": "Tracked Bots",
         "value": "1",
+      },
+      {
+        "label": "ROI",
+        "value": "unsupported",
       },
     ],
     "title": "Overview",
@@ -675,23 +688,27 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
     "id": "summary.activity",
     "kpis": [
       {
-        "label": "Traded Symbols",
-        "value": "2",
+        "label": "Tracked Symbols",
+        "value": "1",
       },
       {
-        "label": "Total Trades",
-        "value": "13",
+        "label": "Running Bots",
+        "value": "1",
       },
       {
-        "label": "Winning Symbols",
-        "value": "2",
+        "label": "Bots in Profit",
+        "value": "1",
       },
       {
-        "label": "Losing Symbols",
+        "label": "Bots in Loss",
         "value": "0",
       },
       {
-        "label": "Symbol Win Rate",
+        "label": "Open Positions",
+        "value": "0",
+      },
+      {
+        "label": "Bot Win Rate",
         "value": "100.00%",
       },
     ],
@@ -778,6 +795,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "id": "summary.open_positions",
     "table": {
+      "emptyMessage": "No open positions",
+      "emptyMode": "message_only",
       "headers": [
         "Symbol",
         "Side",
@@ -811,6 +830,7 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "id": "summary.top_holdings",
     "table": {
+      "emptyMessage": "No token holdings",
       "headers": [
         "Asset",
         "USD Value",
@@ -830,9 +850,11 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "id": "summary.symbol_pnl",
     "table": {
+      "emptyMessage": "No symbol PnL in the selected period",
       "headers": [
         "Symbol",
         "Realized",
+        "Unrealized",
         "Net",
         "Trades",
       ],
@@ -840,12 +862,14 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
         [
           "BTCUSDT",
           "$300.00",
+          "$120.00",
           "$420.00",
           "8",
         ],
         [
           "ETHUSDT",
           "-$20.00",
+          "$60.00",
           "$40.00",
           "5",
         ],
@@ -857,6 +881,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
   {
     "id": "summary.bots",
     "table": {
+      "emptyMessage": "No tracked bots",
+      "emptyMode": "message_only",
       "headers": [
         "Bot",
         "Status",

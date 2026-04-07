@@ -17,6 +17,8 @@ export interface MarkdownKpi {
 export interface MarkdownTable {
   headers: string[];
   rows: string[][];
+  emptyMessage?: string;
+  emptyMode?: "with_headers" | "message_only";
 }
 
 export interface MarkdownAlert {

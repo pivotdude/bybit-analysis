@@ -97,7 +97,7 @@ describe("MarkdownRenderer", () => {
     expect(compact).toContain("|Key|Value|");
   });
 
-  it("renders fixed execution metadata and deterministic empty table state", () => {
+  it("renders fixed execution metadata and readable empty table state", () => {
     const report: ReportDocument = {
       command: "health",
       title: "Health Status",
@@ -129,7 +129,8 @@ describe("MarkdownRenderer", () => {
           type: "table",
           table: {
             headers: ["Check", "Status"],
-            rows: []
+            rows: [],
+            emptyMessage: "No checks available"
           }
         }
       ]
@@ -146,6 +147,6 @@ describe("MarkdownRenderer", () => {
     expect(markdown).toContain("Source Freshness: 1 source(s)");
     expect(markdown).toContain("Source: health_check:");
     expect(markdown).toContain("cache=hit");
-    expect(markdown).toContain("| <empty> | <empty> |");
+    expect(markdown).toContain("> No checks available");
   });
 });

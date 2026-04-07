@@ -479,7 +479,7 @@ describe("SummaryReportGenerator schema stability", () => {
     const markdown = new MarkdownRenderer().render(report, "md");
 
     expect(markdown).toContain(`Schema: ${SUMMARY_SCHEMA_VERSION}`);
-    expect(markdown).toContain("## [summary.contract] Summary Contract");
+    expect(markdown).toContain("## [summary.contract] Summary Context");
     expect(markdown).toContain("## [summary.data_completeness] Data Completeness");
   });
 });
