@@ -1,4 +1,4 @@
-# bybit-analys
+# bybit-analysis
 
 > **Repository publication rule**
 >
@@ -19,7 +19,7 @@ bun install
 ### Global install from npm
 
 ```bash
-npm i -g bybit-analys
+npm i -g bybit-analysis
 ```
 
 This package uses Bun at runtime, so Bun must be installed on the machine where you run the CLI.
@@ -35,20 +35,20 @@ bun run src/index.ts <command> [options]
 ### Installed CLI
 
 ```bash
-bybit-analys <command> [options]
+bybit-analysis <command> [options]
 ```
 
 When `.env` and `.bybit-profiles.json` live in a workspace directory rather than the current shell directory, pass `--project-root <path>`.
 
 ```bash
-bybit-analys summary --project-root workspace/skills/bybit-analysis --profile main --window 30d
+bybit-analysis summary --project-root workspace/skills/bybit-analysis --profile main --window 30d
 ```
 
 Command-specific help:
 
 ```bash
 bun run src/index.ts <command> --help
-bybit-analys <command> --help
+bybit-analysis <command> --help
 ```
 
 ## Exchange Readiness Status
@@ -108,7 +108,7 @@ Current suite covers production-critical paths: spot PnL normalization, paginati
 2. Commit and push changes to the new public repository.
 3. Create and push tag `v<version>`.
 4. Publish a GitHub Release from that tag.
-5. GitHub Actions publishes `bybit-analys` to npm with the `latest` tag.
+5. GitHub Actions publishes `bybit-analysis` to npm with the `latest` tag.
 
 ## Open-source publication safety
 
