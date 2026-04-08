@@ -595,8 +595,8 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
   {
     "alerts": [
       {
-        "message": "Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
-        "severity": "warning",
+        "message": "No active alerts",
+        "severity": "info",
       },
     ],
     "id": "summary.alerts",
@@ -615,10 +615,6 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
       },
       {
         "message": "No data completeness issues.",
-        "severity": "info",
-      },
-      {
-        "message": "Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
         "severity": "info",
       },
     ],

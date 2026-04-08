@@ -158,14 +158,7 @@ function buildMarketOverviewKpis(
   ];
 }
 
-function buildSummaryAlertMessage(reason: string, category: ServiceRequestContext["category"]): MarkdownAlert {
-  if (category === "spot") {
-    return {
-      severity: "warning",
-      message: buildSpotLimitationMessage(reason)
-    };
-  }
-
+function buildSummaryAlertMessage(reason: string): MarkdownAlert {
   return {
     severity: "critical",
     message: reason
@@ -305,24 +298,8 @@ function buildDataCompletenessForSummary(context: ServiceRequestContext, dataCom
   return filterDataCompletenessIssues(dataCompleteness, (issue) => !isCategoryIntrinsicSpotPositionsIssue(context, issue));
 }
 
-function buildDataCompletenessAlertsForSummary(
-  context: ServiceRequestContext,
-  dataCompleteness: DataCompleteness,
-  unsupportedExposureRiskReason: string | undefined
-): MarkdownAlert[] {
-  const alerts = buildDataCompletenessAlerts(dataCompleteness);
-
-  if (context.category !== "spot" || !unsupportedExposureRiskReason) {
-    return alerts;
-  }
-
-  return [
-    ...alerts,
-    {
-      severity: "info",
-      message: buildSpotLimitationMessage(unsupportedExposureRiskReason)
-    }
-  ];
+function buildDataCompletenessAlertsForSummary(dataCompleteness: DataCompleteness): MarkdownAlert[] {
+  return buildDataCompletenessAlerts(dataCompleteness);
 }
 
 function buildBotRows(botReport: BotReport | undefined): string[][] {
@@ -378,8 +355,8 @@ function buildAlerts(
     message: alert.message
   }));
 
-  if (unsupportedExposureRiskReason) {
-    alerts.push(buildSummaryAlertMessage(unsupportedExposureRiskReason, context.category));
+  if (unsupportedExposureRiskReason && context.category !== "spot") {
+    alerts.push(buildSummaryAlertMessage(unsupportedExposureRiskReason));
   }
 
   if (!botReport) {
@@ -484,11 +461,7 @@ function buildSectionList(args: {
   const overviewKpis = buildOverviewKpis(args.context, args.summary, args.roiValue, args.botReport);
   const activityKpis = buildActivityKpis(args.context, args.pnl, args.botReport);
   const alerts = buildAlerts(args.summary, args.context, args.unsupportedExposureRiskReason, args.botReport, args.botFailureReason);
-  const dataCompletenessAlerts = buildDataCompletenessAlertsForSummary(
-    args.context,
-    args.summaryDataCompleteness,
-    args.unsupportedExposureRiskReason
-  );
+  const dataCompletenessAlerts = buildDataCompletenessAlertsForSummary(args.summaryDataCompleteness);
 
   return [
     section("contract", {

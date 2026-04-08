@@ -203,7 +203,7 @@ describe("ROI contract consistency across commands", () => {
     expect(summaryRoi).toBe("unsupported");
 
     const perfInterpretation = performanceReport.sections.find((section) => section.title === "Interpretation");
-    const summaryContract = summaryReport.sections.find((section) => section.title === "Summary Contract");
+    const summaryContract = summaryReport.sections.find((section) => section.title === "Summary Context");
 
     // PnL no longer shows ROI status when unsupported
     const pnlRoiStatusSection = pnlReport.sections.find((section) => section.title === "ROI Status");
@@ -222,7 +222,7 @@ describe("ROI contract consistency across commands", () => {
       "ROI status: unsupported"
     );
     expect(summaryContract && summaryContract.type === "text" ? summaryContract.text : []).toContain(
-      "ROI unsupported code: equity_history_unavailable"
+      "ROI unsupported reason: equity history is unavailable"
     );
   });
 });

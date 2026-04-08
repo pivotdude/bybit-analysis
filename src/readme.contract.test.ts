@@ -14,7 +14,7 @@ describe("README contract", () => {
     expect(readme).toContain("## Exit Codes (Automation Contract)");
     expect(readme).toContain("`0` complete success");
     expect(readme).toContain("`3` optional partial success");
-    expect(readme).toContain("`4` critical incomplete / unsupported analytics");
+    expect(readme).toContain("`4` critical incomplete analytics");
     expect(readme).toContain("`5` health-check failure");
     expect(readme).toContain("`1` runtime failure");
     expect(readme).toContain("`2` usage/config failure");

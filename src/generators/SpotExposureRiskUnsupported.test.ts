@@ -257,6 +257,7 @@ describe("Spot exposure/risk fail-closed reports", () => {
 
     const overview = getSection(report, "summary.overview");
     const risk = getSection(report, "summary.risk");
+    const contract = getSection(report, "summary.contract");
     const alerts = getSection(report, "summary.alerts");
     const openPositions = getSection(report, "summary.open_positions");
 
@@ -264,9 +265,11 @@ describe("Spot exposure/risk fail-closed reports", () => {
     expect(overview.type === "kpi" ? overview.kpis[4]?.value : undefined).toBe("unsupported");
     expect(risk.type).toBe("kpi");
     expect(risk.type === "kpi" ? risk.kpis[0]?.value : undefined).toBe("unsupported");
+    expect(contract.type).toBe("text");
+    expect(contract.type === "text" ? contract.text.some((item) => item.includes("unsupported")) : false).toBe(true);
     expect(alerts.type).toBe("alerts");
     expect(alerts.type === "alerts" ? alerts.alerts.some((item) => item.message.includes("unsupported")) : false).toBe(
-      true
+      false
     );
     expect(openPositions.type).toBe("table");
     expect(openPositions.type === "table" ? openPositions.table.headers : []).toEqual([

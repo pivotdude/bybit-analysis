@@ -358,13 +358,49 @@ describe("SummaryReportGenerator", () => {
     ]);
   });
 
-  it("downgrades intrinsic spot limitations in summary data completeness", async () => {
-    const generator = new SummaryReportGenerator(accountService, executionService, positionService, availableBotService);
+  it("shows spot limitation once while keeping summary completeness complete", async () => {
+    const limitationReason = "Spot positions are unavailable for this account/category.";
+    const limitationMessage = `Spot limitation: ${limitationReason}`;
+    const spotPositionService: PositionDataService = {
+      getOpenPositions: async () => ({
+        ...positionsResult,
+        positions: [],
+        dataCompleteness: {
+          state: "unsupported",
+          partial: true,
+          warnings: [limitationReason],
+          issues: [
+            {
+              code: "unsupported_feature",
+              scope: "positions",
+              severity: "critical",
+              criticality: "critical",
+              message: limitationReason
+            }
+          ]
+        }
+      })
+    };
+    const generator = new SummaryReportGenerator(accountService, executionService, spotPositionService, availableBotService);
     const report = await generator.generate({ ...linearContext, category: "spot" });
+    const contract = report.sections.find((section) => section.id === "summary.contract");
+    const alerts = report.sections.find((section) => section.id === "summary.alerts");
     const dataCompleteness = report.sections.find((section) => section.id === "summary.data_completeness");
 
     expect(report.dataCompleteness?.state).toBe("complete");
+
+    expect(contract?.type).toBe("text");
+    expect(contract && contract.type === "text" ? contract.text.includes(limitationMessage) : false).toBe(true);
+
+    expect(alerts?.type).toBe("alerts");
+    expect(alerts && alerts.type === "alerts"
+      ? alerts.alerts.some((alert) => alert.message === limitationMessage)
+      : false).toBe(false);
+
     expect(dataCompleteness?.type).toBe("alerts");
+    expect(dataCompleteness && dataCompleteness.type === "alerts"
+      ? dataCompleteness.alerts.some((alert) => alert.message === limitationMessage)
+      : false).toBe(false);
     expect(dataCompleteness && dataCompleteness.type === "alerts"
       ? dataCompleteness.alerts.some((alert) => alert.message === "State: complete")
       : false).toBe(true);
