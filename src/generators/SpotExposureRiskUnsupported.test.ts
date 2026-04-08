@@ -261,7 +261,7 @@ describe("Spot exposure/risk fail-closed reports", () => {
     const openPositions = getSection(report, "summary.open_positions");
 
     expect(overview.type).toBe("kpi");
-    expect(overview.type === "kpi" ? overview.kpis[3]?.value : undefined).toBe("unsupported");
+    expect(overview.type === "kpi" ? overview.kpis[4]?.value : undefined).toBe("unsupported");
     expect(risk.type).toBe("kpi");
     expect(risk.type === "kpi" ? risk.kpis[0]?.value : undefined).toBe("unsupported");
     expect(alerts.type).toBe("alerts");
@@ -269,7 +269,17 @@ describe("Spot exposure/risk fail-closed reports", () => {
       true
     );
     expect(openPositions.type).toBe("table");
+    expect(openPositions.type === "table" ? openPositions.table.headers : []).toEqual([
+      "Symbol",
+      "Side",
+      "Notional",
+      "UPnL",
+      "Leverage",
+      "Price Source"
+    ]);
     expect(openPositions.type === "table" ? openPositions.table.rows : []).toHaveLength(0);
-    expect(report.dataCompleteness?.issues.some((issue) => issue.code === "unsupported_feature")).toBe(true);
+    expect(openPositions.type === "table" ? openPositions.table.emptyMessage : undefined).toContain("unsupported");
+    expect(openPositions.type === "table" ? openPositions.table.emptyMode : undefined).toBeUndefined();
+    expect(report.dataCompleteness?.issues.some((issue) => issue.code === "unsupported_feature")).toBe(false);
   });
 });

@@ -211,7 +211,6 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
     "id": "summary.open_positions",
     "table": {
       "emptyMessage": "No open positions",
-      "emptyMode": "message_only",
       "headers": [
         "Symbol",
         "Side",
@@ -307,7 +306,6 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for l
     "id": "summary.bots",
     "table": {
       "emptyMessage": "No tracked bots",
-      "emptyMode": "message_only",
       "headers": [
         "Bot",
         "Status",
@@ -514,7 +512,6 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
     "id": "summary.open_positions",
     "table": {
       "emptyMessage": "Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions.",
-      "emptyMode": "message_only",
       "headers": [
         "Symbol",
         "Side",
@@ -581,7 +578,6 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for s
     "id": "summary.bots",
     "table": {
       "emptyMessage": "No tracked bots",
-      "emptyMode": "message_only",
       "headers": [
         "Bot",
         "Status",
@@ -796,7 +792,6 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
     "id": "summary.open_positions",
     "table": {
       "emptyMessage": "No open positions",
-      "emptyMode": "message_only",
       "headers": [
         "Symbol",
         "Side",
@@ -882,7 +877,6 @@ exports[`SummaryReportGenerator schema stability produces stable snapshots for b
     "id": "summary.bots",
     "table": {
       "emptyMessage": "No tracked bots",
-      "emptyMode": "message_only",
       "headers": [
         "Bot",
         "Status",

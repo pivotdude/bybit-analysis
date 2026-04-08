@@ -482,4 +482,27 @@ describe("SummaryReportGenerator schema stability", () => {
     expect(markdown).toContain("## [summary.contract] Summary Context");
     expect(markdown).toContain("## [summary.data_completeness] Data Completeness");
   });
+
+  it("keeps empty summary tables structurally stable in markdown and compact output", async () => {
+    const report = await generateByContext("spot", "market");
+    const markdown = new MarkdownRenderer().render(report, "md");
+    const compact = new MarkdownRenderer().render(report, "compact");
+
+    expect(markdown).toContain("## [summary.open_positions] Open Positions");
+    expect(markdown).toContain("| Symbol | Side | Notional | UPnL | Leverage | Price Source |");
+    expect(markdown).toContain(
+      "> Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."
+    );
+    expect(markdown).toContain("## [summary.bots] Bots");
+    expect(markdown).toContain("| Bot | Status | Allocated | Exposure | Realized | Unrealized | ROI |");
+    expect(markdown).toContain("> No tracked bots");
+    expect(compact).toContain("### [summary.open_positions] Open Positions");
+    expect(compact).toContain("|Symbol|Side|Notional|UPnL|Leverage|Price Source|");
+    expect(compact).toContain(
+      "> Spot limitation: Spot market exposure/risk is unsupported: spot balances are not modeled as exposure-bearing positions."
+    );
+    expect(compact).toContain("### [summary.bots] Bots");
+    expect(compact).toContain("|Bot|Status|Allocated|Exposure|Realized|Unrealized|ROI|");
+    expect(compact).toContain("> No tracked bots");
+  });
 });

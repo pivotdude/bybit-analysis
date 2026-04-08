@@ -555,8 +555,7 @@ function buildSectionList(args: {
       table: {
         headers: ["Symbol", "Side", "Notional", "UPnL", "Leverage", "Price Source"],
         rows: args.unsupportedExposureRiskReason ? [] : positionsRows,
-        emptyMessage: buildPositionsEmptyMessage(args.unsupportedExposureRiskReason),
-        emptyMode: "message_only"
+        emptyMessage: buildPositionsEmptyMessage(args.unsupportedExposureRiskReason)
       }
     }),
     section("holdings", {
@@ -577,8 +576,7 @@ function buildSectionList(args: {
       table: {
         headers: ["Bot", "Status", "Allocated", "Exposure", "Realized", "Unrealized", "ROI"],
         rows: botRows,
-        emptyMessage: buildBotTableEmptyMessage(args.botReport, args.botFailureReason),
-        emptyMode: "message_only"
+        emptyMessage: buildBotTableEmptyMessage(args.botReport, args.botFailureReason)
       }
     }),
     section("alerts", {

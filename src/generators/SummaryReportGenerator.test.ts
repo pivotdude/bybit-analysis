@@ -233,6 +233,7 @@ describe("SummaryReportGenerator", () => {
 
     const report = await generator.generate(linearContext);
     const alertsSection = report.sections.find((section) => section.type === "alerts" && section.title === "Alerts");
+    const botsSection = report.sections.find((section) => section.id === "summary.bots");
 
     expect(report.command).toBe("summary");
     expect(report.sections.some((section) => section.title === "Overview")).toBe(true);
@@ -250,6 +251,21 @@ describe("SummaryReportGenerator", () => {
           issue.message.includes("bot endpoint unavailable")
       ) ?? false
     ).toBe(true);
+    expect(botsSection?.type).toBe("table");
+    expect(botsSection && botsSection.type === "table" ? botsSection.table.headers : []).toEqual([
+      "Bot",
+      "Status",
+      "Allocated",
+      "Exposure",
+      "Realized",
+      "Unrealized",
+      "ROI"
+    ]);
+    expect(botsSection && botsSection.type === "table" ? botsSection.table.rows : []).toEqual([]);
+    expect(botsSection && botsSection.type === "table" ? botsSection.table.emptyMessage : undefined).toContain(
+      "bot endpoint unavailable"
+    );
+    expect(botsSection && botsSection.type === "table" ? botsSection.table.emptyMode : undefined).toBeUndefined();
   });
 
   it("fails summary generation when bot report fetch fails for bot source mode", async () => {
