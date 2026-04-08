@@ -79,10 +79,12 @@ export function createProcessEnvMap(
 
 export function resolveCliRuntimeEnv(
   argv: string[],
-  env: Record<string, string | undefined> = createProcessEnvMap()
+  env: Record<string, string | undefined> = process.env,
+  cwd: string = process.cwd()
 ): CliRuntimeEnv {
+  const values = createProcessEnvMap(env, cwd);
   const disabledByCli = hasNoEnvFlag(argv);
-  const disabledByEnv = isTruthyEnvValue(env[ENV_VARS.disableEnv]);
+  const disabledByEnv = isTruthyEnvValue(values[ENV_VARS.disableEnv]);
   const enabled = !disabledByCli && !disabledByEnv;
 
   return {
@@ -91,6 +93,6 @@ export function resolveCliRuntimeEnv(
       source: disabledByCli ? "cli" : disabledByEnv ? "env" : "default",
       usedVars: []
     },
-    values: enabled ? cloneEnv(env) : {}
+    values: enabled ? cloneEnv(values) : {}
   };
 }

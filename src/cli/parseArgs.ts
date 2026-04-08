@@ -153,6 +153,9 @@ export function parseArgs(
         case "--no-env":
           options.noEnv = true;
           break;
+        case "--project-root":
+          options.projectRoot = consumeValue();
+          break;
         case "--profile":
           options.profile = consumeValue();
           break;
@@ -283,6 +286,7 @@ function renderOptionsSection(): string[] {
     "  --api-key <value>  [deprecated, insecure; disabled by default]",
     "  --api-secret <value>  [deprecated, insecure; disabled by default]",
     "  --no-env  disable ambient BYBIT_* env resolution for deterministic runs",
+    "  --project-root <path>  resolve .env and default profile file from this directory",
     "  --profile <name>",
     "  --profiles-file <path>",
     "  --exchange-provider <bybit>",

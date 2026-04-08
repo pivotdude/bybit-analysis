@@ -38,6 +38,12 @@ bun run src/index.ts <command> [options]
 bybit-analys <command> [options]
 ```
 
+When `.env` and `.bybit-profiles.json` live in a workspace directory rather than the current shell directory, pass `--project-root <path>`.
+
+```bash
+bybit-analys summary --project-root workspace/skills/bybit-analysis --profile main --window 30d
+```
+
 Command-specific help:
 
 ```bash
@@ -201,6 +207,7 @@ Example (`pnl` section):
 
 ## Global Options
 
+- `--project-root <path>`
 - `--profile <name>`
 - `--profiles-file <path>`
 - `--exchange-provider <bybit>`
@@ -246,6 +253,7 @@ Supported env vars:
 Precedence rules:
 
 - General runtime fields: `CLI args -> profile (if applicable) -> env -> defaults`
+- `--project-root` changes where `.env` and the default `.bybit-profiles.json` are resolved from; absolute `--profiles-file` paths are still used as-is.
 - Exchange/provider selection is explicit via `--exchange-provider` / `BYBIT_EXCHANGE_PROVIDER` (currently only `bybit` is supported).
 - Credentials: `profile env references -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
 - Time range: `--from + --to -> --window -> BYBIT_WINDOW -> default 30d window`

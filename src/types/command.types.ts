@@ -22,6 +22,7 @@ export interface TimeRange {
 
 export interface ParsedCliOptions {
   noEnv?: boolean;
+  projectRoot?: string;
   apiKey?: string;
   apiSecret?: string;
   profile?: string;

@@ -1,7 +1,7 @@
 ---
-name: bybit-analys
+name: bybit-analysis
 description: Analyze Bybit account state and trading performance using the bybit-analys CLI. Use for health checks, permissions, balances, positions, exposure, risk, PnL, performance, and bot analytics.
-argument-hint: <command> [--profile <name>] [--format md|compact|json] [--window 7d|30d|90d] [--category linear|spot] [--source market|bot]
+argument-hint: <command> [--project-root <path>] [--profile <name>] [--format md|compact|json] [--window 7d|30d|90d] [--category linear|spot] [--source market|bot]
 allowed-tools: Bash(bybit-analys:*) Read
 ---
 
@@ -42,6 +42,7 @@ Period commands:
 ## Rules
 
 - Use `bybit-analys <command> [options]`.
+- Pass `--project-root <path>` when `.env` and `.bybit-profiles.json` live in a workspace directory rather than the current shell directory.
 - Prefer `health` first when credentials or connectivity may be broken.
 - Prefer `--format json` for downstream parsing and automation.
 - Prefer `--format md` when the result is meant for a human.
@@ -84,6 +85,6 @@ bybit-analys health
 bybit-analys permissions --profile main
 bybit-analys balance --profile main
 bybit-analys positions --profile main --format json
-bybit-analys summary --profile main --window 30d --format md
-bybit-analys summary --profile main --source bot --format json
+bybit-analys summary --project-root workspace/skills/bybit-analysis --profile main --window 30d --format md
+bybit-analys summary --project-root workspace/skills/bybit-analysis --profile main --source bot --format json
 ```

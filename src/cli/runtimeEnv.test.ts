@@ -50,6 +50,47 @@ describe("resolveCliRuntimeEnv", () => {
     expect(runtimeEnv.values.BYBIT_CATEGORY).toBe("spot");
   });
 
+  it("loads .env values from the provided project root", () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, ".env"), "BYBIT_CATEGORY=spot\n", "utf8");
+
+    const runtimeEnv = resolveCliRuntimeEnv(["config"], {}, dir);
+
+    expect(runtimeEnv.ambientEnv.enabled).toBe(true);
+    expect(runtimeEnv.values.BYBIT_CATEGORY).toBe("spot");
+  });
+
+  it("prefers inherited env over project root .env", () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, ".env"), "BYBIT_CATEGORY=spot\n", "utf8");
+
+    const runtimeEnv = resolveCliRuntimeEnv(["config"], { BYBIT_CATEGORY: "linear" }, dir);
+
+    expect(runtimeEnv.values.BYBIT_CATEGORY).toBe("linear");
+  });
+
+  it("still disables ambient env with --no-env even when project root is provided", () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, ".env"), "BYBIT_CATEGORY=spot\n", "utf8");
+
+    const runtimeEnv = resolveCliRuntimeEnv(["config", "--no-env"], {}, dir);
+
+    expect(runtimeEnv.ambientEnv.enabled).toBe(false);
+    expect(runtimeEnv.ambientEnv.source).toBe("cli");
+    expect(runtimeEnv.values).toEqual({});
+  });
+
+  it("disables ambient env when project root .env sets BYBIT_DISABLE_ENV=1", () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, ".env"), "BYBIT_DISABLE_ENV=1\nBYBIT_CATEGORY=spot\n", "utf8");
+
+    const runtimeEnv = resolveCliRuntimeEnv(["config"], {}, dir);
+
+    expect(runtimeEnv.ambientEnv.enabled).toBe(false);
+    expect(runtimeEnv.ambientEnv.source).toBe("env");
+    expect(runtimeEnv.values).toEqual({});
+  });
+
   it("disables ambient env with --no-env", () => {
     const runtimeEnv = resolveCliRuntimeEnv(["config", "--no-env"], {
       BYBIT_CATEGORY: "spot"

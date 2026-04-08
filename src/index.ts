@@ -8,7 +8,8 @@ const USAGE_HINT = "Hint: run with --help to see usage.";
 
 async function main(): Promise<void> {
   const argv = Bun.argv.slice(2);
-  const runtimeEnv = resolveCliRuntimeEnv(argv);
+  const bootstrapParse = parseArgs(argv, process.env);
+  const runtimeEnv = resolveCliRuntimeEnv(argv, process.env, bootstrapParse.options.projectRoot ?? process.cwd());
   const parsed = parseArgs(argv, runtimeEnv.values);
 
   if (parsed.options.help && parsed.errors.length === 0) {
@@ -20,14 +21,12 @@ async function main(): Promise<void> {
     process.stderr.write(`${parsed.errors.join("\n")}\n`);
     process.stderr.write(`${USAGE_HINT}\n`);
     process.exit(CLI_EXIT_CODE.USAGE_ERROR);
-    return;
   }
 
   if (!parsed.command) {
     process.stderr.write("Command is required\n");
     process.stderr.write(`${USAGE_HINT}\n`);
     process.exit(CLI_EXIT_CODE.USAGE_ERROR);
-    return;
   }
 
   try {
@@ -38,7 +37,6 @@ async function main(): Promise<void> {
     if (error instanceof UsageError) {
       process.stderr.write(`${error.message}\n`);
       process.exit(CLI_EXIT_CODE.USAGE_ERROR);
-      return;
     }
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`${message}\n`);
