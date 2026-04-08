@@ -27,6 +27,30 @@ export const BOTS_SECTION_ORDER = [
 
 const section = createSectionBuilder(BOTS_SECTION_CONTRACT);
 
+function buildBotEmptyStateMessage(availability: "available" | "not_available" | "requires_scraping", reason?: string): string | undefined {
+  if (availability === "available") {
+    return undefined;
+  }
+
+  const baseMessage =
+    availability === "requires_scraping"
+      ? "Bot analytics require a separate scraping/integration path for the selected profile."
+      : "Bot analytics are unavailable for the selected profile.";
+
+  return reason ? `${baseMessage} ${reason}` : baseMessage;
+}
+
+function buildBotNotes(emptyStateMessage: string | undefined): string[] {
+  if (!emptyStateMessage) {
+    return ["Bot metrics are available via current integration."];
+  }
+
+  return [
+    emptyStateMessage,
+    "This run is supported, but no bot analytics can be shown until bot ids are configured or a supported bot integration is available."
+  ];
+}
+
 export class BotsReportGenerator {
   private readonly analyzer = new BotsAnalyzer();
 
@@ -38,6 +62,9 @@ export class BotsReportGenerator {
     });
     const generatedAt = new Date().toISOString();
     const analysis = this.analyzer.analyze(report);
+    const botEmptyStateMessage = analysis.bots.length === 0
+      ? buildBotEmptyStateMessage(analysis.availability, analysis.availabilityReason)
+      : undefined;
 
     const sections: ReportDocument["sections"] = [
       section("summary", {
@@ -61,7 +88,9 @@ export class BotsReportGenerator {
             fmtUsd(bot.unrealizedPnlUsd ?? 0),
             typeof bot.roiPct === "number" ? fmtPct(bot.roiPct) : "N/A",
             String(bot.activePositionCount ?? 0)
-          ])
+          ]),
+          emptyMessage: botEmptyStateMessage,
+          emptyMode: botEmptyStateMessage ? "message_only" : undefined
         }
       }),
       section("technical", {
@@ -76,15 +105,13 @@ export class BotsReportGenerator {
             fmtUsd(bot.strategyProfitUsd ?? 0),
             bot.closeReason ?? "-",
             bot.closeCode ?? "-"
-          ])
+          ]),
+          emptyMessage: botEmptyStateMessage,
+          emptyMode: botEmptyStateMessage ? "message_only" : undefined
         }
       }),
       section("notes", {
-        text: [
-          analysis.availability === "available"
-            ? "Bot metrics are available via current integration."
-            : "Bot metrics are best-effort and may require separate scraping/integration."
-        ]
+        text: buildBotNotes(botEmptyStateMessage)
       }),
       section("dataCompleteness", {
         alerts: buildDataCompletenessAlerts(report.dataCompleteness)
