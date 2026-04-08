@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { resolve as resolvePath } from "node:path";
+import { isAbsolute, resolve as resolvePath } from "node:path";
 import type { ParsedCliOptions } from "../types/command.types";
 import type { ExchangeId, IntegrationMode, MarketCategory } from "../types/domain.types";
 import { ENV_VARS } from "../configEnv";
@@ -57,7 +57,9 @@ function parseProfileEntry(profileName: string, value: unknown): ProfileConfig {
 }
 
 export function resolveProfilesPath(options: ParsedCliOptions, env: Record<string, string | undefined>): string {
-  return resolvePath(options.profilesFile ?? env[ENV_VARS.profilesFile] ?? DEFAULT_PROFILES_FILE);
+  const baseDir = options.projectRoot ?? process.cwd();
+  const configuredPath = options.profilesFile ?? env[ENV_VARS.profilesFile] ?? DEFAULT_PROFILES_FILE;
+  return isAbsolute(configuredPath) ? configuredPath : resolvePath(baseDir, configuredPath);
 }
 
 export function resolveProfile(

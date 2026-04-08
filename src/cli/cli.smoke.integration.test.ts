@@ -160,6 +160,32 @@ function countTableDataRows(markdown: string): number {
 }
 
 describe("CLI smoke/integration", () => {
+  it("loads .env and default profile file from --project-root", () => {
+    const projectRoot = createTempDir();
+    writeFileSync(join(projectRoot, ".env"), `${FIXTURE_MODE_ENV}=smoke\nFT_NFI_API_KEY=${FIXTURE_API_KEY}\nFT_NFI_API_SECRET=${FIXTURE_API_SECRET}\n`, "utf8");
+    writeFileSync(
+      join(projectRoot, ".bybit-profiles.json"),
+      JSON.stringify({
+        FT_NFI: {
+          apiKeyEnv: "FT_NFI_API_KEY",
+          apiSecretEnv: "FT_NFI_API_SECRET",
+          category: "spot"
+        }
+      }),
+      "utf8"
+    );
+
+    const result = runCli(["summary", "--project-root", projectRoot, "--profile", "FT_NFI", "--format", "json"], {
+      [FIXTURE_MODE_ENV]: "smoke"
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    const payload = parseJsonReport(result.stdout);
+    expect(payload.command).toBe("summary");
+    expect(payload.outcome?.exitCode).toBe(3);
+  });
+
   it("renders config report successfully and keeps safe redaction defaults", () => {
     const apiKey = "integration-test-api-key";
     const apiSecret = "integration-test-api-secret";

@@ -44,12 +44,22 @@ describe("parseArgs CLI conventions", () => {
     },
     {
       name: "supports --flag=value syntax",
-      argv: ["summary", "--format=compact", "--timeout-ms=15000"],
+      argv: ["summary", "--format=compact", "--timeout-ms=15000", "--project-root=/tmp/bybit"],
       assert: (parsed) => {
         expect(parsed.command).toBe("summary");
         expect(parsed.errors).toEqual([]);
         expect(parsed.options.format).toBe("compact");
         expect(parsed.options.timeoutMs).toBe(15000);
+        expect(parsed.options.projectRoot).toBe("/tmp/bybit");
+      }
+    },
+    {
+      name: "supports project root as separate value option",
+      argv: ["summary", "--project-root", "/workspace/skills/bybit-analysis"],
+      assert: (parsed) => {
+        expect(parsed.command).toBe("summary");
+        expect(parsed.errors).toEqual([]);
+        expect(parsed.options.projectRoot).toBe("/workspace/skills/bybit-analysis");
       }
     },
     {
@@ -128,6 +138,7 @@ describe("renderHelp", () => {
     expect(help).toContain("--api-key <value>  [deprecated, insecure; disabled by default]");
     expect(help).toContain("--api-secret <value>  [deprecated, insecure; disabled by default]");
     expect(help).toContain("--no-env  disable ambient BYBIT_* env resolution for deterministic runs");
+    expect(help).toContain("--project-root <path>  resolve .env and default profile file from this directory");
     expect(help).toContain("BYBIT_ALLOW_INSECURE_CLI_SECRETS=1");
     expect(help).toContain("BYBIT_EXCHANGE_PROVIDER=<bybit>");
     expect(help).toContain("--config-diagnostics  show expanded config diagnostics (sensitive identifiers)");
