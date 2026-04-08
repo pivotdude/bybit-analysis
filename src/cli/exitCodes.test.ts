@@ -15,6 +15,67 @@ function baseReport(overrides: Partial<ReportDocument> = {}): ReportDocument {
   };
 }
 
+function spotUnsupportedReport(command: ReportDocument["command"]): ReportDocument {
+  return baseReport({
+    command,
+    dataCompleteness: {
+      state: "unsupported",
+      partial: true,
+      warnings: ["Spot exposure analytics are unsupported"],
+      issues: [
+        {
+          code: "unsupported_feature",
+          scope: "positions",
+          severity: "critical",
+          criticality: "critical",
+          message: "Spot exposure analytics are unsupported"
+        }
+      ]
+    },
+    sources: [
+      {
+        id: "positions_snapshot",
+        kind: "positions_snapshot",
+        provider: "bybit",
+        exchange: "bybit",
+        category: "spot",
+        fetchedAt: "2026-01-01T00:00:00.000Z"
+      }
+    ]
+  });
+}
+
+function criticalUnsupportedReport(overrides: Partial<ReportDocument> = {}): ReportDocument {
+  return baseReport({
+    command: "positions",
+    dataCompleteness: {
+      state: "unsupported",
+      partial: true,
+      warnings: ["Unsupported analytics"],
+      issues: [
+        {
+          code: "unsupported_feature",
+          scope: "positions",
+          severity: "critical",
+          criticality: "critical",
+          message: "Unsupported analytics"
+        }
+      ]
+    },
+    sources: [
+      {
+        id: "positions_snapshot",
+        kind: "positions_snapshot",
+        provider: "bybit",
+        exchange: "bybit",
+        category: "linear",
+        fetchedAt: "2026-01-01T00:00:00.000Z"
+      }
+    ],
+    ...overrides
+  });
+}
+
 describe("classifyReportExitCode", () => {
   it("returns success for complete reports", () => {
     const report = baseReport();
@@ -42,25 +103,18 @@ describe("classifyReportExitCode", () => {
     expect(classifyReportExitCode(report)).toBe(CLI_EXIT_CODE.PARTIAL_OPTIONAL);
   });
 
-  it("returns critical-incomplete exit code for unsupported analytics", () => {
-    const report = baseReport({
-      dataCompleteness: {
-        state: "unsupported",
-        partial: true,
-        warnings: ["Spot exposure analytics are unsupported"],
-        issues: [
-          {
-            code: "unsupported_feature",
-            scope: "positions",
-            severity: "critical",
-            criticality: "critical",
-            message: "Spot exposure analytics are unsupported"
-          }
-        ]
-      }
-    });
+  it("returns success exit code for spot intrinsic unsupported analytics", () => {
+    expect(classifyReportExitCode(spotUnsupportedReport("positions"))).toBe(CLI_EXIT_CODE.SUCCESS);
+    expect(classifyReportExitCode(spotUnsupportedReport("exposure"))).toBe(CLI_EXIT_CODE.SUCCESS);
+    expect(classifyReportExitCode(spotUnsupportedReport("risk"))).toBe(CLI_EXIT_CODE.SUCCESS);
+  });
 
-    expect(classifyReportExitCode(report)).toBe(CLI_EXIT_CODE.CRITICAL_INCOMPLETE);
+  it("keeps critical-incomplete exit code for non-spot unsupported analytics", () => {
+    expect(classifyReportExitCode(criticalUnsupportedReport())).toBe(CLI_EXIT_CODE.CRITICAL_INCOMPLETE);
+  });
+
+  it("keeps critical-incomplete exit code for unsupported spot reports outside protected commands", () => {
+    expect(classifyReportExitCode(spotUnsupportedReport("summary"))).toBe(CLI_EXIT_CODE.CRITICAL_INCOMPLETE);
   });
 
   it("returns health-failed exit code for failed health reports", () => {
@@ -131,6 +185,16 @@ describe("classifyReportOutcome", () => {
       exitCode: CLI_EXIT_CODE.PARTIAL_OPTIONAL,
       exitCodeLabel: "partial_optional",
       dataCompletenessState: "partial_optional",
+      healthStatus: "n/a"
+    });
+  });
+
+  it("returns deterministic success metadata for benign spot unsupported report", () => {
+    expect(classifyReportOutcome(spotUnsupportedReport("positions"))).toEqual({
+      status: "success",
+      exitCode: CLI_EXIT_CODE.SUCCESS,
+      exitCodeLabel: "success",
+      dataCompletenessState: "unsupported",
       healthStatus: "n/a"
     });
   });

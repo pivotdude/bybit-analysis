@@ -1,5 +1,6 @@
 import type { ReportDocument } from "../types/report.types";
 import type { DataCompletenessState } from "../types/domain.types";
+import { isSpotPositionsUnsupportedIssue } from "../services/reliability/dataCompleteness";
 
 export const CLI_EXIT_CODE = {
   SUCCESS: 0,
@@ -33,6 +34,23 @@ export interface ReportOutcome {
   healthStatus: ReportDocument["healthStatus"] | "n/a";
 }
 
+function isBenignSpotUnsupportedReport(report: ReportDocument): boolean {
+  const dataCompleteness = report.dataCompleteness;
+  if (!dataCompleteness || dataCompleteness.state !== "unsupported") {
+    return false;
+  }
+
+  if (!report.sources?.some((source) => source.category === "spot")) {
+    return false;
+  }
+
+  if (!(["positions", "exposure", "risk"] as const).includes(report.command as "positions" | "exposure" | "risk")) {
+    return false;
+  }
+
+  return dataCompleteness.issues.some(isSpotPositionsUnsupportedIssue);
+}
+
 function resolveReportOutcomeStatus(report: ReportDocument): ReportOutcomeStatus {
   if (report.command === "health" && report.healthStatus === "failed") {
     return "failed";
@@ -43,7 +61,10 @@ function resolveReportOutcomeStatus(report: ReportDocument): ReportOutcomeStatus
     return "success";
   }
 
-  if (dataCompleteness.state === "unsupported" && dataCompleteness.issues.length === 0) {
+  if (
+    (dataCompleteness.state === "unsupported" && dataCompleteness.issues.length === 0) ||
+    isBenignSpotUnsupportedReport(report)
+  ) {
     return "success";
   }
 

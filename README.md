@@ -41,7 +41,7 @@ bun run src/index.ts <command> --help
 
 - `0` complete success (and for `health`, connectivity/auth checks passed)
 - `3` optional partial success (report generated, but only optional enrichment/data degraded)
-- `4` critical incomplete / unsupported analytics (report generated, but output is not safely actionable for automation)
+- `4` critical incomplete analytics (report generated, but output is not safely actionable for automation; expected spot-intrinsic unsupported exposure/risk reports stay successful)
 - `5` health-check failure (`health` command returned failed connectivity and/or auth)
 - `1` runtime failure (unexpected execution error)
 - `2` usage/config failure (invalid args or runtime validation error)

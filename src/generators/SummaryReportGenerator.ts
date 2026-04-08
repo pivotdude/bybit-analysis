@@ -11,6 +11,7 @@ import {
   degradedDataCompleteness,
   filterDataCompletenessIssues,
   getUnsupportedFeatureIssueMessage,
+  isSpotPositionsUnsupportedIssue,
   mergeDataCompleteness
 } from "../services/reliability/dataCompleteness";
 import { resolveStartingEquity } from "../services/roi/startingEquityResolver";
@@ -82,7 +83,7 @@ function resolveBotNetPnlUsd(bot: BotSummary): number {
 }
 
 function isCategoryIntrinsicSpotPositionsIssue(context: ServiceRequestContext, issue: DataCompleteness["issues"][number]): boolean {
-  return context.category === "spot" && issue.code === "unsupported_feature" && issue.scope === "positions";
+  return context.category === "spot" && isSpotPositionsUnsupportedIssue(issue);
 }
 
 function buildSpotLimitationMessage(reason: string): string {

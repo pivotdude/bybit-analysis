@@ -84,6 +84,10 @@ export function buildUnsupportedFeatureIssue(args: {
   };
 }
 
+export function isSpotPositionsUnsupportedIssue(issue: DataCompletenessIssue): boolean {
+  return issue.code === "unsupported_feature" && issue.scope === "positions";
+}
+
 export function getUnsupportedFeatureIssueMessage(
   dataCompleteness: DataCompleteness,
   scope?: DataCompletenessScope
