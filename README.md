@@ -1,12 +1,49 @@
-# bybit-analysis
+# bybit-analys
 
-> **PRIVATE REPOSITORY — DO NOT MAKE PUBLIC**
+> **Repository publication rule**
 >
-> This repository previously contained API credentials in `.openclaude-profile.json` which were committed and pushed to GitHub. The file has been removed from the local git history, but **GitHub's server still retains the original commit refs** (`refs/pull/*`) that contain the secrets.
+> This repository previously contained API credentials in `.openclaude-profile.json` which were committed and pushed to GitHub. Even after local history cleanup, GitHub can retain old refs such as `refs/pull/*` that still expose those secrets.
 >
-> **Never switch this repository to public visibility.** If public access is ever needed, create a completely new repository and clean-push the current working tree into it (no history).
+> **Do not make this existing repository public.** Create a completely new public repository and clean-push only the current working tree without history.
 
 Read-only analytics CLI for Bybit accounts. Outputs schema-stable Markdown for operators and versioned JSON for automation and agent consumption.
+
+## Install
+
+### Local development
+
+```bash
+bun install
+```
+
+### Global install from npm
+
+```bash
+npm i -g bybit-analys
+```
+
+This package uses Bun at runtime, so Bun must be installed on the machine where you run the CLI.
+
+## Run
+
+### Local source run
+
+```bash
+bun run src/index.ts <command> [options]
+```
+
+### Installed CLI
+
+```bash
+bybit-analys <command> [options]
+```
+
+Command-specific help:
+
+```bash
+bun run src/index.ts <command> --help
+bybit-analys <command> --help
+```
 
 ## Exchange Readiness Status
 
@@ -18,24 +55,6 @@ Read-only analytics CLI for Bybit accounts. Outputs schema-stable Markdown for o
 - `botService` is optional in `ServiceBundle` and only required by providers that expose bot capability.
 - Current implementation status: only the `bybit` provider is implemented and registered.
 - This is not full multi-exchange support yet; it is a structural split so new providers can be added without rewriting shared domain models.
-
-## Install
-
-```bash
-bun install
-```
-
-## Run
-
-```bash
-bun run src/index.ts <command> [options]
-```
-
-Command-specific help:
-
-```bash
-bun run src/index.ts <command> --help
-```
 
 ## Exit Codes (Automation Contract)
 
@@ -60,11 +79,43 @@ bun run test:watch
 # optional local coverage report
 bun run test:coverage
 
-# standard local gate (types + tests)
+# standard local gate (types + tests + build)
 bun run verify
+
+# release validation before tag/release
+bun run validate:local-release
 ```
 
 Current suite covers production-critical paths: spot PnL normalization, pagination safety handling, secret redaction, CLI stdout/stderr contract, all report schema contracts, and CLI smoke/integration flow.
+
+## CI / release flow
+
+- CI workflow: `.github/workflows/verify.yml`
+- npm publish workflow: `.github/workflows/npm-publish.yml`
+- CI runs on pull requests, pushes to `main`, version tags `v*`, and can be started manually with `workflow_dispatch`
+- npm publish is triggered by GitHub Release `published` and validates `release.tag_name == v<package.json.version>`
+- npm publish requires `NPM_TOKEN` in the new public GitHub repository secrets
+
+### npm release steps
+
+1. Bump `package.json.version`.
+2. Commit and push changes to the new public repository.
+3. Create and push tag `v<version>`.
+4. Publish a GitHub Release from that tag.
+5. GitHub Actions publishes `bybit-analys` to npm with the `latest` tag.
+
+## Open-source publication safety
+
+Before publishing this project publicly:
+
+1. Create a new public GitHub repository.
+2. Copy or clean-push only the current working tree.
+3. Do not migrate old git history from this private repository.
+4. Run `bun run validate:local-release` before creating the release tag.
+5. Verify `npm pack --dry-run` contains only intended package files.
+
+Do not publish local secret material such as `.env`, `.bybit-profiles.json`, `.openclaude-profile.json`, tarballs, or ad-hoc local logs.
+
 
 ## Commands
 

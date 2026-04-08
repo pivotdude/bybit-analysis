@@ -1,22 +1,39 @@
 {
-  "name": "bybit-analysis",
-  "module": "src/index.ts",
+  "name": "bybit-analys",
+  "version": "0.1.0",
+  "description": "CLI for analyzing Bybit account data and printing schema-stable reports",
+  "module": "dist/index.js",
   "type": "module",
-  "private": true,
+  "bin": {
+    "bybit-analys": "./bin/bybit-analys.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "engines": {
+    "bun": ">=1.3.11"
+  },
   "scripts": {
     "start": "bun run src/index.ts",
-    "check": "tsc --noEmit",
+    "check": "bunx tsc --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
-    "verify": "bun run check && bun run test"
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "verify": "bun run check && bun run test && bun run build",
+    "prepublishOnly": "bun run build",
+    "validate:local-release": "bash scripts/validate-local-release.sh",
+    "audit:private-artifacts": "bash scripts/audit-private-artifacts.sh"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.9.3"
-  },
-  "bin": {
-    "bybit-analysis": "src/index.ts"
   },
   "dependencies": {
     "decimal.js": "^10.6.0"
