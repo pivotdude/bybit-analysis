@@ -60,12 +60,18 @@ export class PerformanceReportGenerator {
       })
     ];
 
-    const capitalEfficiency = capitalEffSupported
-      ? fmtPct(analysis.capitalEfficiencyPct)
-      : "unsupported";
-    const avgDeployedCapital = capitalEffSupported
-      ? fmtUsd(analysis.avgDeployedCapitalUsd)
-      : "unsupported";
+    const capitalEfficiency =
+      capitalEffSupported && typeof analysis.capitalEfficiencyPct === "number"
+        ? fmtPct(analysis.capitalEfficiencyPct)
+        : "unsupported";
+    const avgDeployedCapital =
+      capitalEffSupported && typeof analysis.avgDeployedCapitalUsd === "number"
+        ? fmtUsd(analysis.avgDeployedCapitalUsd)
+        : "unsupported";
+    const capitalEfficiencyInterpretation =
+      capitalEffSupported && typeof analysis.capitalEfficiencyPct === "number"
+        ? `Capital efficiency: ${fmtPct(analysis.capitalEfficiencyPct)}`
+        : `Capital efficiency: unsupported (${analysis.capitalEfficiencyReason ?? "equity history unavailable"})`;
 
     sections.push(
       section("roi", {
@@ -93,9 +99,7 @@ export class PerformanceReportGenerator {
           ...(roiSupported
             ? [`Interpretation: ${analysis.interpretation}`]
             : [`ROI status: unsupported`, `ROI unsupported code: ${analysis.roiUnsupportedReasonCode ?? "unknown"}`]),
-          !capitalEffSupported
-            ? `Capital efficiency: unsupported (${analysis.capitalEfficiencyReason ?? "equity history unavailable"})`
-            : `Capital efficiency: ${fmtPct(analysis.capitalEfficiencyPct)}`
+          capitalEfficiencyInterpretation
         ]
       })
     );
