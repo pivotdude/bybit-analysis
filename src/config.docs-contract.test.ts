@@ -24,7 +24,7 @@ describe("config docs/help contract", () => {
     const help = renderHelp();
     const generalPriority = "CLI args -> profile (if applicable) -> env -> defaults";
     const credentialPriority =
-      "profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults";
+      "profile env references -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults";
 
     expect(readme).toContain(generalPriority);
     expect(readme).toContain(credentialPriority);

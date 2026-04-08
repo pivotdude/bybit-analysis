@@ -196,7 +196,7 @@ Precedence rules:
 
 - General runtime fields: `CLI args -> profile (if applicable) -> env -> defaults`
 - Exchange/provider selection is explicit via `--exchange-provider` / `BYBIT_EXCHANGE_PROVIDER` (currently only `bybit` is supported).
-- Credentials: `profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
+- Credentials: `profile env references -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
 - Time range: `--from + --to -> --window -> BYBIT_WINDOW -> default 30d window`
 - Live snapshot commands reject explicit historical intent from `--from`, `--to`, `--window`, and `BYBIT_WINDOW`
 - Ambient env loading can be disabled with `--no-env` or `BYBIT_DISABLE_ENV=1`
@@ -246,7 +246,7 @@ Recommended production paths:
 
 - Environment variables (`BYBIT_API_KEY` + `BYBIT_SECRET` or `BYBIT_API_SECRET`)
 - Explicit env-file launch, for example `bun --env-file=.env run src/index.ts ...`
-- Credential profile file (`--profile` + `--profiles-file`)
+- Profile-based env references (`--profile` + `--profiles-file` with `apiKeyEnv` / `apiSecretEnv`)
 - OS secret store -> export to env before launch
 
 Example (`.env` used explicitly via `bun --env-file=.env ...`):
@@ -264,13 +264,13 @@ Legacy path (deprecated, insecure):
 ## Config Priority
 
 - General runtime fields: `CLI args -> profile (if applicable) -> env -> defaults`
-- Credentials only: `profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
+- Credentials only: `profile env references -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults`
 - Repo-local `.env` is not auto-loaded; the repository sets `bunfig.toml` with `env = false` for hermetic CLI/test runs.
 - Use `--no-env` or `BYBIT_DISABLE_ENV=1` when you need deterministic argv-only resolution even if the parent process exported `BYBIT_*` vars.
 
 ## Credential Profiles
 
-Use profiles to keep sub-account keys in one local file and switch by name:
+Use profiles to keep non-secret runtime settings plus env variable names for each account and switch by name:
 
 ```bash
 bun run src/index.ts summary --profile subaccount-a
@@ -278,17 +278,19 @@ bun run src/index.ts summary --profile subaccount-a
 
 Default profiles file is `./.bybit-profiles.json` (or set `BYBIT_PROFILES_FILE` / `--profiles-file`).
 
+Profiles must not contain plaintext secrets. Use `apiKeyEnv` and `apiSecretEnv` to point at exported env variable names for that profile.
+
 Example:
 
 ```json
 {
   "subaccount-a": {
-    "apiKey": "xxx",
-    "apiSecret": "yyy"
+    "apiKeyEnv": "SUBACCOUNT_A_API_KEY",
+    "apiSecretEnv": "SUBACCOUNT_A_API_SECRET"
   },
   "subaccount-b": {
-    "apiKey": "aaa",
-    "apiSecret": "bbb",
+    "apiKeyEnv": "SUBACCOUNT_B_API_KEY",
+    "apiSecretEnv": "SUBACCOUNT_B_API_SECRET",
     "category": "linear",
     "sourceMode": "bot",
     "futuresGridBotIds": ["612330315406398322"]

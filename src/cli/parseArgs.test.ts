@@ -8,10 +8,10 @@ describe("parseArgs secret flags", () => {
     expect(parsed.options.apiKey).toBeUndefined();
     expect(parsed.options.apiSecret).toBeUndefined();
     expect(parsed.errors).toContain(
-      "Option --api-key is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or a credential profile. If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
+      "Option --api-key is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or profile env references (apiKeyEnv/apiSecretEnv). If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
     );
     expect(parsed.errors).toContain(
-      "Option --api-secret is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or a credential profile. If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
+      "Option --api-secret is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or profile env references (apiKeyEnv/apiSecretEnv). If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
     );
   });
 

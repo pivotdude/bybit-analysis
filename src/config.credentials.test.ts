@@ -21,11 +21,11 @@ afterEach(() => {
 });
 
 describe("resolveRuntimeConfig credential priority", () => {
-  it("prefers profile credentials over env and legacy cli flags", () => {
+  it("prefers profile env references over global env and legacy cli flags", () => {
     const profilesFile = createProfilesFile({
       prod: {
-        apiKey: "profile_key",
-        apiSecret: "profile_secret"
+        apiKeyEnv: "PROD_API_KEY",
+        apiSecretEnv: "PROD_API_SECRET"
       }
     });
 
@@ -39,7 +39,9 @@ describe("resolveRuntimeConfig credential priority", () => {
       {
         BYBIT_ALLOW_INSECURE_CLI_SECRETS: "1",
         BYBIT_API_KEY: "env_key",
-        BYBIT_SECRET: "env_secret"
+        BYBIT_SECRET: "env_secret",
+        PROD_API_KEY: "profile_key",
+        PROD_API_SECRET: "profile_secret"
       }
     );
 
@@ -47,6 +49,29 @@ describe("resolveRuntimeConfig credential priority", () => {
     expect(config.apiSecret).toBe("profile_secret");
     expect(config.sources.apiKey).toBe("profile");
     expect(config.sources.apiSecret).toBe("profile");
+    expect(config.ambientEnv.usedVars).toContain("PROD_API_KEY");
+    expect(config.ambientEnv.usedVars).toContain("PROD_API_SECRET");
+  });
+
+  it("rejects plaintext secret fields inside profiles", () => {
+    const profilesFile = createProfilesFile({
+      prod: {
+        apiKey: "profile_key",
+        apiSecret: "profile_secret"
+      }
+    });
+
+    expect(() =>
+      resolveRuntimeConfig(
+        {
+          profile: "prod",
+          profilesFile
+        },
+        {}
+      )
+    ).toThrow(
+      'Invalid profile "prod": plaintext secret fields are not allowed (apiKey, apiSecret). Use apiKeyEnv/apiSecretEnv to reference environment variable names.'
+    );
   });
 
   it("prefers env credentials over legacy cli flags", () => {

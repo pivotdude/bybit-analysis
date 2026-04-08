@@ -131,7 +131,7 @@ export function parseArgs(
               options.apiKey = value;
             } else {
               errors.push(
-                "Option --api-key is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or a credential profile. If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
+                "Option --api-key is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or profile env references (apiKeyEnv/apiSecretEnv). If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
               );
             }
           }
@@ -144,7 +144,7 @@ export function parseArgs(
               options.apiSecret = value;
             } else {
               errors.push(
-                "Option --api-secret is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or a credential profile. If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
+                "Option --api-secret is insecure and disabled by default. Use BYBIT_API_KEY / BYBIT_SECRET (or BYBIT_API_SECRET), .env, or profile env references (apiKeyEnv/apiSecretEnv). If you must bypass this temporarily, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1."
               );
             }
           }
@@ -328,14 +328,14 @@ function renderGlobalHelp(): string {
     "",
     "Resolution precedence:",
     "  General runtime fields: CLI args -> profile (if applicable) -> env -> defaults.",
-    "  Credentials: profile -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults.",
+    "  Credentials: profile env references -> env -> legacy CLI flags (only with BYBIT_ALLOW_INSECURE_CLI_SECRETS=1) -> defaults.",
     "  Time range: --from + --to -> --window -> BYBIT_WINDOW -> default 30d window.",
     "  Live snapshot commands reject explicit historical intent from --from/--to/--window and BYBIT_WINDOW.",
     `  Ambient env can be disabled with --no-env or ${ENV_VARS.disableEnv}=1.`,
     "",
     "Credential input (recommended):",
     "  1) Environment variables or .env: BYBIT_API_KEY + BYBIT_SECRET (or BYBIT_API_SECRET).",
-    "  2) Credential profiles: --profile <name> with --profiles-file.",
+    "  2) Profile env references: --profile <name> with --profiles-file using apiKeyEnv/apiSecretEnv.",
     "",
     "Legacy insecure flags (deprecated):",
     "  To temporarily allow --api-key/--api-secret, set BYBIT_ALLOW_INSECURE_CLI_SECRETS=1.",
