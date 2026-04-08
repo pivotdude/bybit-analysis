@@ -1,11 +1,11 @@
 {
-  "name": "bybit-analys",
+  "name": "bybit-analysis",
   "version": "0.1.1",
   "description": "CLI for analyzing Bybit account data and printing schema-stable reports",
   "module": "dist/index.js",
   "type": "module",
   "bin": {
-    "bybit-analys": "./bin/bybit-analys.js"
+    "bybit-analysis": "./bin/bybit-analysis.js"
   },
   "files": [
     "bin",

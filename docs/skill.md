@@ -1,11 +1,11 @@
 ---
 name: bybit-analysis
-description: Analyze Bybit account state and trading performance using the bybit-analys CLI. Use for health checks, permissions, balances, positions, exposure, risk, PnL, performance, and bot analytics.
+description: Analyze Bybit account state and trading performance using the bybit-analysis CLI. Use for health checks, permissions, balances, positions, exposure, risk, PnL, performance, and bot analytics.
 argument-hint: <command> [--project-root <path>] [--profile <name>] [--format md|compact|json] [--window 7d|30d|90d] [--category linear|spot] [--source market|bot]
-allowed-tools: Bash(bybit-analys:*) Read
+allowed-tools: Bash(bybit-analysis:*) Read
 ---
 
-Use the compiled `bybit-analys` binary from `PATH`.
+Use the compiled `bybit-analysis` binary from `PATH`.
 
 ## When to use
 
@@ -41,7 +41,7 @@ Period commands:
 
 ## Rules
 
-- Use `bybit-analys <command> [options]`.
+- Use `bybit-analysis <command> [options]`.
 - Pass `--project-root <path>` when `.env` and `.bybit-profiles.json` live in a workspace directory rather than the current shell directory.
 - Prefer `health` first when credentials or connectivity may be broken.
 - Prefer `--format json` for downstream parsing and automation.
@@ -81,10 +81,10 @@ Explicit CLI flags override profile-provided values.
 ## Typical invocations
 
 ```bash
-bybit-analys health
-bybit-analys permissions --profile main
-bybit-analys balance --profile main
-bybit-analys positions --profile main --format json
-bybit-analys summary --project-root workspace/skills/bybit-analysis --profile main --window 30d --format md
-bybit-analys summary --project-root workspace/skills/bybit-analysis --profile main --source bot --format json
+bybit-analysis health
+bybit-analysis permissions --profile main
+bybit-analysis balance --profile main
+bybit-analysis positions --profile main --format json
+bybit-analysis summary --project-root workspace/skills/bybit-analysis --profile main --window 30d --format md
+bybit-analysis summary --project-root workspace/skills/bybit-analysis --profile main --source bot --format json
 ```
