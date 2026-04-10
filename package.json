@@ -1,6 +1,6 @@
 {
   "name": "bybit-analysis",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "CLI for analyzing Bybit account data and printing schema-stable reports",
   "module": "dist/index.js",
   "type": "module",
@@ -37,5 +37,9 @@
   },
   "dependencies": {
     "decimal.js": "^10.6.0"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/pivotdude/bybit-analysis/issues"
+  },
+  "repository": "github:pivotdude/bybit-analysis"
 }
