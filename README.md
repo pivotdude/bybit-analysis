@@ -1,13 +1,5 @@
 # bybit-analysis
 
-> **Repository publication rule**
->
-> This repository previously contained API credentials in `.openclaude-profile.json` which were committed and pushed to GitHub. Even after local history cleanup, GitHub can retain old refs such as `refs/pull/*` that still expose those secrets.
->
-> **Do not make this existing repository public.** Create a completely new public repository and clean-push only the current working tree without history.
-
-Read-only analytics CLI for Bybit accounts. Outputs schema-stable Markdown for operators and versioned JSON for automation and agent consumption.
-
 ## Install
 
 ### Local development
